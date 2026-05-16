@@ -29,6 +29,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "today.empty.title": "All clear",
     "today.empty.sub": "Nothing on the plan for today. Add something below or pull from the Matrix.",
     "today.plan": "Today's plan",
+    "today.conviction": "Conviction",
+    "today.notnow": "Not prioritized",
+    "today.due": "Due",
+    "today.est": "Est",
+    "today.skip": "Skip",
 
     "matrix.title": "Matrix",
     "matrix.sub": "Eisenhower — urgent vs. important.",
@@ -165,6 +170,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "today.empty.title": "全部清空",
     "today.empty.sub": "今天没有安排。可以新建一项,或从矩阵里挑一个。",
     "today.plan": "今天的清单",
+    "today.conviction": "置信度",
+    "today.notnow": "未选入",
+    "today.due": "截止",
+    "today.est": "预估",
+    "today.skip": "跳过",
 
     "matrix.title": "矩阵",
     "matrix.sub": "艾森豪威尔 — 紧急 vs. 重要。",
