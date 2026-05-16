@@ -46,7 +46,14 @@ export interface Task {
 export interface CompletedEntry {
   id: string;
   title: LocalizedString;
+  /** Actual minutes spent (may differ from estimate). */
   duration: number;
+  /** ISO timestamp when the focus session started. */
+  startedAt?: string;
+  /** ISO timestamp when the task was marked complete. */
+  completedAt?: string;
+  /** Quadrant of the source task, for the timeline chip. */
+  quadrant?: Quadrant;
 }
 
 export interface User {
