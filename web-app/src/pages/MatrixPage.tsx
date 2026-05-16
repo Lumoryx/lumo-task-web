@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useT, useLocaleString } from "@/i18n/useT";
 import type { Quadrant, Task } from "@/types/task";
@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { fmtDuration } from "@/lib/format";
 import { IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
+import { TaskActionPopover } from "@/components/TaskActionPopover";
 
 /**
  * Eisenhower 2×2. Each quadrant is a column with a header and a stack
@@ -126,8 +127,6 @@ function makeDragProps(taskId: string) {
 
 function QuadrantPanel({ id, title, subtitle }: { id: Quadrant; title: string; subtitle: string }) {
   const tasks = useTasksStore((s) => s.byQuadrant(id));
-  const ls = useLocaleString();
-  const locale = useAppStore((s) => s.locale);
   const t = useT();
   const { over, handlers } = useTaskDrop(id);
 
@@ -159,26 +158,60 @@ function QuadrantPanel({ id, title, subtitle }: { id: Quadrant; title: string; s
           </div>
         )}
         {tasks.map((task) => (
-          <div
-            key={task.id}
-            {...makeDragProps(task.id)}
-            className="flex items-center gap-2.5 rounded-md px-2.5 py-2 hover:bg-subtle transition-colors cursor-grab active:cursor-grabbing"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] text-text-primary truncate">{ls(task.title)}</div>
-              <div className="text-[11px] text-text-muted tabular-nums mt-0.5">
-                {fmtDuration(task.duration, locale)}
-                {task.due && <span className="ml-2">· {task.due}</span>}
-              </div>
-            </div>
-            <span className="pip">
-              {Array.from({ length: task.pomos_total }).map((_, i) => (
-                <i key={i} className={i < task.pomos_done ? "on" : ""} />
-              ))}
-            </span>
-          </div>
+          <MatrixTaskCard key={task.id} task={task} />
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ── Matrix task card with circle action trigger ─────────────────── */
+
+function MatrixTaskCard({ task }: { task: Task }) {
+  const ls = useLocaleString();
+  const locale = useAppStore((s) => s.locale);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const openPopover = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) setAnchor(rect);
+  };
+
+  return (
+    <div
+      {...makeDragProps(task.id)}
+      className="relative flex items-center gap-2.5 rounded-md px-2.5 py-2 hover:bg-subtle transition-colors cursor-grab active:cursor-grabbing"
+    >
+      {/* Circle action trigger */}
+      <button
+        ref={btnRef}
+        onClick={openPopover}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="flex-shrink-0 w-4 h-4 rounded-full border-[1.5px] transition-all cursor-default"
+        style={{
+          borderColor: anchor ? "var(--accent-primary)" : "var(--border-strong)",
+          boxShadow: anchor ? "0 0 6px var(--accent-glow)" : "none",
+          background: "transparent",
+        }}
+      />
+      {anchor && (
+        <TaskActionPopover task={task} anchor={anchor} onClose={() => setAnchor(null)} />
+      )}
+
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] text-text-primary truncate">{ls(task.title)}</div>
+        <div className="text-[11px] text-text-muted tabular-nums mt-0.5">
+          {fmtDuration(task.duration, locale)}
+          {task.due && <span className="ml-2">· {task.due}</span>}
+        </div>
+      </div>
+      <span className="pip">
+        {Array.from({ length: task.pomos_total }).map((_, i) => (
+          <i key={i} className={i < task.pomos_done ? "on" : ""} />
+        ))}
+      </span>
     </div>
   );
 }
