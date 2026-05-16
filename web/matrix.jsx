@@ -322,12 +322,24 @@ function ClassifyConfirmDialog({ lang, t, tasks, onClose, onApply }) {
               {lang === "zh" ? "看一下,可以单个改象限,确认后一次性应用。" : "Review and override any quadrant. We'll apply all changes at once."}
             </div>
           </div>
-          <span style={{
-            padding: "2px 6px", borderRadius: 3, fontSize: 10,
-            border: "1px solid var(--border-default)",
-            background: "var(--bg-base)", fontFamily: "var(--font-mono)",
-            color: "var(--text-faint)", flexShrink: 0
-          }}>esc</span>
+          <button
+            onClick={onClose}
+            aria-label={lang === "zh" ? "关闭" : "Close"}
+            title={lang === "zh" ? "关闭" : "Close"}
+            style={{
+              width: 24, height: 24, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              borderRadius: 6,
+              background: "transparent",
+              border: "1px solid var(--border-default)",
+              color: "var(--text-muted)",
+              cursor: "default", fontFamily: "inherit",
+              transition: "all 120ms var(--ease-default)"
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--text-primary)"; e.currentTarget.style.borderColor = "var(--border-strong)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border-default)"; }}>
+            <span style={{ width: 12, height: 12, display: "inline-flex" }}>{ICON.close}</span>
+          </button>
         </div>
 
         {/* Summary bar */}

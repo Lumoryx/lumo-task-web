@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Lumo Task — Design Tokens
+ * Ported from the design system. Accent colors are swapped at runtime by
+ * the appearance store (see src/store/useAppStore.ts).
+ * ──────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg-base: #0d1210;
+  --bg-surface: #141a17;
+  --bg-elevated: #1c2420;
+  --bg-subtle: #1f2822;
+  --bg-deep: #080b0a;
+  --border-default: #2a3530;
+  --border-strong: #3a4840;
+  --border-faint: #1e2622;
+
+  /* Text */
+  --text-primary: #e8ede9;
+  --text-secondary: #8fa89a;
+  --text-muted: #5a7268;
+  --text-faint: #3f524a;
+  --text-inverse: #0d1210;
+
+  /* Accent — overridden by JS for theme switch */
+  --accent-primary: #3dffa0;
+  --accent-dim: #1a7a4a;
+  --accent-glow: rgba(61, 255, 160, 0.25);
+  --accent-fog: rgba(61, 255, 160, 0.1);
+  --accent-edge: rgba(61, 255, 160, 0.5);
+
+  /* Semantic */
+  --status-urgent: #ff6b6b;
+  --status-success: #a8e64b;
+  --status-warning: #ffb347;
+  --status-info: #5bc8d4;
+
+  /* Quadrants */
+  --q1-color: #ff6b6b;
+  --q2-color: #a8e64b;
+  --q3-color: #5bc8d4;
+  --q4-color: #6b7e78;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lifted: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-window: 0 30px 80px rgba(0, 0, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.4);
+
+  /* Motion */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: "Inter", "Noto Sans SC", "PingFang SC", system-ui, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+
+/* ── Quadrant accents ──────────────────────────────────────────────── */
+.qdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.qdot-q1 { background: var(--q1-color); }
+.qdot-q2 { background: var(--q2-color); }
+.qdot-q3 { background: var(--q3-color); }
+.qdot-q4 { background: var(--q4-color); }
+.qdot-un { background: var(--text-faint); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 22px; padding: 0 8px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 500; border: 1px solid;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+}
+.chip-q1 { color: var(--q1-color); border-color: rgba(255, 107, 107, 0.35); background: rgba(255, 107, 107, 0.08); }
+.chip-q2 { color: var(--q2-color); border-color: rgba(168, 230, 75, 0.3);  background: rgba(168, 230, 75, 0.06); }
+.chip-q3 { color: var(--q3-color); border-color: rgba(91, 200, 212, 0.3);  background: rgba(91, 200, 212, 0.06); }
+.chip-q4 { color: var(--q4-color); border-color: rgba(107, 126, 120, 0.3); background: rgba(107, 126, 120, 0.06); }
+.chip-ai { color: var(--accent-primary); border-color: var(--accent-edge); background: var(--accent-fog); }
+
+/* Pomodoro pip */
+.pip { display: inline-flex; gap: 3px; }
+.pip i {
+  width: 6px; height: 6px; border-radius: 50%; display: block;
+  background: var(--border-strong);
+}
+.pip i.on { background: var(--accent-primary); }
+
+/* ── Lumo presence — breathing glyph ───────────────────────────────── */
+.lumo-glyph { width: 16px; height: 16px; position: relative; flex-shrink: 0; display: inline-block; }
+.lumo-glyph .core {
+  position: absolute; inset: 5px; border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary);
+  animation: lumoBreath 3s ease-in-out infinite;
+}
+.lumo-glyph .halo {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: var(--accent-glow);
+  animation: lumoBreath 3s ease-in-out infinite reverse;
+}
+@keyframes lumoBreath {
+  0%, 100% { opacity: 0.6; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Lumo Pulse — ambient top bar ──────────────────────────────────── */
+.lumo-pulse {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%, var(--accent-edge) 20%, var(--accent-primary) 50%,
+    var(--accent-edge) 80%, transparent 100%);
+  opacity: 0;
+  animation: lumoPulse 6s ease-in-out infinite;
+  z-index: 11;
+}
+@keyframes lumoPulse {
+  0%, 100% { opacity: 0; transform: scaleX(0.7); }
+  50% { opacity: 0.55; transform: scaleX(1); }
+}
+
+/* ── Buttons & inputs ──────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; padding: 0 14px; border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 500; font-family: inherit;
+  border: 1px solid transparent; background: transparent; color: var(--text-primary);
+  cursor: default; white-space: nowrap;
+  transition: all 120ms var(--ease-default);
+}
+.btn:disabled { opacity: 0.5; }
+.btn-primary { background: var(--accent-primary); color: var(--text-inverse); font-weight: 600; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-secondary {
+  background: var(--bg-elevated); color: var(--text-primary);
+  border-color: var(--border-default);
+}
+.btn-secondary:hover { background: var(--bg-subtle); border-color: var(--border-strong); }
+.btn-ghost { color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--bg-subtle); color: var(--text-primary); }
+.btn-lg { height: 44px; padding: 0 22px; font-size: 14px; }
+
+.input {
+  width: 100%; height: 40px; padding: 0 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface); border: 1px solid var(--border-default);
+  color: var(--text-primary); font-family: inherit; font-size: 14px;
+  transition: all 120ms var(--ease-default);
+}
+.input::placeholder { color: var(--text-muted); }
+.input:focus { outline: none; border-color: var(--border-strong); box-shadow: 0 0 0 2px var(--accent-fog); }
+
+/* Sidebar nav item */
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  height: 36px; margin: 1px 10px; padding: 0 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 13px; font-weight: 500;
+  cursor: default; user-select: none; position: relative;
+  transition: all 120ms var(--ease-default);
+}
+.nav-item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+.nav-item.active { background: var(--bg-surface); color: var(--text-primary); }
+.nav-item.active::before {
+  content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px;
+  width: 2px; background: var(--accent-primary); border-radius: 0 2px 2px 0;
+}
+.nav-item .badge {
+  margin-left: auto; font-size: 11px; font-weight: 500;
+  color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+
+/* Animations */
+.fade-in { animation: fadeIn 240ms var(--ease-enter) both; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar */
+.scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.scroll-y::-webkit-scrollbar { width: 8px; }
+.scroll-y::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+
+/* Number input — strip native spinners (used in QuickCreate) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }

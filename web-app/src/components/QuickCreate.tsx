@@ -1,0 +1,179 @@
+import { useEffect, useState } from "react";
+import { IconClose } from "@/components/icons";
+import { useT } from "@/i18n/useT";
+import { useAppStore } from "@/store/useAppStore";
+import { useTasksStore } from "@/store/useTasksStore";
+import type { Quadrant } from "@/types/task";
+
+interface QuickCreateProps {
+  initialQuadrant?: Quadrant;
+  onClose: () => void;
+  onCreated?: () => void;
+}
+
+const QUADRANTS: Quadrant[] = ["Q1", "Q2", "Q3", "Q4"];
+
+/**
+ * Modal for creating a task quickly. Per Jalen: dismiss is a real close
+ * button (X) in the header — not an `esc` keyboard hint chip. Escape
+ * still works as a convenience.
+ */
+export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: QuickCreateProps) {
+  const t = useT();
+  const locale = useAppStore((s) => s.locale);
+  const create = useTasksStore((s) => s.create);
+
+  const [title, setTitle] = useState("");
+  const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
+  const [duration, setDuration] = useState(30);
+  const [due, setDue] = useState<string | null>("today");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, quadrant, duration, due]);
+
+  async function submit() {
+    if (!title.trim()) return;
+    await create({
+      title: { en: title.trim(), zh: title.trim() },
+      quadrant,
+      today: due === "today",
+      due,
+      duration,
+      pomos_done: 0,
+      pomos_total: Math.max(1, Math.ceil(duration / 25)),
+    });
+    onCreated?.();
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      className="fade-in absolute inset-0 z-[150] flex items-end justify-center"
+      style={{
+        background: "rgba(8, 11, 10, 0.55)",
+        backdropFilter: "blur(4px)",
+        padding: "0 32px 32px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full overflow-hidden border rounded-[14px] bg-elevated shadow-lifted"
+        style={{ maxWidth: 520, borderColor: "var(--accent-edge)", boxShadow: "var(--shadow-lifted), 0 0 50px var(--accent-fog)" }}
+      >
+        {/* Header — title + close button (per Jalen) */}
+        <header className="flex items-start gap-3 px-[18px] py-4 border-b border-border-faint">
+          <span className="lumo-glyph" style={{ width: 14, height: 14, marginTop: 3 }}>
+            <span className="halo" />
+            <span className="core" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold text-text-primary">{t("qc.title")}</div>
+            <div className="mt-0.5 text-[11px] text-text-muted">
+              {locale === "zh"
+                ? "选个象限和时长,我会帮你排上。"
+                : "Pick a quadrant + estimate. I'll slot it in."}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label={t("qc.close")}
+            title={t("qc.close")}
+            className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-md text-text-muted border border-border-default bg-transparent hover:bg-subtle hover:text-text-primary hover:border-border-strong transition-colors"
+          >
+            <IconClose size={12} />
+          </button>
+        </header>
+
+        {/* Body */}
+        <div className="px-[18px] py-4 flex flex-col gap-4">
+          {/* Title */}
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+              {locale === "zh" ? "任务" : "Task"}
+            </div>
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t("qc.placeholder")}
+              className="input"
+              style={{ height: 40, fontSize: 14, fontWeight: 500 }}
+            />
+          </div>
+
+          {/* Quadrant chips */}
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+              {t("qc.quadrant")}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {QUADRANTS.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => setQuadrant(q)}
+                  className="flex items-center gap-1.5 text-xs border rounded-md transition-colors"
+                  style={{
+                    padding: "6px 10px",
+                    background: quadrant === q ? "var(--bg-subtle)" : "var(--bg-surface)",
+                    borderColor: quadrant === q ? "var(--border-strong)" : "var(--border-default)",
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  <span className={`qdot qdot-${q.toLowerCase()}`} />
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Due + Duration */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+                {t("qc.due")}
+              </div>
+              <select
+                value={due ?? ""}
+                onChange={(e) => setDue(e.target.value || null)}
+                className="input"
+              >
+                <option value="">—</option>
+                <option value="today">{locale === "zh" ? "今天" : "Today"}</option>
+                <option value="Fri">{locale === "zh" ? "周五" : "Fri"}</option>
+                <option value="next wk">{locale === "zh" ? "下周" : "Next week"}</option>
+              </select>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+                {t("qc.duration")}
+              </div>
+              <input
+                type="number"
+                min={5}
+                step={5}
+                value={duration}
+                onChange={(e) => setDuration(Math.max(5, Number(e.target.value) || 0))}
+                className="input"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="flex items-center justify-end gap-2 px-[18px] py-3 border-t border-border-faint">
+          <button className="btn btn-ghost" onClick={onClose}>{t("qc.cancel")}</button>
+          <button className="btn btn-primary" disabled={!title.trim()} onClick={submit}>
+            {t("qc.create")}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}

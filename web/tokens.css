@@ -88,51 +88,24 @@ body {
 
 .stage {
   position: fixed; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
+  display: flex;
 }
 
-/* ── Window frame ────────────────────────────────────── */
+/* ── App frame — full-viewport (web / Windows desktop pattern) ───────── */
 .win {
-  width: 1280px; height: 820px;
-  border-radius: 14px;
+  width: 100%; height: 100%;
+  border-radius: 0;
   background: var(--bg-base);
-  box-shadow: var(--shadow-window), inset 0 0 0 1px rgba(255,255,255,0.06);
   overflow: hidden;
   display: flex; flex-direction: column;
   position: relative;
 }
 
-.win-titlebar {
-  height: 36px; flex-shrink: 0;
-  display: flex; align-items: center; padding: 0 14px;
-  background: linear-gradient(180deg, #161D1A 0%, #111714 100%);
-  border-bottom: 1px solid var(--border-faint);
-  position: relative; z-index: 10;
-}
-.win-titlebar .traffic {
-  display: flex; gap: 8px; align-items: center;
-}
-.win-titlebar .traffic > i {
-  width: 12px; height: 12px; border-radius: 50%;
-  display: block;
-  box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.3);
-}
-.win-titlebar .traffic > i:nth-child(1) { background: #ff5f57; }
-.win-titlebar .traffic > i:nth-child(2) { background: #febc2e; }
-.win-titlebar .traffic > i:nth-child(3) { background: #28c840; }
-.win-titlebar .title {
-  position: absolute; left: 0; right: 0;
-  text-align: center;
-  font-size: 12px; font-weight: 500; color: var(--text-muted);
-  letter-spacing: 0.01em;
-  pointer-events: none;
-}
 .win-body { flex: 1; display: flex; min-height: 0; }
 
 /* ── Lumo Pulse — top ambient bar ───────────────────── */
 .lumo-pulse {
-  position: absolute; left: 0; right: 0; top: 36px;
+  position: absolute; left: 0; right: 0; top: 0;
   height: 1px;
   background: linear-gradient(90deg,
     transparent 0%,
