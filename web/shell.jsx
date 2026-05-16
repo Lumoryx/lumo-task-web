@@ -91,6 +91,11 @@ const ICON = {
       <circle cx="9" cy="6" r="1.4" /><circle cx="15" cy="6" r="1.4" />
       <circle cx="9" cy="12" r="1.4" /><circle cx="15" cy="12" r="1.4" />
       <circle cx="9" cy="18" r="1.4" /><circle cx="15" cy="18" r="1.4" />
+    </svg>,
+
+  close:
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 6l12 12M18 6L6 18" />
     </svg>
 
 };
@@ -112,16 +117,12 @@ function LumoGlyph({ size = 22 }) {
 
 }
 
-// ── Window chrome ────────────────────────────────────────────────────────
+// ── App shell — full-viewport (web / Windows-desktop layout) ─────────────
 function Window({ children, pulse = "default" }) {
   return (
     <div className="stage">
       <div className="page-bg" />
       <div className="win">
-        <div className="win-titlebar">
-          <div className="traffic"><i /><i /><i /></div>
-          <div className="title">Lumo Task</div>
-        </div>
         <div className={"lumo-pulse " + (pulse === "reduced" ? "lumo-pulse-reduced" : "")} />
         <div className="win-body">{children}</div>
       </div>
@@ -214,8 +215,8 @@ function Topbar({ title, sub, t, onLogin, onQuickAdd }) {
         <input
           type="text"
           placeholder={t("topbar.search")}
-          className="topbar-search-input"
-        />
+          className="topbar-search-input" />
+        
         <span className="topbar-search-kbd">⌘K</span>
       </div>
       <button className="icon-btn" title={t("topbar.quickadd")} onClick={onQuickAdd}>{ICON.plus}</button>
@@ -235,18 +236,18 @@ function TaskActions({ lang, onClose, align = "right" }) {
     return () => {window.removeEventListener("keydown", onKey);window.removeEventListener("mousedown", onClick);};
   }, []);
   const items = [
-    { key: "edit", label: lang === "zh" ? "编辑" : "Edit", hint: "E", icon:
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg> },
-    { key: "move", label: lang === "zh" ? "移动象限" : "Move quadrant", hint: "M", icon:
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4"/><path d="M9 5v14"/><path d="M19 15l-4 4-4-4"/><path d="M15 19V5"/></svg> },
-    { key: "snooze", label: lang === "zh" ? "稍后提醒" : "Snooze", icon:
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M5 4l3 2M19 4l-3 2"/></svg> },
-    { key: "duplicate", label: lang === "zh" ? "复制" : "Duplicate", icon:
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></svg> },
-    { key: "divider" },
-    { key: "delete", label: lang === "zh" ? "删除" : "Delete", danger: true, icon:
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></svg> }
-  ];
+  { key: "edit", label: lang === "zh" ? "编辑" : "Edit", hint: "E", icon:
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></svg> },
+  { key: "move", label: lang === "zh" ? "移动象限" : "Move quadrant", hint: "M", icon:
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4" /><path d="M9 5v14" /><path d="M19 15l-4 4-4-4" /><path d="M15 19V5" /></svg> },
+  { key: "snooze", label: lang === "zh" ? "稍后提醒" : "Snooze", icon:
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M5 4l3 2M19 4l-3 2" /></svg> },
+  { key: "duplicate", label: lang === "zh" ? "复制" : "Duplicate", icon:
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M4 16V6a2 2 0 0 1 2-2h10" /></svg> },
+  { key: "divider" },
+  { key: "delete", label: lang === "zh" ? "删除" : "Delete", danger: true, icon:
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" /></svg> }];
+
 
   return (
     <div data-task-actions style={{
@@ -260,28 +261,28 @@ function TaskActions({ lang, onClose, align = "right" }) {
       animation: "fadeIn 140ms var(--ease-default) both"
     }}>
       {items.map((it) => it.key === "divider" ?
-        <div key="d" style={{ height: 1, background: "var(--border-faint)", margin: "4px 6px" }} /> :
-        <button key={it.key}
-          onClick={onClose}
-          style={{
-            display: "flex", alignItems: "center", width: "100%", gap: 10,
-            padding: "7px 10px", borderRadius: 6,
-            background: "transparent", border: "none",
-            color: it.danger ? "var(--status-urgent)" : "var(--text-primary)",
-            fontFamily: "inherit", fontSize: 13, textAlign: "left",
-            cursor: "default",
-            transition: "background 120ms var(--ease-default)"
-          }}
-          onMouseEnter={(e) => {e.currentTarget.style.background = it.danger ? "rgba(255, 107, 107, 0.08)" : "var(--bg-subtle)";}}
-          onMouseLeave={(e) => {e.currentTarget.style.background = "transparent";}}>
+      <div key="d" style={{ height: 1, background: "var(--border-faint)", margin: "4px 6px" }} /> :
+      <button key={it.key}
+      onClick={onClose}
+      style={{
+        display: "flex", alignItems: "center", width: "100%", gap: 10,
+        padding: "7px 10px", borderRadius: 6,
+        background: "transparent", border: "none",
+        color: it.danger ? "var(--status-urgent)" : "var(--text-primary)",
+        fontFamily: "inherit", fontSize: 13, textAlign: "left",
+        cursor: "default",
+        transition: "background 120ms var(--ease-default)"
+      }}
+      onMouseEnter={(e) => {e.currentTarget.style.background = it.danger ? "rgba(255, 107, 107, 0.08)" : "var(--bg-subtle)";}}
+      onMouseLeave={(e) => {e.currentTarget.style.background = "transparent";}}>
           {it.icon && <span style={{ width: 14, height: 14, display: "inline-flex", flexShrink: 0, opacity: 0.8 }}>{it.icon}</span>}
           <span style={{ flex: 1 }}>{it.label}</span>
           {it.hint && <span style={{
-            fontSize: 10, color: "var(--text-faint)",
-            fontFamily: "var(--font-mono)",
-            padding: "1px 5px", borderRadius: 3,
-            border: "1px solid var(--border-default)"
-          }}>{it.hint}</span>}
+          fontSize: 10, color: "var(--text-faint)",
+          fontFamily: "var(--font-mono)",
+          padding: "1px 5px", borderRadius: 3,
+          border: "1px solid var(--border-default)"
+        }}>{it.hint}</span>}
         </button>
       )}
     </div>);
@@ -295,18 +296,18 @@ function TaskRow({ task, lang, onComplete, compact = false }) {
   const [hovered, setHovered] = React.useState(false);
   return (
     <div className="row-task"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex", alignItems: "center", gap: 12,
-        padding: compact ? "10px 0 10px 8px" : "14px 0 14px 8px",
-        borderBottom: "1px solid var(--border-faint)",
-        marginLeft: -8, paddingRight: 8, marginRight: -8,
-        borderRadius: 6,
-        background: hovered || menuOpen ? "var(--bg-subtle)" : "transparent",
-        transition: "background 120ms var(--ease-default)",
-        position: "relative"
-      }}>
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
+    style={{
+      display: "flex", alignItems: "center", gap: 12,
+      padding: compact ? "10px 0 10px 8px" : "14px 0 14px 8px",
+      borderBottom: "1px solid var(--border-faint)",
+      marginLeft: -8, paddingRight: 8, marginRight: -8,
+      borderRadius: 6,
+      background: hovered || menuOpen ? "var(--bg-subtle)" : "transparent",
+      transition: "background 120ms var(--ease-default)",
+      position: "relative"
+    }}>
       <button
         onClick={() => onComplete && onComplete(task.id)}
         style={{
@@ -340,20 +341,20 @@ function TaskRow({ task, lang, onComplete, compact = false }) {
       }
       <div style={{ position: "relative" }} data-task-actions>
         <button
-          onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+          onClick={(e) => {e.stopPropagation();setMenuOpen((v) => !v);}}
           style={{
             width: 28, height: 28, borderRadius: 6,
             display: "flex", alignItems: "center", justifyContent: "center",
             background: menuOpen ? "var(--bg-elevated)" : "transparent",
             border: "none",
             // Default tone matches the row's muted content color; lifts on row hover / menu open
-            color: menuOpen ? "var(--text-primary)" : (hovered ? "var(--text-secondary)" : "var(--text-faint)"),
+            color: menuOpen ? "var(--text-primary)" : hovered ? "var(--text-secondary)" : "var(--text-faint)",
             cursor: "default", fontFamily: "inherit",
             transition: "all 120ms var(--ease-default)",
             opacity: hovered || menuOpen ? 1 : 0.55
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-elevated)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-          onMouseLeave={(e) => { if (!menuOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = hovered ? "var(--text-secondary)" : "var(--text-faint)"; } }}>
+          onMouseEnter={(e) => {e.currentTarget.style.background = "var(--bg-elevated)";e.currentTarget.style.color = "var(--text-primary)";}}
+          onMouseLeave={(e) => {if (!menuOpen) {e.currentTarget.style.background = "transparent";e.currentTarget.style.color = hovered ? "var(--text-secondary)" : "var(--text-faint)";}}}>
           <span style={{ width: 16, height: 16, display: "inline-flex" }}>{ICON.more}</span>
         </button>
         {menuOpen && <TaskActions lang={lang} onClose={() => setMenuOpen(false)} />}

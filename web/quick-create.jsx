@@ -292,12 +292,28 @@ function QuickCreate({ lang, t, onClose, aiVariant, initialQuadrant }) {
             {lang === "zh" ? "新建任务" : "Create task"}
           </span>
           <span style={{ flex: 1 }} />
-          <span style={{
-            padding: "1px 5px", borderRadius: 3, fontSize: 10,
-            border: "1px solid var(--border-default)",
-            background: "var(--bg-base)", fontFamily: "var(--font-mono)",
-            color: "var(--text-faint)"
-          }}>esc</span>
+          <button
+            onClick={onClose}
+            aria-label={lang === "zh" ? "关闭" : "Close"}
+            title={lang === "zh" ? "关闭" : "Close"}
+            style={{
+              width: 26, height: 26, borderRadius: 6,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "transparent", border: "none",
+              color: "var(--text-muted)", cursor: "default",
+              fontFamily: "inherit",
+              transition: "all 120ms var(--ease-default)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-subtle)";
+              e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--text-muted)";
+            }}>
+            <span style={{ width: 14, height: 14, display: "inline-flex" }}>{ICON.close}</span>
+          </button>
         </div>
 
         {/* Body */}
@@ -346,31 +362,31 @@ function QuickCreate({ lang, t, onClose, aiVariant, initialQuadrant }) {
                 display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6
               }}>
                 {[
-                  { q: "Q1", title: lang === "zh" ? "立即做" : "Do first", sub: lang === "zh" ? "重要 · 紧急" : "Urgent · Important", fog: "rgba(255, 107, 107, 0.14)" },
-                  { q: "Q2", title: lang === "zh" ? "安排做" : "Schedule", sub: lang === "zh" ? "重要 · 不紧急" : "Important · Later", fog: "rgba(168, 230, 75, 0.14)" },
-                  { q: "Q3", title: lang === "zh" ? "委托做" : "Delegate", sub: lang === "zh" ? "紧急 · 不重要" : "Urgent · Minor", fog: "rgba(91, 200, 212, 0.14)" },
-                  { q: "Q4", title: lang === "zh" ? "减少做" : "Drop", sub: lang === "zh" ? "不紧急 · 不重要" : "Not urgent · Minor", fog: "rgba(107, 126, 120, 0.14)" }
-                ].map(({ q, title: qTitle, sub, fog }) => {
+                { q: "Q1", title: lang === "zh" ? "立即做" : "Do first", sub: lang === "zh" ? "重要 · 紧急" : "Urgent · Important", fog: "rgba(255, 107, 107, 0.14)" },
+                { q: "Q2", title: lang === "zh" ? "安排做" : "Schedule", sub: lang === "zh" ? "重要 · 不紧急" : "Important · Later", fog: "rgba(168, 230, 75, 0.14)" },
+                { q: "Q3", title: lang === "zh" ? "委托做" : "Delegate", sub: lang === "zh" ? "紧急 · 不重要" : "Urgent · Minor", fog: "rgba(91, 200, 212, 0.14)" },
+                { q: "Q4", title: lang === "zh" ? "减少做" : "Drop", sub: lang === "zh" ? "不紧急 · 不重要" : "Not urgent · Minor", fog: "rgba(107, 126, 120, 0.14)" }].
+                map(({ q, title: qTitle, sub, fog }) => {
                   const active = q === quadrant;
                   const qVar = `var(--${q.toLowerCase()}-color)`;
                   return (
                     <button key={q}
-                      onClick={() => setQuadrant(q)}
-                      style={{
-                        padding: "9px 10px 10px",
-                        display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3,
-                        background: active ? "var(--bg-elevated)" : "transparent",
-                        border: "1px solid " + (active ? qVar : "var(--border-default)"),
-                        borderRadius: 8,
-                        color: "var(--text-primary)",
-                        cursor: "default", fontFamily: "inherit",
-                        position: "relative", textAlign: "left",
-                        transition: "all 120ms var(--ease-default)",
-                        boxShadow: active ? `0 0 0 3px ${fog}` : "none",
-                        overflow: "hidden"
-                      }}
-                      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-subtle)"; }}
-                      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+                    onClick={() => setQuadrant(q)}
+                    style={{
+                      padding: "9px 10px 10px",
+                      display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3,
+                      background: active ? "var(--bg-elevated)" : "transparent",
+                      border: "1px solid " + (active ? qVar : "var(--border-default)"),
+                      borderRadius: 8,
+                      color: "var(--text-primary)",
+                      cursor: "default", fontFamily: "inherit",
+                      position: "relative", textAlign: "left",
+                      transition: "all 120ms var(--ease-default)",
+                      boxShadow: active ? `0 0 0 3px ${fog}` : "none",
+                      overflow: "hidden"
+                    }}
+                    onMouseEnter={(e) => {if (!active) e.currentTarget.style.background = "var(--bg-subtle)";}}
+                    onMouseLeave={(e) => {if (!active) e.currentTarget.style.background = "transparent";}}>
                       {/* Row 1 — Q-pill */}
                       <div style={{
                         display: "inline-flex", alignItems: "center", gap: 4,
@@ -406,8 +422,8 @@ function QuickCreate({ lang, t, onClose, aiVariant, initialQuadrant }) {
                         whiteSpace: "nowrap", textOverflow: "ellipsis",
                         overflow: "hidden", maxWidth: "100%"
                       }}>{sub}</div>
-                    </button>
-                  );
+                    </button>);
+
                 })}
               </div>
             </ParsedField>
