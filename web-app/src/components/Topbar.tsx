@@ -1,5 +1,7 @@
+import { useNavigate } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { IconPlus, IconSearch } from "@/components/icons";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface TopbarProps {
   title: string;
@@ -14,6 +16,8 @@ interface TopbarProps {
  */
 export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
   const t = useT();
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
   return (
     <div className="flex items-center gap-4 px-7 border-b border-border-faint" style={{ height: 56 }}>
       <div>
@@ -52,16 +56,18 @@ export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
         <IconPlus size={16} />
       </button>
 
-      {/* Avatar */}
-      <div
-        className="flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-semibold text-text-inverse"
+      {/* Avatar — click to go to account/profile */}
+      <button
+        onClick={() => navigate("/account")}
+        title={user.name}
+        className="flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-semibold text-text-inverse flex-shrink-0 transition-opacity hover:opacity-80 active:opacity-60"
         style={{
           background: "linear-gradient(135deg, var(--accent-dim), var(--accent-primary))",
           boxShadow: "0 0 0 1px var(--border-default)",
         }}
       >
-        AS
-      </div>
+        {user.initials}
+      </button>
     </div>
   );
 }

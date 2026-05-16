@@ -154,10 +154,15 @@ export const api = {
     await delay();
     const task = state.tasks.find((t) => t.id === id);
     if (!task) throw new Error(`Task ${id} not found`);
+    const completedAt = new Date().toISOString();
+    const startedAt = new Date(Date.now() - task.duration * 60 * 1000).toISOString();
     const log: CompletedEntry = {
       id: `c${Date.now()}`,
       title: task.title,
       duration: task.duration,
+      quadrant: task.quadrant,
+      startedAt,
+      completedAt,
     };
     state = {
       ...state,
