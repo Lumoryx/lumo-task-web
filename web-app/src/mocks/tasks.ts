@@ -144,15 +144,35 @@ export const SEED_TASKS: Task[] = [
   },
 ];
 
+function todayAt(h: number, m: number) {
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
 export const SEED_COMPLETED_TODAY: CompletedEntry[] = [
   {
     id: "c1",
     title: { en: "Reply to design feedback from Pieter", zh: "回复 Pieter 的设计反馈" },
     duration: 18,
+    quadrant: "Q2",
+    startedAt: todayAt(8, 55),
+    completedAt: todayAt(9, 13),
   },
   {
     id: "c2",
     title: { en: "Set up next week's calendar blocks", zh: "排好下周的日程块" },
     duration: 12,
+    quadrant: "Q3",
+    startedAt: todayAt(9, 20),
+    completedAt: todayAt(9, 32),
+  },
+  {
+    id: "c3",
+    title: { en: "Review pull request #47", zh: "Review PR #47" },
+    duration: 25,
+    quadrant: "Q1",
+    startedAt: todayAt(10, 5),
+    completedAt: todayAt(10, 30),
   },
 ];
