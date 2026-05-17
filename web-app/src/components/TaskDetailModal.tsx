@@ -46,7 +46,6 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const navigate = useNavigate();
   const locale = useAppStore((s) => s.locale);
   const complete = useTasksStore((s) => s.complete);
-  const update = useTasksStore((s) => s.update);
   const byId = usePeopleStore((s) => s.byId);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -60,9 +59,6 @@ export function TaskDetailModal({ task, onClose }: Props) {
     onClose();
   }
 
-  async function handleToggleToday() {
-    await update(task.id, { today: !task.today });
-  }
 
   if (editOpen) {
     return <TaskEditModal task={task} onClose={() => { setEditOpen(false); onClose(); }} />;
@@ -167,23 +163,6 @@ export function TaskDetailModal({ task, onClose }: Props) {
             </div>
           )}
 
-          {/* Today status */}
-          <div className="col-span-2 flex items-center gap-2">
-            <span className="text-[11px] font-medium" style={{ color: "var(--text-faint)", minWidth: 64 }}>
-              Today
-            </span>
-            <button
-              onClick={handleToggleToday}
-              className="flex items-center gap-1.5 h-6 px-2.5 rounded-md text-[11px] font-medium transition-colors"
-              style={{
-                border: task.today ? "1px solid var(--accent-edge)" : "1px solid var(--border-default)",
-                background: task.today ? "var(--accent-fog)" : "transparent",
-                color: task.today ? "var(--accent-primary)" : "var(--text-faint)",
-              }}
-            >
-              {task.today ? t("detail.today.remove") : t("detail.today.add")}
-            </button>
-          </div>
         </div>
 
         {/* Next step */}
@@ -217,21 +196,21 @@ export function TaskDetailModal({ task, onClose }: Props) {
           </button>
 
           <button
-            className="btn btn-secondary"
-            onClick={() => setEditOpen(true)}
+            className="btn btn-secondary flex items-center gap-1.5"
+            onClick={handleComplete}
           >
-            {t("detail.edit")}
+            <IconCheck size={13} />
+            {t("detail.complete")}
           </button>
 
           <div style={{ flex: 1 }} />
 
           <button
-            className="btn btn-ghost flex items-center gap-1.5"
+            className="btn btn-ghost"
             style={{ color: "var(--text-muted)" }}
-            onClick={handleComplete}
+            onClick={() => setEditOpen(true)}
           >
-            <IconCheck size={13} />
-            {t("detail.complete")}
+            {t("detail.edit")}
           </button>
         </footer>
       </div>
