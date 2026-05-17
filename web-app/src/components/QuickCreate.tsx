@@ -3,6 +3,8 @@ import { IconClose } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
+import { usePeopleStore } from "@/store/usePeopleStore";
+import { PersonAvatar } from "@/pages/SettingsPage";
 import type { Quadrant } from "@/types/task";
 
 interface QuickCreateProps {
@@ -29,6 +31,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   const t = useT();
   const locale = useAppStore((s) => s.locale);
   const create = useTasksStore((s) => s.create);
+  const people = usePeopleStore((s) => s.people);
 
   const todayISO = new Date().toISOString().split("T")[0];
 
@@ -37,6 +40,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   const [duration, setDuration] = useState(30);
   const [durationRaw, setDurationRaw] = useState("30");
   const [dueDate, setDueDate] = useState<string>(todayISO);
+  const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -58,6 +62,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
       duration,
       pomos_done: 0,
       pomos_total: Math.max(1, Math.ceil(duration / 25)),
+      assignee_id: assigneeId,
     });
     onCreated?.();
   }
@@ -228,6 +233,45 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
               </div>
             </div>
           </div>
+
+          {/* Assignee */}
+          {people.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+                {t("qc.assignee")}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setAssigneeId(undefined)}
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] transition-colors"
+                  style={{
+                    border: assigneeId === undefined ? "1px solid var(--accent-edge)" : "1px solid var(--border-default)",
+                    background: assigneeId === undefined ? "var(--accent-fog)" : "var(--bg-surface)",
+                    color: assigneeId === undefined ? "var(--accent-primary)" : "var(--text-secondary)",
+                  }}
+                >
+                  {t("qc.assignee.none")}
+                </button>
+                {people.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setAssigneeId(p.id)}
+                    className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] transition-colors"
+                    style={{
+                      border: assigneeId === p.id ? "1px solid var(--accent-edge)" : "1px solid var(--border-default)",
+                      background: assigneeId === p.id ? "var(--accent-fog)" : "var(--bg-surface)",
+                      color: assigneeId === p.id ? "var(--accent-primary)" : "var(--text-secondary)",
+                    }}
+                  >
+                    <PersonAvatar person={p} size={16} />
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

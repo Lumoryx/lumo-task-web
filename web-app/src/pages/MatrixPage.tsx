@@ -7,6 +7,8 @@ import { fmtDuration } from "@/lib/format";
 import { IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
 import { TaskActionPopover } from "@/components/TaskActionPopover";
+import { usePeopleStore } from "@/store/usePeopleStore";
+import { PersonAvatar } from "@/pages/SettingsPage";
 
 /**
  * Eisenhower 2×2. Each quadrant is a column with a header and a stack
@@ -192,8 +194,11 @@ function QuadrantPanel({ id, title, subtitle }: { id: Quadrant; title: string; s
 function MatrixTaskCard({ task }: { task: Task }) {
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
+  const byId = usePeopleStore((s) => s.byId);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
 
   const openPopover = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -228,6 +233,7 @@ function MatrixTaskCard({ task }: { task: Task }) {
           {task.due && <span className="ml-2">· {task.due}</span>}
         </div>
       </div>
+      {assignee && <PersonAvatar person={assignee} size={18} />}
       <span className="pip">
         {Array.from({ length: task.pomos_total }).map((_, i) => (
           <i key={i} className={i < task.pomos_done ? "on" : ""} />

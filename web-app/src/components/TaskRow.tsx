@@ -4,6 +4,8 @@ import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { fmtDuration, getDueLabel } from "@/lib/format";
 import { TaskActionPopover } from "@/components/TaskActionPopover";
+import { usePeopleStore } from "@/store/usePeopleStore";
+import { PersonAvatar } from "@/pages/SettingsPage";
 
 interface TaskRowProps {
   task: Task;
@@ -14,9 +16,12 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
+  const byId = usePeopleStore((s) => s.byId);
   const [hovered, setHovered] = useState(false);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
 
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
@@ -69,6 +74,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
           </span>
         </div>
       </div>
+      {assignee && <PersonAvatar person={assignee} size={20} />}
       {task.quadrant !== "unclassified" && (
         <span className={`chip chip-${task.quadrant.toLowerCase()}`}>{task.quadrant}</span>
       )}

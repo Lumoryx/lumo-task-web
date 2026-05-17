@@ -158,6 +158,21 @@ export const STRINGS: Record<Locale, Dict> = {
     "account.danger": "Danger zone",
     "account.delete": "Delete account",
     "account.delete.helper": "Permanently remove your data. This can't be undone.",
+
+    "settings.members": "Members",
+    "settings.members.add": "Add member",
+    "settings.members.name": "Name",
+    "settings.members.email": "Email",
+    "settings.members.color": "Color",
+    "settings.members.save": "Save",
+    "settings.members.cancel": "Cancel",
+    "settings.members.delete": "Remove",
+    "settings.members.empty": "No members yet. Add teammates to assign tasks.",
+    "settings.members.initials": "Initials",
+    "settings.members.edit": "Edit",
+
+    "qc.assignee": "Assignee",
+    "qc.assignee.none": "Unassigned",
   },
   zh: {
     "brand.name": "Lumo",
@@ -307,5 +322,20 @@ export const STRINGS: Record<Locale, Dict> = {
     "account.danger": "危险操作",
     "account.delete": "删除账号",
     "account.delete.helper": "永久删除你的数据。此操作不可撤销。",
+
+    "settings.members": "成员",
+    "settings.members.add": "添加成员",
+    "settings.members.name": "姓名",
+    "settings.members.email": "邮箱",
+    "settings.members.color": "颜色",
+    "settings.members.save": "保存",
+    "settings.members.cancel": "取消",
+    "settings.members.delete": "移除",
+    "settings.members.empty": "暂无成员。添加团队成员后可为任务指定责任人。",
+    "settings.members.initials": "缩写",
+    "settings.members.edit": "编辑",
+
+    "qc.assignee": "责任人",
+    "qc.assignee.none": "未指定",
   },
 };

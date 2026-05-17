@@ -11,6 +11,7 @@ import { RegisterPage } from "@/pages/RegisterPage";
 import { AccountPage } from "@/pages/AccountPage";
 import { applyAccentTheme, useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
+import { usePeopleStore } from "@/store/usePeopleStore";
 
 /**
  * App root.
@@ -23,6 +24,7 @@ export default function App() {
   const accent = useAppStore((s) => s.accent);
   const onboarded = useAppStore((s) => s.onboarded);
   const loadTasks = useTasksStore((s) => s.load);
+  const loadPeople = usePeopleStore((s) => s.load);
   const location = useLocation();
 
   useEffect(() => {
@@ -31,7 +33,8 @@ export default function App() {
 
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]);
+    loadPeople();
+  }, [loadTasks, loadPeople]);
 
   // First-run gate — redirect to onboarding unless already there.
   if (!onboarded && location.pathname !== "/onboarding") {
