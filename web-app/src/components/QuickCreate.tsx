@@ -14,10 +14,11 @@ interface QuickCreateProps {
 const QUADRANTS: Quadrant[] = ["Q1", "Q2", "Q3", "Q4"];
 
 const Q_META: Record<Quadrant, { en: string; zh: string; descEn: string; descZh: string }> = {
-  Q1: { en: "Do first",  zh: "立即做", descEn: "Urgent & important",      descZh: "紧急 + 重要" },
-  Q2: { en: "Schedule",  zh: "安排做", descEn: "Important, not urgent",   descZh: "重要，不紧急" },
-  Q3: { en: "Delegate",  zh: "委托做", descEn: "Urgent, not important",   descZh: "紧急，不重要" },
-  Q4: { en: "Drop",      zh: "减少做", descEn: "Neither",                 descZh: "都不是" },
+  Q1:           { en: "Do first",  zh: "立即做", descEn: "Urgent & important",    descZh: "紧急 + 重要" },
+  Q2:           { en: "Schedule",  zh: "安排做", descEn: "Important, not urgent", descZh: "重要，不紧急" },
+  Q3:           { en: "Delegate",  zh: "委托做", descEn: "Urgent, not important", descZh: "紧急，不重要" },
+  Q4:           { en: "Drop",      zh: "减少做", descEn: "Neither",               descZh: "都不是" },
+  unclassified: { en: "Unsorted",  zh: "未分类", descEn: "Not yet placed",        descZh: "尚未归位" },
 };
 
 /**
