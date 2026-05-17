@@ -384,3 +384,64 @@ When implementing any new feature, in order:
 | Call `api.*` from a component | Dispatch a store action |
 | Ship with TypeScript errors suppressed via `@ts-ignore` | Fix the type |
 | Skip zh translations | Add both locales at the same time |
+
+---
+
+## 11. Electron Desktop Conventions
+
+These rules apply whenever touching code that runs in the packaged desktop app.
+
+### 11.1 Detecting Electron at Runtime
+
+```ts
+const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+```
+
+Always use this pattern. **Never** check `navigator.userAgent` for "Electron" — it is less reliable and couples detection to Chromium internals.
+
+### 11.2 Window Controls
+
+Custom min / max / close buttons live in `Topbar.tsx` and render only when `isElectron` is `true`. They call `window.electronAPI.minimize()`, `.maximize()`, `.close()` which are bridged over Electron IPC via `electron/preload.cjs`.
+
+### 11.3 Drag Region
+
+When `isElectron`, the Topbar root element sets `WebkitAppRegion: "drag"` so the user can move the window by dragging the bar. Every interactive element inside the topbar (buttons, inputs, avatar) must set `WebkitAppRegion: "no-drag"` to prevent drag events from swallowing clicks.
+
+```tsx
+// Topbar root (drag)
+style={{ WebkitAppRegion: isElectron ? "drag" : undefined }}
+
+// Every button / input inside (no-drag)
+style={{ WebkitAppRegion: "no-drag" }}
+```
+
+### 11.4 CSSProperties Type Augmentation
+
+`WebkitAppRegion` is not part of React's stock `CSSProperties`. It is declared as a module augmentation in `src/types/electron.d.ts`:
+
+```ts
+export {};  // ← must be present; makes this a module, not a script
+
+declare module "react" {
+  interface CSSProperties {
+    WebkitAppRegion?: "drag" | "no-drag";
+  }
+}
+```
+
+The `export {}` is mandatory — without it, `declare module "react"` replaces rather than augments the React type definitions, breaking every React import in the project.
+
+### 11.5 Router
+
+`HashRouter` is the canonical router for this project. **Do not revert to `BrowserRouter`.** Hash-based URLs (`/#/today`, `/#/matrix`) work identically in both Electron (`file://`) and browser (served over HTTP). No server-side route handling is required.
+
+### 11.6 Main Process Entry Point
+
+`electron/main.cjs` and `electron/preload.cjs` use the `.cjs` extension because `package.json` declares `"type": "module"`, which would otherwise treat `.js` files as ES modules. Electron's main process requires CommonJS. All Electron main-process code must use `.cjs`.
+
+### 11.7 Build Output
+
+- Vite builds the React app to `web-app/dist/` with `base: "./"` (relative asset paths, required for `file://`).
+- `electron-builder` packages `dist/` + `electron/` into an NSIS installer at `web-app/dist-electron/`.
+- `dist-electron/` is git-ignored — never commit build artifacts.
+- The full pipeline: `make package-win` → runs `npm run build` then `npm run package:win`.
