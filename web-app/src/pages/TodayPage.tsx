@@ -182,9 +182,6 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
           <button className="btn btn-primary btn-lg" onClick={() => navigate("/focus")}>
             {t("today.start")} <IconArrowRight size={14} />
           </button>
-          <button className="btn btn-ghost" style={{ height: 44 }}>
-            {t("today.skip")}
-          </button>
         </div>
       </div>
 

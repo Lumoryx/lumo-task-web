@@ -96,7 +96,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
             pointerEvents: hovered ? "auto" : "none",
           }}
         >
-          {/* Start focus — labeled accent pill */}
+          {/* Start focus — labeled pill */}
           <button
             onClick={(e) => { e.stopPropagation(); navigate("/focus"); }}
             title={t("row.startfocus")}
@@ -184,5 +184,35 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
         <TaskEditModal task={task} onClose={() => setEditOpen(false)} />
       )}
     </>
+  );
+}
+
+function IconActionBtn({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className="flex items-center justify-center w-7 h-7 rounded-md transition-colors"
+      style={{ color: "var(--text-faint)", background: "transparent" }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)";
+        (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "transparent";
+        (e.currentTarget as HTMLElement).style.color = "var(--text-faint)";
+      }}
+    >
+      {children}
+    </button>
   );
 }
