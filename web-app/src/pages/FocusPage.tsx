@@ -234,31 +234,30 @@ export function FocusPage() {
             {fmtMMSS(remaining)}
           </div>
           <div className="flex flex-col items-center gap-2 mt-3 pointer-events-auto">
-            {/* Primary: Pause / Resume */}
+            {/* Primary: Mark complete */}
             <button
-              onClick={() => setPaused((p) => !p)}
-              title={paused ? t("focus.resume") : t("focus.pause")}
+              onClick={onComplete}
               className="flex items-center gap-2 rounded-full transition-all text-sm font-semibold"
               style={{
                 padding: "11px 36px",
-                background: paused ? "var(--accent-primary)" : "var(--bg-elevated)",
-                color: paused ? "var(--bg-base)" : "var(--text-primary)",
-                border: "1.5px solid",
-                borderColor: paused ? "var(--accent-primary)" : "var(--border-strong)",
-                boxShadow: paused ? "0 0 24px var(--accent-fog)" : "none",
+                background: "var(--accent-primary)",
+                color: "var(--bg-base)",
+                border: "1.5px solid var(--accent-primary)",
+                boxShadow: "0 0 24px var(--accent-fog)",
               }}
             >
-              {paused ? <IconPlay size={15} /> : <IconPause size={15} />}
-              {paused ? t("focus.resume") : t("focus.pause")}
+              <IconCheck size={15} />
+              {t("focus.complete")}
             </button>
-            {/* Secondary: Mark complete */}
+            {/* Secondary: Pause / Resume */}
             <button
-              onClick={onComplete}
+              onClick={() => setPaused((p) => !p)}
+              title={paused ? t("focus.resume") : t("focus.pause")}
               className="focus-complete-btn flex items-center gap-1.5 rounded-full text-xs font-medium transition-colors"
               style={{ padding: "6px 18px" }}
             >
-              <IconCheck size={12} />
-              {t("focus.complete")}
+              {paused ? <IconPlay size={12} /> : <IconPause size={12} />}
+              {paused ? t("focus.resume") : t("focus.pause")}
             </button>
           </div>
           <div className="mt-3.5 flex gap-5 text-[11px] text-text-muted tabular-nums">
