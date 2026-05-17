@@ -30,10 +30,12 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   const locale = useAppStore((s) => s.locale);
   const create = useTasksStore((s) => s.create);
 
+  const todayISO = new Date().toISOString().split("T")[0];
+
   const [title, setTitle] = useState("");
   const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
   const [duration, setDuration] = useState(30);
-  const [due, setDue] = useState<string | null>("today");
+  const [dueDate, setDueDate] = useState<string>(todayISO);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,15 +45,15 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, quadrant, duration, due]);
+  }, [title, quadrant, duration, dueDate]);
 
   async function submit() {
     if (!title.trim()) return;
     await create({
       title: { en: title.trim(), zh: title.trim() },
       quadrant,
-      today: due === "today",
-      due,
+      today: dueDate === todayISO,
+      due: dueDate || null,
       duration,
       pomos_done: 0,
       pomos_total: Math.max(1, Math.ceil(duration / 25)),
@@ -162,16 +164,14 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
                 {t("qc.due")}
               </div>
-              <select
-                value={due ?? ""}
-                onChange={(e) => setDue(e.target.value || null)}
+              <input
+                type="date"
+                value={dueDate}
+                min={todayISO}
+                onChange={(e) => setDueDate(e.target.value)}
                 className="input"
-              >
-                <option value="">—</option>
-                <option value="today">{locale === "zh" ? "今天" : "Today"}</option>
-                <option value="Fri">{locale === "zh" ? "周五" : "Fri"}</option>
-                <option value="next wk">{locale === "zh" ? "下周" : "Next week"}</option>
-              </select>
+                style={{ colorScheme: "dark", cursor: "pointer" }}
+              />
             </div>
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
@@ -188,17 +188,26 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
               >
                 <button
                   type="button"
-                  onClick={() => setDuration((d) => Math.max(5, d - 5))}
+                  onClick={() => setDuration((d) => Math.max(1, d - 5))}
                   className="flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-subtle transition-colors select-none"
                   style={{ width: 32, fontSize: 16, flexShrink: 0, height: "100%" }}
                 >
                   −
                 </button>
-                <div className="flex-1 flex items-center justify-center gap-1">
-                  <span className="text-[13px] font-semibold tabular-nums text-text-primary">
-                    {duration}
-                  </span>
-                  <span className="text-[10px] text-text-muted">
+                <div className="flex-1 flex items-center justify-center gap-1 min-w-0">
+                  <input
+                    type="number"
+                    min={1}
+                    value={duration}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value);
+                      if (!isNaN(v) && v >= 1) setDuration(v);
+                      else if (e.target.value === "") setDuration(1);
+                    }}
+                    className="tabular-nums font-semibold text-text-primary bg-transparent border-none outline-none text-center"
+                    style={{ fontSize: 13, width: 40 }}
+                  />
+                  <span className="text-[10px] text-text-muted flex-shrink-0">
                     {locale === "zh" ? "分钟" : "min"}
                   </span>
                 </div>

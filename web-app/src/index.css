@@ -229,6 +229,11 @@ body {
   background: var(--bg-subtle);
 }
 
+/* Hide native number input spinners (used in duration stepper) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
 /* Scrollbar */
 .scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 .scroll-y::-webkit-scrollbar { width: 8px; }
