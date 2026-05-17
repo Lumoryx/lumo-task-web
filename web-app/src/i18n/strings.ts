@@ -173,6 +173,18 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "qc.assignee": "Assignee",
     "qc.assignee.none": "Unassigned",
+
+    "edit.title": "Edit task",
+    "edit.save": "Save changes",
+    "edit.delete": "Delete task",
+    "edit.today": "In today's plan",
+    "edit.today.add": "Add to today",
+    "edit.today.remove": "Remove from today",
+
+    "popover.edit": "Edit",
+    "popover.delete": "Delete",
+    "popover.today.add": "Add to today",
+    "popover.today.remove": "Remove from today",
   },
   zh: {
     "brand.name": "Lumo",
@@ -337,5 +349,17 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "qc.assignee": "责任人",
     "qc.assignee.none": "未指定",
+
+    "edit.title": "编辑任务",
+    "edit.save": "保存更改",
+    "edit.delete": "删除任务",
+    "edit.today": "今日计划",
+    "edit.today.add": "加入今天",
+    "edit.today.remove": "从今天移除",
+
+    "popover.edit": "编辑",
+    "popover.delete": "删除",
+    "popover.today.add": "加入今天",
+    "popover.today.remove": "从今天移除",
   },
 };

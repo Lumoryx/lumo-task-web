@@ -7,6 +7,7 @@ import { fmtDuration } from "@/lib/format";
 import { IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
 import { TaskActionPopover } from "@/components/TaskActionPopover";
+import { TaskEditModal } from "@/components/TaskEditModal";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 
@@ -196,6 +197,7 @@ function MatrixTaskCard({ task }: { task: Task }) {
   const locale = useAppStore((s) => s.locale);
   const byId = usePeopleStore((s) => s.byId);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
@@ -207,6 +209,7 @@ function MatrixTaskCard({ task }: { task: Task }) {
   };
 
   return (
+    <>
     <div
       {...makeDragProps(task.id)}
       className="relative flex items-center gap-2.5 rounded-md px-2.5 py-2 hover:bg-subtle transition-colors cursor-grab active:cursor-grabbing"
@@ -223,7 +226,12 @@ function MatrixTaskCard({ task }: { task: Task }) {
         }}
       />
       {anchor && (
-        <TaskActionPopover task={task} anchor={anchor} onClose={() => setAnchor(null)} />
+        <TaskActionPopover
+          task={task}
+          anchor={anchor}
+          onClose={() => setAnchor(null)}
+          onEdit={() => setEditOpen(true)}
+        />
       )}
 
       <div className="flex-1 min-w-0">
@@ -240,6 +248,8 @@ function MatrixTaskCard({ task }: { task: Task }) {
         ))}
       </span>
     </div>
+    {editOpen && <TaskEditModal task={task} onClose={() => setEditOpen(false)} />}
+    </>
   );
 }
 
