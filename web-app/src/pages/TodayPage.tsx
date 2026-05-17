@@ -367,7 +367,7 @@ function TodayEmptyState() {
 
 // ─── All-done Banner ────────────────────────────────────────────────────────
 
-function AllDoneBanner({ locale }: { locale: Locale }) {
+function AllDoneBanner() {
   const t = useT();
 
   return (
@@ -566,7 +566,6 @@ function CompletedTimeline({ entries, locale }: TimelineProps) {
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export function TodayPage() {
-  const navigate = useNavigate();
   const t = useT();
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
@@ -600,7 +599,7 @@ export function TodayPage() {
   return (
     <div className="fade-in px-8 py-8">
       {!top && completed.length > 0 && (
-        <AllDoneBanner locale={locale} />
+        <AllDoneBanner />
       )}
 
       {top && (
