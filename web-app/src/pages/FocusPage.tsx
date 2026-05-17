@@ -233,22 +233,31 @@ export function FocusPage() {
           >
             {fmtMMSS(remaining)}
           </div>
-          <div className="flex items-center gap-3 mt-2 pointer-events-auto">
+          <div className="flex flex-col items-center gap-2 mt-3 pointer-events-auto">
+            {/* Primary: Mark complete */}
             <button
-              className="btn btn-primary btn-lg"
               onClick={onComplete}
-              style={{ minWidth: 180, fontWeight: 600 }}
+              className="flex items-center gap-2 rounded-full transition-all text-sm font-semibold"
+              style={{
+                padding: "11px 36px",
+                background: "var(--accent-primary)",
+                color: "var(--bg-base)",
+                border: "1.5px solid var(--accent-primary)",
+                boxShadow: "0 0 24px var(--accent-fog)",
+              }}
             >
-              <IconCheck size={16} />
+              <IconCheck size={15} />
               {t("focus.complete")}
             </button>
+            {/* Secondary: Pause / Resume */}
             <button
               onClick={() => setPaused((p) => !p)}
               title={paused ? t("focus.resume") : t("focus.pause")}
-              className="flex items-center justify-center rounded-full bg-elevated text-text-primary border border-border-default hover:bg-subtle transition-colors"
-              style={{ width: 44, height: 44 }}
+              className="focus-complete-btn flex items-center gap-1.5 rounded-full text-xs font-medium transition-colors"
+              style={{ padding: "6px 18px" }}
             >
-              {paused ? <IconPlay size={16} /> : <IconPause size={16} />}
+              {paused ? <IconPlay size={12} /> : <IconPause size={12} />}
+              {paused ? t("focus.resume") : t("focus.pause")}
             </button>
           </div>
           <div className="mt-3.5 flex gap-5 text-[11px] text-text-muted tabular-nums">
