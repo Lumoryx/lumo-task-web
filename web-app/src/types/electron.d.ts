@@ -7,6 +7,7 @@ declare global {
       maximize: () => void;
       close: () => void;
       isElectron: true;
+      getApiPort: () => Promise<number>;
     };
   }
 }

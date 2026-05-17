@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   maximize: () => ipcRenderer.send("win:maximize"),
   close: () => ipcRenderer.send("win:close"),
   isElectron: true,
+  getApiPort: () => ipcRenderer.invoke("get-api-port"),
 });

@@ -8,16 +8,24 @@
 # Requires: Node 20+, npm, git, gh (GitHub CLI)
 # -----------------------------------------------------------------------
 
-APP := web-app
+APP     := web-app
+BACKEND := backend
 
 .DEFAULT_GOAL := dev
-.PHONY: dev install build preview typecheck lint ci clean reset package-win help
+.PHONY: dev install build preview typecheck lint ci clean reset \
+        backend-install backend-build backend-dev backend-migrate backend-seed \
+        dev-full package-win help
 
-# Sentinel file: rebuild (npm ci) whenever package-lock.json changes.
+# Sentinel files: rebuild when package-lock.json changes.
 $(APP)/node_modules: $(APP)/package-lock.json
-	@echo ">>> Installing dependencies..."
+	@echo ">>> Installing web-app dependencies..."
 	cd $(APP) && npm ci
 	@touch $(APP)/node_modules
+
+$(BACKEND)/node_modules: $(BACKEND)/package-lock.json
+	@echo ">>> Installing backend dependencies..."
+	cd $(BACKEND) && npm ci
+	@touch $(BACKEND)/node_modules
 
 # -----------------------------------------------------------------------
 # Development
@@ -51,20 +59,49 @@ ci: typecheck lint build         ## Run all CI checks locally (mirrors GitHub Ac
 	@echo ">>> All CI checks passed."
 
 # -----------------------------------------------------------------------
+# Backend
+# -----------------------------------------------------------------------
+
+backend-install: $(BACKEND)/node_modules   ## Install backend dependencies
+
+backend-build: $(BACKEND)/node_modules     ## Compile backend TypeScript → backend/dist/
+	@echo ">>> Building backend..."
+	cd $(BACKEND) && npm run build
+	@echo ">>> Backend built."
+
+backend-dev: $(BACKEND)/node_modules       ## Run backend in dev mode (tsx watch, port 47291)
+	cd $(BACKEND) && npm run dev
+
+backend-migrate: $(BACKEND)/node_modules   ## Run DB migrations (creates lumo.db in backend/)
+	cd $(BACKEND) && npm run migrate
+
+backend-seed: $(BACKEND)/node_modules      ## Seed DB with demo data
+	cd $(BACKEND) && npm run seed
+
+dev-full: $(APP)/node_modules $(BACKEND)/node_modules   ## Run frontend + backend concurrently
+	@echo ">>> Starting frontend (5173) and backend (47291) together..."
+	npx --yes concurrently \
+		--names "frontend,backend" \
+		--prefix-colors "cyan,green" \
+		"cd $(APP) && npm run dev" \
+		"cd $(BACKEND) && LUMO_JWT_SECRET=dev-secret npm run dev"
+
+# -----------------------------------------------------------------------
 # Desktop packaging
 # -----------------------------------------------------------------------
 
-package-win: $(APP)/node_modules build   ## Package Windows installer (.exe) → web-app/dist-electron/
+package-win: $(APP)/node_modules backend-build build   ## Build backend + frontend, package Windows installer
 	@echo ">>> Packaging for Windows (x64)..."
-	cd $(APP) && npm run package:win
+	cd $(APP) && npx electron-builder --win --x64 --config.directories.output="$(CURDIR)/$(APP)/dist-electron"
 	@echo ">>> Done. Installer is in $(APP)/dist-electron/"
 
 # -----------------------------------------------------------------------
 # Maintenance
 # -----------------------------------------------------------------------
 
-clean:   ## Remove node_modules and dist
-	rm -rf $(APP)/node_modules $(APP)/dist
+clean:   ## Remove node_modules and dist artifacts
+	rm -rf $(APP)/node_modules $(APP)/dist $(APP)/dist-electron
+	rm -rf $(BACKEND)/node_modules $(BACKEND)/dist
 	@echo ">>> Cleaned."
 
 reset:   ## Print the localStorage commands to reset demo data
@@ -84,20 +121,28 @@ help:   ## Show this help
 	@echo "Usage:  make [target]"
 	@echo ""
 	@echo "Development:"
-	@echo "  dev          Start dev server at http://localhost:5173  [DEFAULT]"
-	@echo "  install      Install / refresh npm dependencies"
-	@echo "  preview      Build then preview production bundle locally"
+	@echo "  dev              Start frontend dev server at http://localhost:5173  [DEFAULT]"
+	@echo "  install          Install / refresh web-app dependencies"
+	@echo "  preview          Build then preview production bundle locally"
+	@echo "  dev-full         Run frontend + backend together (concurrently)"
+	@echo ""
+	@echo "Backend:"
+	@echo "  backend-install  Install backend npm dependencies"
+	@echo "  backend-build    Compile backend TypeScript → backend/dist/"
+	@echo "  backend-dev      Run backend in dev mode (tsx watch)"
+	@echo "  backend-migrate  Run DB migrations"
+	@echo "  backend-seed     Seed DB with demo data"
 	@echo ""
 	@echo "Quality:"
 	@echo "  typecheck    TypeScript type check (tsc --noEmit)"
 	@echo "  lint         ESLint"
-	@echo "  build        Production build (tsc -b + vite build)"
+	@echo "  build        Frontend production build"
 	@echo "  ci           typecheck + lint + build  (mirrors CI gate)"
 	@echo ""
 	@echo "Desktop:"
-	@echo "  package-win  Build + package Windows installer → web-app/dist-electron/"
+	@echo "  package-win  Build backend + frontend, package Windows installer → web-app/dist-electron/"
 	@echo ""
 	@echo "Maintenance:"
-	@echo "  clean        Remove node_modules and dist"
-	@echo "  reset        Print commands to clear localStorage demo data"
+	@echo "  clean        Remove node_modules and dist artifacts"
+	@echo "  reset        Print commands to clear localStorage auth data"
 	@echo ""
