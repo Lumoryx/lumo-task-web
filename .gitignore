@@ -2,3 +2,6 @@
 .claude/worktrees/
 .claude/settings.local.json
 .claude/launch.json
+
+# Electron packaged output
+web-app/dist-electron/

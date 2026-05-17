@@ -43,7 +43,6 @@ export function TaskEditModal({ task, onClose }: Props) {
     task.due === "today" ? todayISO : task.due ?? todayISO
   );
   const [assigneeId, setAssigneeId] = useState<string | undefined>(task.assignee_id);
-  const [today, setToday] = useState(task.today);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -55,7 +54,7 @@ export function TaskEditModal({ task, onClose }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, quadrant, duration, dueDate, assigneeId, today]);
+  }, [title, quadrant, duration, dueDate, assigneeId]);
 
   async function handleSave() {
     if (!title.trim() || busy) return;
@@ -67,7 +66,6 @@ export function TaskEditModal({ task, onClose }: Props) {
         duration,
         pomos_total: Math.max(1, Math.ceil(duration / 25)),
         due: dueDate || null,
-        today,
         assignee_id: assigneeId,
       });
       onClose();
@@ -235,33 +233,6 @@ export function TaskEditModal({ task, onClose }: Props) {
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Today toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setToday((v) => !v)}
-              className="relative rounded-full transition-colors flex-shrink-0"
-              style={{
-                width: 32,
-                height: 18,
-                background: today ? "var(--accent-primary)" : "var(--border-default)",
-              }}
-            >
-              <span
-                className="absolute top-[2px] rounded-full transition-all"
-                style={{
-                  width: 14,
-                  height: 14,
-                  left: today ? 16 : 2,
-                  background: today ? "var(--text-inverse)" : "var(--text-primary)",
-                }}
-              />
-            </button>
-            <span className="text-[12px] text-text-secondary">
-              {today ? t("edit.today.remove") : t("edit.today.add")}
-            </span>
           </div>
 
           {/* Assignee */}

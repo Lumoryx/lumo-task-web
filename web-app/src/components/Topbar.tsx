@@ -9,18 +9,73 @@ interface TopbarProps {
   onQuickAdd: () => void;
 }
 
-/**
- * Fixed-height top bar with page meta on the left, search + actions on
- * the right. Matches the Win-desktop / web app pattern (per Jalen's
- * feedback: full-bleed, no window chrome).
- */
+const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+
+const ctrlBase: React.CSSProperties = {
+  WebkitAppRegion: "no-drag",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 46,
+  height: 56,
+  flexShrink: 0,
+  background: "transparent",
+  border: "none",
+  cursor: "default",
+  fontSize: 11,
+  color: "var(--text-muted)",
+  transition: "background 120ms, color 120ms",
+};
+
+function WinControls() {
+  if (!isElectron) return null;
+  return (
+    <div style={{ display: "flex", marginRight: -28, WebkitAppRegion: "no-drag" }}>
+      <button
+        style={ctrlBase}
+        title="最小化"
+        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
+        onClick={() => window.electronAPI?.minimize()}
+      >
+        ─
+      </button>
+      <button
+        style={ctrlBase}
+        title="最大化 / 还原"
+        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
+        onClick={() => window.electronAPI?.maximize()}
+      >
+        ▢
+      </button>
+      <button
+        style={ctrlBase}
+        title="关闭"
+        onMouseEnter={(e) => { e.currentTarget.style.background = "#c42b1c"; e.currentTarget.style.color = "#fff"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
+        onClick={() => window.electronAPI?.close()}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
   const t = useT();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+
   return (
-    <div className="flex items-center gap-4 px-7 border-b border-border-faint" style={{ height: 56 }}>
-      <div>
+    <div
+      className="flex items-center gap-4 px-7 border-b border-border-faint"
+      style={{
+        height: 56,
+        WebkitAppRegion: isElectron ? "drag" : undefined,
+      }}
+    >
+      <div style={{ WebkitAppRegion: "no-drag" }}>
         <span className="text-[15px] font-semibold text-text-primary">{title}</span>
         {subtitle && <span className="ml-2.5 text-xs text-text-muted">{subtitle}</span>}
       </div>
@@ -29,7 +84,7 @@ export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
       {/* Search */}
       <div
         className="flex items-center gap-2 bg-surface border border-border-faint rounded-lg px-3 text-xs text-text-muted"
-        style={{ height: 32, width: 240 }}
+        style={{ height: 32, width: 240, WebkitAppRegion: "no-drag" }}
       >
         <span className="inline-flex flex-shrink-0 text-text-muted">
           <IconSearch size={14} />
@@ -52,11 +107,12 @@ export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
         onClick={onQuickAdd}
         title={t("topbar.quickadd")}
         className="flex items-center justify-center w-8 h-8 rounded-md text-text-secondary hover:bg-subtle hover:text-text-primary transition-colors"
+        style={{ WebkitAppRegion: "no-drag" }}
       >
         <IconPlus size={16} />
       </button>
 
-      {/* Avatar — click to go to account/profile */}
+      {/* Avatar */}
       <button
         onClick={() => navigate("/account")}
         title={user.name}
@@ -64,10 +120,13 @@ export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
         style={{
           background: "linear-gradient(135deg, var(--accent-dim), var(--accent-primary))",
           boxShadow: "0 0 0 1px var(--border-default)",
+          WebkitAppRegion: "no-drag",
         }}
       >
         {user.initials}
       </button>
+
+      <WinControls />
     </div>
   );
 }

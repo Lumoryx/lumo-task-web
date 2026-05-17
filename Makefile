@@ -11,7 +11,7 @@
 APP := web-app
 
 .DEFAULT_GOAL := dev
-.PHONY: dev install build preview typecheck lint ci clean reset help
+.PHONY: dev install build preview typecheck lint ci clean reset package-win help
 
 # Sentinel file: rebuild (npm ci) whenever package-lock.json changes.
 $(APP)/node_modules: $(APP)/package-lock.json
@@ -51,6 +51,15 @@ ci: typecheck lint build         ## Run all CI checks locally (mirrors GitHub Ac
 	@echo ">>> All CI checks passed."
 
 # -----------------------------------------------------------------------
+# Desktop packaging
+# -----------------------------------------------------------------------
+
+package-win: $(APP)/node_modules build   ## Package Windows installer (.exe) → web-app/dist-electron/
+	@echo ">>> Packaging for Windows (x64)..."
+	cd $(APP) && npm run package:win
+	@echo ">>> Done. Installer is in $(APP)/dist-electron/"
+
+# -----------------------------------------------------------------------
 # Maintenance
 # -----------------------------------------------------------------------
 
@@ -84,6 +93,9 @@ help:   ## Show this help
 	@echo "  lint         ESLint"
 	@echo "  build        Production build (tsc -b + vite build)"
 	@echo "  ci           typecheck + lint + build  (mirrors CI gate)"
+	@echo ""
+	@echo "Desktop:"
+	@echo "  package-win  Build + package Windows installer → web-app/dist-electron/"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean        Remove node_modules and dist"
