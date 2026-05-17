@@ -1,0 +1,4 @@
+# Claude Code internal files — worktrees, local settings, launch config
+.claude/worktrees/
+.claude/settings.local.json
+.claude/launch.json
