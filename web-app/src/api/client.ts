@@ -13,8 +13,9 @@
  * Tune via `LATENCY_MS`.
  */
 
-import type { CompletedEntry, Task, User } from "@/types/task";
+import type { CompletedEntry, Person, Task, User } from "@/types/task";
 import { SEED_COMPLETED_TODAY, SEED_TASKS } from "@/mocks/tasks";
+import { SEED_PEOPLE } from "@/mocks/people";
 import { LOCAL_USER, SEED_USER } from "@/mocks/user";
 
 const STORAGE_KEY = "lumo.tasks.v1";
@@ -23,16 +24,29 @@ const LATENCY_MS = 120;
 interface PersistedShape {
   tasks: Task[];
   completed: CompletedEntry[];
+  people: Person[];
 }
 
 function load(): PersistedShape {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as PersistedShape;
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<PersistedShape>;
+      // Migrate old snapshots that pre-date the `people` field.
+      return {
+        tasks: parsed.tasks ?? structuredClone(SEED_TASKS),
+        completed: parsed.completed ?? structuredClone(SEED_COMPLETED_TODAY),
+        people: parsed.people ?? structuredClone(SEED_PEOPLE),
+      };
+    }
   } catch {
     /* ignore parse errors — fall through to seed */
   }
-  return { tasks: structuredClone(SEED_TASKS), completed: structuredClone(SEED_COMPLETED_TODAY) };
+  return {
+    tasks: structuredClone(SEED_TASKS),
+    completed: structuredClone(SEED_COMPLETED_TODAY),
+    people: structuredClone(SEED_PEOPLE),
+  };
 }
 
 function save(state: PersistedShape) {
@@ -207,6 +221,7 @@ export const api = {
     state = {
       tasks,
       completed: state.completed.filter((c) => c.id !== logId),
+      people: state.people,
     };
     save(state);
   },
@@ -218,10 +233,53 @@ export const api = {
     save(state);
   },
 
+  /** List all people (team members). */
+  async listPeople(): Promise<Person[]> {
+    await delay(60);
+    return structuredClone(state.people);
+  },
+
+  /** Add a new person. ID generated here (server-side in real API). */
+  async createPerson(input: Omit<Person, "id">): Promise<Person> {
+    await delay(80);
+    const person: Person = { ...input, id: `p${Date.now()}` };
+    state = { ...state, people: [...state.people, person] };
+    save(state);
+    return structuredClone(person);
+  },
+
+  /** Patch a person's fields. */
+  async updatePerson(id: string, patch: Partial<Omit<Person, "id">>): Promise<Person> {
+    await delay(80);
+    const idx = state.people.findIndex((p) => p.id === id);
+    if (idx < 0) throw new Error(`Person ${id} not found`);
+    const next = { ...state.people[idx], ...patch };
+    state = { ...state, people: state.people.map((p, i) => (i === idx ? next : p)) };
+    save(state);
+    return structuredClone(next);
+  },
+
+  /** Remove a person. Also clears assignee_id on any tasks that referenced them. */
+  async deletePerson(id: string): Promise<void> {
+    await delay(80);
+    state = {
+      ...state,
+      people: state.people.filter((p) => p.id !== id),
+      tasks: state.tasks.map((t) =>
+        t.assignee_id === id ? { ...t, assignee_id: undefined } : t
+      ),
+    };
+    save(state);
+  },
+
   /** Reset to seed data. Useful in dev. */
   async reset(): Promise<void> {
     await delay(40);
-    state = { tasks: structuredClone(SEED_TASKS), completed: structuredClone(SEED_COMPLETED_TODAY) };
+    state = {
+      tasks: structuredClone(SEED_TASKS),
+      completed: structuredClone(SEED_COMPLETED_TODAY),
+      people: structuredClone(SEED_PEOPLE),
+    };
     save(state);
   },
 };

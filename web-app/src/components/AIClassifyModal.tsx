@@ -11,10 +11,9 @@ interface AIClassifyModalProps {
 const QUADRANTS: Quadrant[] = ["Q1", "Q2", "Q3", "Q4"];
 
 /**
- * AI classify — review Lumo's suggested quadrant for each unclassified
- * task, override per-row, then apply all in one go.
- *
- * Per design convention: dismissed via a real ✕ button in the header.
+ * AI classify — review and adjust the quadrant for every active task.
+ * Unclassified tasks show Lumo's AI suggestion; already-classified tasks
+ * default to their current quadrant and can be moved freely.
  */
 export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
   const t = useT();
@@ -22,16 +21,24 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
   const tasks = useTasksStore((s) => s.tasks);
   const update = useTasksStore((s) => s.update);
 
-  const unclassified = useMemo(
-    () => tasks.filter((x) => x.quadrant === "unclassified" && !x.completed),
-    [tasks]
-  );
+  // All non-completed tasks — unclassified first, then by quadrant
+  const candidates = useMemo(() => {
+    const active = tasks.filter((x) => !x.completed);
+    return [
+      ...active.filter((x) => x.quadrant === "unclassified"),
+      ...active.filter((x) => x.quadrant !== "unclassified"),
+    ];
+  }, [tasks]);
 
-  // Local override map: taskId → chosen quadrant (defaulting to ai_suggest, then Q2).
+  // Local override map: taskId → chosen quadrant
   const [assign, setAssign] = useState<Record<string, Quadrant>>(() => {
     const m: Record<string, Quadrant> = {};
-    unclassified.forEach((t) => {
-      m[t.id] = (t.ai_suggest as Quadrant) ?? "Q2";
+    candidates.forEach((task) => {
+      if (task.quadrant === "unclassified") {
+        m[task.id] = (task.ai_suggest as Quadrant) ?? "Q2";
+      } else {
+        m[task.id] = task.quadrant as Quadrant;
+      }
     });
     return m;
   });
@@ -53,17 +60,25 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
     { Q1: 0, Q2: 0, Q3: 0, Q4: 0, unclassified: 0 }
   );
 
+  // Only apply tasks whose quadrant actually changed
   async function applyAll() {
     setBusy(true);
     try {
-      await Promise.all(
-        unclassified.map((task) => update(task.id, { quadrant: assign[task.id] }))
+      const changed = candidates.filter(
+        (task) => assign[task.id] && assign[task.id] !== task.quadrant
       );
+      await Promise.all(changed.map((task) => update(task.id, { quadrant: assign[task.id] })));
       onClose();
     } finally {
       setBusy(false);
     }
   }
+
+  const changedCount = candidates.filter(
+    (t) => assign[t.id] && assign[t.id] !== t.quadrant
+  ).length;
+
+  const unclassifiedCount = candidates.filter((t) => t.quadrant === "unclassified").length;
 
   return (
     <div
@@ -79,7 +94,7 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
         onClick={(e) => e.stopPropagation()}
         className="flex flex-col w-full overflow-hidden border rounded-[14px] bg-elevated shadow-lifted"
         style={{
-          maxWidth: 580,
+          maxWidth: 600,
           maxHeight: "100%",
           borderColor: "var(--accent-edge)",
           boxShadow: "var(--shadow-lifted), 0 0 50px var(--accent-fog)",
@@ -93,7 +108,13 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
           </span>
           <div className="flex-1">
             <div className="text-sm font-semibold text-text-primary">
-              {t("matrix.aiClassify.title")} · {unclassified.length}
+              {t("matrix.aiClassify.title")}
+              <span className="ml-2 text-[11px] font-normal text-text-faint tabular-nums">
+                {candidates.length} 个任务
+                {unclassifiedCount > 0 && (
+                  <span className="ml-1.5 text-text-muted">· {unclassifiedCount} 未分类</span>
+                )}
+              </span>
             </div>
             <div className="mt-1 text-xs text-text-muted leading-relaxed">
               {t("matrix.aiClassify.sub")}
@@ -120,16 +141,21 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
               {q} · {counts[q as Quadrant]}
             </span>
           ))}
+          {changedCount > 0 && (
+            <span className="ml-auto text-accent-primary" style={{ color: "var(--accent-primary)" }}>
+              {changedCount} 项待调整
+            </span>
+          )}
         </div>
 
         {/* List */}
         <div className="flex-1 min-h-0 scroll-y px-[18px] py-3 flex flex-col gap-1.5">
-          {unclassified.length === 0 ? (
+          {candidates.length === 0 ? (
             <div className="py-8 text-center text-sm text-text-muted">
               {t("matrix.aiClassify.empty")}
             </div>
           ) : (
-            unclassified.map((task) => (
+            candidates.map((task) => (
               <Row
                 key={task.id}
                 task={task}
@@ -145,7 +171,7 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
         <footer className="flex items-center justify-between gap-2 px-[18px] py-3 border-t border-border-faint">
           <div className="text-[11px] text-text-faint flex items-center gap-1.5">
             <IconSparkle size={12} />
-            Lumo's suggestions · tap any chip to override
+            {unclassifiedCount > 0 ? "Lumo's suggestions · tap any chip to override" : "Drag chips to reclassify · or tap to change"}
           </div>
           <div className="flex items-center gap-2">
             <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
@@ -154,9 +180,10 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
             <button
               className="btn btn-primary"
               onClick={applyAll}
-              disabled={busy || unclassified.length === 0}
+              disabled={busy || changedCount === 0}
             >
-              {t("matrix.aiClassify.apply")} · {unclassified.length}
+              {t("matrix.aiClassify.apply")}
+              {changedCount > 0 && <span className="ml-1">· {changedCount}</span>}
             </button>
           </div>
         </footer>
@@ -176,16 +203,28 @@ function Row({
   onChange: (q: Quadrant) => void;
   titleStr: string;
 }) {
+  const isUnclassified = task.quadrant === "unclassified";
+  const hint = isUnclassified
+    ? task.ai_suggest
+      ? `Lumo suggests ${task.ai_suggest}`
+      : "No suggestion"
+    : `Current: ${task.quadrant}`;
+
   return (
     <div
       className="flex items-center gap-3 rounded-md px-2.5 py-2 transition-colors hover:bg-surface"
       style={{ border: "1px solid var(--border-faint)" }}
     >
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] text-text-primary truncate">{titleStr}</div>
-        <div className="text-[10.5px] text-text-faint mt-0.5">
-          {task.ai_suggest ? `Lumo suggests ${task.ai_suggest}` : "No suggestion"}
+        <div className="flex items-center gap-2">
+          {!isUnclassified && (
+            <span className={`chip chip-${task.quadrant.toLowerCase()} flex-shrink-0`}>
+              {task.quadrant}
+            </span>
+          )}
+          <div className="text-[13px] text-text-primary truncate">{titleStr}</div>
         </div>
+        <div className="text-[10.5px] text-text-faint mt-0.5">{hint}</div>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         {QUADRANTS.map((q) => {

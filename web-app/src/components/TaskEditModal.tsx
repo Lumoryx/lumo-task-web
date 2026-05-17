@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { IconClose } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
-import type { Quadrant } from "@/types/task";
+import type { Quadrant, Task } from "@/types/task";
 
-interface QuickCreateProps {
-  initialQuadrant?: Quadrant;
+interface Props {
+  task: Task;
   onClose: () => void;
-  onCreated?: () => void;
 }
 
 const QUADRANTS: Quadrant[] = ["Q1", "Q2", "Q3", "Q4"];
@@ -23,84 +23,93 @@ const Q_META: Record<Quadrant, { en: string; zh: string; descEn: string; descZh:
   unclassified: { en: "Unsorted",  zh: "未分类", descEn: "Not yet placed",        descZh: "尚未归位" },
 };
 
-/**
- * Modal for creating a task quickly. Per design: centered, dismiss via X or
- * Escape. Escape is a convenience but the X button is always the primary affordance.
- */
-export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: QuickCreateProps) {
+export function TaskEditModal({ task, onClose }: Props) {
   const t = useT();
   const locale = useAppStore((s) => s.locale);
-  const create = useTasksStore((s) => s.create);
+  const update = useTasksStore((s) => s.update);
+  const remove = useTasksStore((s) => s.remove);
   const people = usePeopleStore((s) => s.people);
 
   const todayISO = new Date().toISOString().split("T")[0];
 
-  const [title, setTitle] = useState("");
-  const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
-  const [duration, setDuration] = useState(30);
-  const [durationRaw, setDurationRaw] = useState("30");
-  const [dueDate, setDueDate] = useState<string>(todayISO);
-  const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
+  const initialTitle =
+    typeof task.title === "string" ? task.title : (task.title as { en: string }).en;
+
+  const [title, setTitle] = useState(initialTitle);
+  const [quadrant, setQuadrant] = useState<Task["quadrant"]>(task.quadrant);
+  const [duration, setDuration] = useState(task.duration);
+  const [durationRaw, setDurationRaw] = useState(String(task.duration));
+  const [dueDate, setDueDate] = useState<string>(
+    task.due === "today" ? todayISO : task.due ?? todayISO
+  );
+  const [assigneeId, setAssigneeId] = useState<string | undefined>(task.assignee_id);
+  const [today, setToday] = useState(task.today);
+  const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
+      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSave();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, quadrant, duration, dueDate]);
+  }, [title, quadrant, duration, dueDate, assigneeId, today]);
 
-  async function submit() {
-    if (!title.trim()) return;
-    await create({
-      title: { en: title.trim(), zh: title.trim() },
-      quadrant,
-      today: dueDate === todayISO,
-      due: dueDate || null,
-      duration,
-      pomos_done: 0,
-      pomos_total: Math.max(1, Math.ceil(duration / 25)),
-      assignee_id: assigneeId,
-    });
-    onCreated?.();
+  async function handleSave() {
+    if (!title.trim() || busy) return;
+    setBusy(true);
+    try {
+      await update(task.id, {
+        title: { en: title.trim(), zh: title.trim() },
+        quadrant: quadrant as Task["quadrant"],
+        duration,
+        pomos_total: Math.max(1, Math.ceil(duration / 25)),
+        due: dueDate || null,
+        today,
+        assignee_id: assigneeId,
+      });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   }
 
-  return (
+  async function handleDelete() {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setBusy(true);
+    try {
+      await remove(task.id);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return createPortal(
     <div
       onClick={onClose}
-      className="fade-in absolute inset-0 z-[150] flex items-center justify-center"
-      style={{ background: "rgba(8, 11, 10, 0.6)", backdropFilter: "blur(6px)", padding: "0 32px" }}
+      className="fade-in fixed inset-0 z-[200] flex items-center justify-center"
+      style={{ background: "rgba(8, 11, 10, 0.65)", backdropFilter: "blur(6px)", padding: "0 32px" }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full overflow-hidden border rounded-[14px] bg-elevated shadow-lifted"
+        className="w-full overflow-hidden border rounded-[14px]"
         style={{
           maxWidth: 520,
+          background: "var(--bg-elevated)",
           borderColor: "var(--accent-edge)",
           boxShadow: "var(--shadow-lifted), 0 0 60px var(--accent-fog)",
           marginTop: "-6vh",
         }}
       >
         {/* Header */}
-        <header className="flex items-start gap-3 px-[18px] py-4 border-b border-border-faint">
-          <span className="lumo-glyph" style={{ width: 14, height: 14, marginTop: 3 }}>
-            <span className="halo" />
-            <span className="core" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-semibold text-text-primary">{t("qc.title")}</div>
-            <div className="mt-0.5 text-[11px] text-text-muted">
-              {locale === "zh"
-                ? "选个象限和时长，我会帮你排上。"
-                : "Pick a quadrant + estimate. I'll slot it in."}
-            </div>
-          </div>
+        <header className="flex items-center gap-3 px-[18px] py-4 border-b border-border-faint">
+          <div className="flex-1 text-[13px] font-semibold text-text-primary">{t("edit.title")}</div>
           <button
             onClick={onClose}
             aria-label={t("qc.close")}
-            title={t("qc.close")}
             className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-md text-text-muted border border-border-default bg-transparent hover:bg-subtle hover:text-text-primary hover:border-border-strong transition-colors"
           >
             <IconClose size={12} />
@@ -142,7 +151,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
                       padding: "9px 11px",
                       background: active ? "var(--bg-subtle)" : "var(--bg-surface)",
                       borderColor: active ? "var(--border-strong)" : "var(--border-default)",
-                      boxShadow: active ? `0 0 0 1px var(--border-strong)` : "none",
+                      boxShadow: active ? "0 0 0 1px var(--border-strong)" : "none",
                     }}
                   >
                     <div className="flex items-center gap-1.5">
@@ -173,7 +182,6 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
               <input
                 type="date"
                 value={dueDate}
-                min={todayISO}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="input"
                 style={{ colorScheme: "dark", cursor: "pointer" }}
@@ -183,14 +191,9 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
                 {t("qc.duration")}
               </div>
-              {/* Inline stepper — shows unit label, ±5 step */}
               <div
                 className="flex items-center rounded-md border overflow-hidden"
-                style={{
-                  height: 36,
-                  borderColor: "var(--border-default)",
-                  background: "var(--bg-surface)",
-                }}
+                style={{ height: 36, borderColor: "var(--border-default)", background: "var(--bg-surface)" }}
               >
                 <button
                   type="button"
@@ -234,6 +237,33 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
             </div>
           </div>
 
+          {/* Today toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setToday((v) => !v)}
+              className="relative rounded-full transition-colors flex-shrink-0"
+              style={{
+                width: 32,
+                height: 18,
+                background: today ? "var(--accent-primary)" : "var(--border-default)",
+              }}
+            >
+              <span
+                className="absolute top-[2px] rounded-full transition-all"
+                style={{
+                  width: 14,
+                  height: 14,
+                  left: today ? 16 : 2,
+                  background: today ? "var(--text-inverse)" : "var(--text-primary)",
+                }}
+              />
+            </button>
+            <span className="text-[12px] text-text-secondary">
+              {today ? t("edit.today.remove") : t("edit.today.add")}
+            </span>
+          </div>
+
           {/* Assignee */}
           {people.length > 0 && (
             <div>
@@ -275,13 +305,38 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
         </div>
 
         {/* Footer */}
-        <footer className="flex items-center justify-end gap-2 px-[18px] py-3 border-t border-border-faint">
-          <button className="btn btn-ghost" onClick={onClose}>{t("qc.cancel")}</button>
-          <button className="btn btn-primary" disabled={!title.trim()} onClick={submit}>
-            {t("qc.create")}
+        <footer className="flex items-center gap-2 px-[18px] py-3 border-t border-border-faint">
+          {/* Delete — left-anchored, confirm-to-delete pattern */}
+          <button
+            className="btn btn-ghost text-[12px] transition-colors"
+            style={{ color: confirmDelete ? "var(--status-urgent)" : "var(--text-faint)", marginRight: "auto" }}
+            onClick={handleDelete}
+            disabled={busy}
+          >
+            {confirmDelete
+              ? locale === "zh" ? "确认删除？" : "Confirm delete?"
+              : t("edit.delete")}
           </button>
+          {confirmDelete && (
+            <button className="btn btn-ghost text-[12px]" onClick={() => setConfirmDelete(false)} disabled={busy}>
+              {t("qc.cancel")}
+            </button>
+          )}
+          {!confirmDelete && (
+            <>
+              <button className="btn btn-ghost" onClick={onClose} disabled={busy}>{t("qc.cancel")}</button>
+              <button
+                className="btn btn-primary"
+                disabled={!title.trim() || busy}
+                onClick={handleSave}
+              >
+                {t("edit.save")}
+              </button>
+            </>
+          )}
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
