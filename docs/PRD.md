@@ -76,9 +76,10 @@ The product sits at the intersection of a task manager and a focus coach:
 
 #### Task Detail Modal
 - Opens when clicking a task row's content area.
-- Header: quadrant accent color bar, quadrant code + label, full task title, X close button.
-- Body grid: Due date, Estimate, Pomodoro progress (n/total), Assignee (with avatar), Today toggle button, Next step text (when set by AI).
-- Footer: **Start Focus** (primary), **Edit** (opens Edit modal), **Mark Complete**.
+- Header: 3px quadrant accent color bar, quadrant code + label, full task title, X close button.
+- Body grid: Due date, Estimate, Pomodoro progress (n/total), Assignee (with avatar), Next step text (when set by AI).
+- **No "Today" toggle** — today assignment is managed at creation or via AI recommendation; removing from today is out of scope in v1.
+- Footer: **Start Focus** (primary, navigates to `/focus`), **Complete** (secondary, marks done + closes), **Edit** (ghost, right side, opens Edit modal).
 - Dismissible via X button, backdrop click, or `Escape`.
 
 #### Task Edit Modal
@@ -118,9 +119,18 @@ The product sits at the intersection of a task manager and a focus coach:
 - Drag-over: panel border becomes accent-colored with inset glow.
 
 #### Matrix Task Card
-- Compact row: drag handle (grab cursor), circle action trigger, task title (truncated), duration, due date, **assignee avatar** (when set), pomodoro pips.
-- Circle trigger → `TaskActionPopover` (portal-rendered at `document.body` to avoid overflow clipping). Popover actions: Start Focus, Mark Complete, Edit (opens TaskEditModal), Toggle Today.
-- Cards are draggable (HTML5 DnD, `opacity: 0.4` while dragging).
+
+Matrix cards use the **same interaction model as the Today task row**:
+
+| Zone | Interaction |
+|------|-------------|
+| **Complete circle** (left, 16px) | Hover → shows checkmark; click → marks complete |
+| **Content area** (center) | Click → opens Task Detail Modal |
+| **Start Focus pill** (hover, right) | Navigates to `/focus` |
+| **··· more button** (hover, right) | Dropdown: Edit → Task Edit modal, Delete → removes task |
+| **Assignee avatar** (right, always) | Always visible when set |
+
+Cards are draggable (HTML5 DnD, `cursor: grab`, `opacity: 0.4` while dragging). Buttons use `onMouseDown` stop-propagation to avoid accidentally initiating drag on click. The content area does NOT stop propagation — users can drag from the title area.
 
 #### Unclassified Chip
 - Displays in the top toolbar strip.
@@ -213,6 +223,30 @@ Five-step wizard shown on first launch (or after "Replay onboarding"):
 - Login: email + password + OAuth (Google / Apple / GitHub).
 - Register: email, password, confirm, optional nickname.
 - Sidebar footer: user avatar + plan badge when signed in; "Sign In" pill when local-only.
+
+### 3.7 Account Page (`/account`)
+
+Visible to all users; some sections require sign-in.
+
+| Section | Content |
+|---------|---------|
+| **Profile card** | Avatar initials, name, email, plan badge, renewal date |
+| **Usage** | Task count, Pomodoro count, Sync status (3-column grid) |
+| **Plan** | Plan name + renewal date; management CTA = "Coming soon" badge |
+| **Security** | Change Password (→ `/account/change-password`), Sign Out |
+| ~~Danger zone~~ | **Removed** — account deletion not offered in v1 |
+
+#### Excluded capabilities (intentional, not bugs)
+- **Delete account** — excluded; no self-serve deletion path.
+- **Sign out all devices** — excluded; sessions are device-scoped in v1.
+- **Plan management** — "Coming soon"; subscription/billing not yet implemented.
+
+### 3.8 Change Password Page (`/account/change-password`)
+
+- Three fields: Current password, New password, Confirm new password.
+- Client-side validation: all fields required, passwords match, min 8 characters.
+- Submit: calls `POST /auth/change-password`; shows green success state, auto-redirects to `/account` after 1.6s.
+- Back link: `← Account` in top-left.
 
 ---
 
@@ -370,17 +404,19 @@ Stores and their responsibilities:
 | Desktop (future) | Tauri (Rust + system WebView) |
 
 ### Routing
-```
-/           → redirect → /today
-/today      → Today page
-/matrix     → Matrix page
-/focus      → Focus page
-/settings   → Settings page
-/login      → Login page
-/register   → Register page
-/account    → Account page
-/onboarding → Onboarding flow
-```
+
+| Route | Component | Auth | Notes |
+|-------|-----------|------|-------|
+| `/` | → `/today` | No | Redirect |
+| `/today` | `TodayPage` | No | Main landing |
+| `/matrix` | `MatrixPage` | No | Eisenhower grid |
+| `/focus` | `FocusPage` | No | Full-screen timer |
+| `/settings` | `SettingsPage` | No | Local preferences |
+| `/account` | `AccountPage` | No | Shows sign-in CTA when local |
+| `/account/change-password` | `ChangePasswordPage` | Yes | Requires active session |
+| `/login` | `LoginPage` | No | Email/pass + OAuth |
+| `/register` | `RegisterPage` | No | New account |
+| `/onboarding` | `OnboardingPage` | No | First-run only |
 
 ### File Organization
 ```
@@ -472,10 +508,12 @@ Branch protection on `main` requires all three. Squash merge only.
 - 4 accent themes
 - **Assignee/People feature**: Settings members CRUD, avatar display in Today + Matrix, QuickCreate picker
 - Task reopen from completed log (timeline with timestamps)
-- **TaskActionPopover** on Matrix cards: Start Focus / Complete / Edit / Toggle Today
-- **Task Edit Modal**: full CRUD — title, quadrant, due date, duration, today toggle, assignee, confirm-to-delete
-- **Task Detail Modal**: all fields + Next step + Today toggle; footer: Start Focus / Edit / Complete
-- **Today task row redesign**: left circle = direct complete; hover = right-side icon actions; click content = Detail Modal
+- **Task Edit Modal**: full CRUD — title, quadrant, due date, duration, assignee
+- **Task Detail Modal**: fields + Next step; footer: Start Focus (primary) / Complete (secondary) / Edit (ghost) — no Today toggle
+- **Unified task card interaction model**: complete circle, Start Focus pill, ··· more menu (Edit/Delete), click-for-detail; applied to both Today (`TaskRow`) and Matrix (`MatrixTaskCard`)
+- **Matrix drag-and-drop preserved** with new card interaction model via `onMouseDown` stop-propagation on buttons
+- **Account page**: usage stats, plan (Coming soon), change password, sign out; no delete account, no sign-out-all
+- **Change Password page** (`/account/change-password`): full form + validation + success redirect
 
 ### High Priority Next
 - [ ] Real Pomodoro timer (survives tab-switch / minimize; Web Worker for background persistence)

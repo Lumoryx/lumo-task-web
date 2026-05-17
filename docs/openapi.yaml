@@ -154,6 +154,56 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationError"
 
+  /auth/change-password:
+    post:
+      tags: [auth]
+      operationId: changePassword
+      summary: Change the authenticated user's password
+      description: |
+        Requires the user's current password for verification before setting a
+        new one. All existing sessions remain valid after the change (no forced
+        re-login on other devices — single-device model).
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password, confirm_password]
+              properties:
+                current_password:
+                  type: string
+                  description: The user's existing password for verification
+                new_password:
+                  type: string
+                  minLength: 8
+                  description: The desired new password
+                confirm_password:
+                  type: string
+                  description: Must exactly match `new_password`
+      responses:
+        "200":
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password updated successfully."
+        "401":
+          description: Current password is incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /auth/signout:
     post:
       tags: [auth]
@@ -875,10 +925,13 @@ components:
           description: Whether this task is in today's plan
         due:
           type: string
+          format: date
           nullable: true
           description: |
-            Loose due descriptor — not a strict ISO date.
-            Examples: "today", "Fri", "next wk", "Aug 14"
+            ISO 8601 date string (e.g. "2026-05-17"). Stored and returned as a
+            date string in the real backend. The frontend display layer uses
+            `getDueLabel()` to render human-friendly labels ("Today", "Fri", etc.)
+            based on the user's locale.
         duration:
           type: integer
           minimum: 0

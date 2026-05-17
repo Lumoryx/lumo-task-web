@@ -142,14 +142,32 @@ Use global CSS classes from `src/styles/global.css` for standard patterns:
 ### 4.1 Task Row Standard Layout
 
 ```
-[complete circle] [qdot] [title + meta] [hover actions] [assignee] [quadrant chip]
+[complete circle] [qdot] [title + meta] [hover: Start Focus pill · ··· menu] [assignee] [quadrant chip]
 ```
 
-- **Left circle**: direct single-click complete. On hover, shows a checkmark icon. No popover.
-- **Center content area** (title + meta): single-click opens the **Detail Modal**.
-- **Right hover actions**: fade in on row hover (`opacity: 0 / pointer-events: none` when not hovered). Never shift layout — buttons are always in the DOM.
-- **Standard right-side hover actions**: Start Focus (`→`), Edit (pencil icon).
-- **Quadrant chip**: always visible, clickable to open Detail Modal.
+This layout is **universal** — used identically in Today (`TaskRow`) and Matrix (`MatrixTaskCard`).
+
+| Zone | Always visible | Behavior |
+|------|---------------|----------|
+| Complete circle (left) | Yes | Hover → checkmark preview; click → `complete(id)` |
+| Quadrant dot | Yes | Color indicator only |
+| Title + meta (center) | Yes | Click → Task Detail Modal |
+| Start Focus pill | On row hover | Navigates to `/focus` |
+| ··· more button | On row hover | Opens `TaskMoreMenu` dropdown: Edit → Edit Modal, Delete → `remove(id)` |
+| Assignee avatar | Yes (when set) | No action |
+| Quadrant chip | Yes (when set) | Click → Task Detail Modal |
+
+**Hover reveal pattern:**
+```tsx
+<div style={{
+  opacity: hovered ? 1 : 0,
+  pointerEvents: hovered ? "auto" : "none",
+}}>
+  {/* action buttons — always in DOM, never affect layout */}
+</div>
+```
+
+**Matrix DnD compatibility:** In `MatrixTaskCard`, all interactive buttons set `onMouseDown={(e) => e.stopPropagation()}` to prevent the `draggable` container from initiating a drag when the user clicks a button. The content area does NOT stop propagation — dragging from the title area works.
 
 ### 4.2 Modals
 
@@ -159,8 +177,8 @@ All modals:
 - Are dismissable by clicking the backdrop overlay.
 - Enter with `.fade-in` CSS animation.
 
-**Detail Modal** → shows read-only task info. Footer has: Start Focus, Edit, Mark Complete.  
-**Edit Modal** → full CRUD form. Has a two-click confirm-delete pattern.
+**Detail Modal** → shows read-only task info. Footer: **Start Focus** (primary) | **Complete** (secondary) | **Edit** (ghost, right). No Today toggle.
+**Edit Modal** → full CRUD form for title, quadrant, due, duration, assignee.
 
 ### 4.3 Confirm-to-Delete Pattern
 
