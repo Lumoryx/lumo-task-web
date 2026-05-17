@@ -233,22 +233,32 @@ export function FocusPage() {
           >
             {fmtMMSS(remaining)}
           </div>
-          <div className="flex items-center gap-3 mt-2 pointer-events-auto">
-            <button
-              className="btn btn-primary btn-lg"
-              onClick={onComplete}
-              style={{ minWidth: 180, fontWeight: 600 }}
-            >
-              <IconCheck size={16} />
-              {t("focus.complete")}
-            </button>
+          <div className="flex flex-col items-center gap-2 mt-3 pointer-events-auto">
+            {/* Primary: Pause / Resume */}
             <button
               onClick={() => setPaused((p) => !p)}
               title={paused ? t("focus.resume") : t("focus.pause")}
-              className="flex items-center justify-center rounded-full bg-elevated text-text-primary border border-border-default hover:bg-subtle transition-colors"
-              style={{ width: 44, height: 44 }}
+              className="flex items-center gap-2 rounded-full transition-all text-sm font-semibold"
+              style={{
+                padding: "11px 36px",
+                background: paused ? "var(--accent-primary)" : "var(--bg-elevated)",
+                color: paused ? "var(--bg-base)" : "var(--text-primary)",
+                border: "1.5px solid",
+                borderColor: paused ? "var(--accent-primary)" : "var(--border-strong)",
+                boxShadow: paused ? "0 0 24px var(--accent-fog)" : "none",
+              }}
             >
-              {paused ? <IconPlay size={16} /> : <IconPause size={16} />}
+              {paused ? <IconPlay size={15} /> : <IconPause size={15} />}
+              {paused ? t("focus.resume") : t("focus.pause")}
+            </button>
+            {/* Secondary: Mark complete */}
+            <button
+              onClick={onComplete}
+              className="focus-complete-btn flex items-center gap-1.5 rounded-full text-xs font-medium transition-colors"
+              style={{ padding: "6px 18px" }}
+            >
+              <IconCheck size={12} />
+              {t("focus.complete")}
             </button>
           </div>
           <div className="mt-3.5 flex gap-5 text-[11px] text-text-muted tabular-nums">

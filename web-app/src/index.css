@@ -218,6 +218,16 @@ body {
   to   { opacity: 0.8; transform: scaleX(1); }
 }
 
+/* Focus page — secondary complete button */
+.focus-complete-btn {
+  color: var(--text-muted);
+  border: 1px solid transparent;
+}
+.focus-complete-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
 /* Scrollbar */
 .scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 .scroll-y::-webkit-scrollbar { width: 8px; }
