@@ -21,6 +21,10 @@ info:
     **Pagination**: List endpoints support `limit` and `offset` query parameters.
     Responses wrap items in a `PaginatedResponse` envelope.
 
+    **Dev-only**: The mock client exposes a `reset()` helper that clears
+    localStorage and reloads seed data. This has no corresponding production
+    endpoint and must not be exposed in the real backend.
+
 servers:
   - url: https://api.lumotask.app/v1
     description: Production
@@ -392,8 +396,12 @@ paths:
       operationId: uncompleteTask
       summary: Reopen a completed task (undo complete)
       description: |
-        Removes the CompletedEntry log and restores the task to active state.
-        Pass the **log entry ID** (not the task ID) as the path parameter.
+        Removes the CompletedEntry log record and restores the task to active
+        (`completed: false`). The `{id}` path parameter is the **CompletedEntry
+        log ID** (returned by `POST /tasks/{id}/complete`), not the task ID.
+
+        Implementation note: look up the CompletedEntry by `id`, find its
+        associated `taskId`, restore the task, then delete the log entry.
       security:
         - sessionCookie: []
         - bearerAuth: []

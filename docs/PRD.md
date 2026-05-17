@@ -1,6 +1,6 @@
 # Lumo Task — Product Requirements Document
 
-> **Version:** 2.0 — 2026-05-17
+> **Version:** 2.1 — 2026-05-18
 > **Status:** Active (core feature set complete; backend integration pending)
 > **Audience:** Engineers, designers, and stakeholders building Lumo Task.
 
@@ -84,7 +84,7 @@ The product sits at the intersection of a task manager and a focus coach:
 
 #### Task Edit Modal
 - Full CRUD form for existing tasks.
-- Fields: title (free text), quadrant (2×2 card selector), due date (date picker), duration (stepper), today toggle, assignee chip picker.
+- Fields: title (free text), quadrant (2×2 card selector), due date (date picker), duration (stepper), assignee chip picker.
 - Footer: **Delete task** (left, confirm-to-delete — requires two clicks), **Cancel**, **Save changes**.
 - `Cmd/Ctrl+Enter` saves; `Escape` closes.
 
@@ -348,6 +348,7 @@ All functions are `async` and return `Promise<T>` — callers are unchanged when
 | User | GET | `/user` | Current user profile |
 | Auth | POST | `/auth/signin` | Email/password sign-in |
 | Auth | POST | `/auth/register` | New account registration |
+| Auth | POST | `/auth/change-password` | Change password (requires current password) |
 | Auth | POST | `/auth/signout` | Sign out |
 | Tasks | GET | `/tasks` | Full task list |
 | Tasks | POST | `/tasks` | Create task |
@@ -395,13 +396,13 @@ Stores and their responsibilities:
 | Layer | Technology |
 |-------|-----------|
 | Framework | React 18 + TypeScript (strict) |
-| Build | Vite 5 |
-| Routing | React Router v6 (`BrowserRouter`) |
+| Build | Vite 5 (`base: "./"` for Electron file:// compatibility) |
+| Routing | React Router v6 (`HashRouter` — hash URLs work over both HTTP and `file://`) |
 | State | Zustand (no persist middleware — custom localStorage in API layer) |
 | Styling | CSS custom properties + Tailwind utility classes |
-| Icons | Inline SVG components in `src/components/icons/index.tsx` |
+| Icons | Inline SVG components in `src/components/icons.tsx` |
 | Persistence | `localStorage` (mock); HTTP API (real) |
-| Desktop (future) | Tauri (Rust + system WebView) |
+| Desktop | Electron 31 + electron-builder 24, NSIS installer (Windows x64); `make package-win` |
 
 ### Routing
 
@@ -420,15 +421,19 @@ Stores and their responsibilities:
 
 ### File Organization
 ```
-web-app/src/
-├── api/           # API client (client.ts) — only file that changes for real backend
-├── components/    # Shared UI: Shell, QuickCreate, TaskRow, AIClassifyModal, etc.
-├── i18n/          # String tables (strings.ts) + hooks (useT.ts)
-├── lib/           # Pure helpers: format.ts (fmtDuration, fmtMMSS, getDueLabel)
-├── mocks/         # Seed data: tasks.ts, people.ts, user.ts
-├── pages/         # Page-level components: TodayPage, MatrixPage, FocusPage, SettingsPage
-├── store/         # Zustand stores: useTasksStore, usePeopleStore, useAppStore
-└── types/         # Domain types: task.ts (Task, Person, User, CompletedEntry, ...)
+web-app/
+├── electron/
+│   ├── main.cjs       # Electron main process (frameless window, IPC handlers)
+│   └── preload.cjs    # contextBridge — exposes window.electronAPI to renderer
+└── src/
+    ├── api/           # API client (client.ts) — only file that changes for real backend
+    ├── components/    # Shared UI: Shell, QuickCreate, TaskRow, AIClassifyModal, etc.
+    ├── i18n/          # String tables (strings.ts) + hooks (useT.ts)
+    ├── lib/           # Pure helpers: format.ts (fmtDuration, fmtMMSS, getDueLabel)
+    ├── mocks/         # Seed data: tasks.ts, people.ts, user.ts
+    ├── pages/         # Page-level components: TodayPage, MatrixPage, FocusPage, SettingsPage
+    ├── store/         # Zustand stores: useTasksStore, usePeopleStore, useAppStore, useAuthStore
+    └── types/         # Domain types: task.ts, electron.d.ts (Window.electronAPI + CSSProperties)
 ```
 
 ---
@@ -508,12 +513,13 @@ Branch protection on `main` requires all three. Squash merge only.
 - 4 accent themes
 - **Assignee/People feature**: Settings members CRUD, avatar display in Today + Matrix, QuickCreate picker
 - Task reopen from completed log (timeline with timestamps)
-- **Task Edit Modal**: full CRUD — title, quadrant, due date, duration, assignee
+- **Task Edit Modal**: full CRUD — title, quadrant, due date, duration, assignee (no today toggle — today is managed via row actions only)
 - **Task Detail Modal**: fields + Next step; footer: Start Focus (primary) / Complete (secondary) / Edit (ghost) — no Today toggle
 - **Unified task card interaction model**: complete circle, Start Focus pill, ··· more menu (Edit/Delete), click-for-detail; applied to both Today (`TaskRow`) and Matrix (`MatrixTaskCard`)
 - **Matrix drag-and-drop preserved** with new card interaction model via `onMouseDown` stop-propagation on buttons
 - **Account page**: usage stats, plan (Coming soon), change password, sign out; no delete account, no sign-out-all
 - **Change Password page** (`/account/change-password`): full form + validation + success redirect
+- **Electron desktop packaging** — Windows NSIS installer via `make package-win`; frameless window; custom min/max/close controls in Topbar styled to app design; IPC bridged via `preload.cjs`; HashRouter for `file://` compatibility
 
 ### High Priority Next
 - [ ] Real Pomodoro timer (survives tab-switch / minimize; Web Worker for background persistence)
@@ -524,10 +530,10 @@ Branch protection on `main` requires all three. Squash merge only.
 ### Later
 - [ ] Real AI backend (Anthropic Claude for classify / recommend / parse)
 - [ ] Cloud sync (Supabase or custom API)
-- [ ] Tauri desktop shell (Windows .exe / macOS .dmg)
+- [ ] macOS packaging (Electron DMG / pkg)
 - [ ] Recurring tasks
 - [ ] Weekly review view
-- [ ] Push notifications / system tray (desktop)
+- [ ] Push notifications / system tray (Electron)
 - [ ] Filter by assignee
 
 ### Out of Scope (v1)
@@ -535,3 +541,52 @@ Branch protection on `main` requires all three. Squash merge only.
 - Project / sub-project hierarchy (tasks are flat)
 - Email or calendar integration
 - Billing / payment flows
+
+---
+
+## 11. Phase 2 — Backend Implementation Scope
+
+The frontend is complete and running against a mock API (`src/api/client.ts`). The next phase is implementing the real backend. This section summarizes what the backend must provide for a seamless frontend integration.
+
+### Swap Contract
+Replace each function in `src/api/client.ts` with a `fetch()` call to the corresponding endpoint. **No other files change.** The store layer and all components are already wired correctly.
+
+### Required Endpoints
+All endpoints are fully specified in `docs/openapi.yaml`. Summary of backend responsibilities:
+
+| Endpoint | Key backend behavior |
+|----------|---------------------|
+| `POST /auth/signin` | Validate credentials, issue session cookie + return User |
+| `POST /auth/register` | Create account, derive initials from nickname/email, issue session |
+| `POST /auth/change-password` | Verify current password server-side before accepting new one |
+| `POST /auth/signout` | Invalidate session cookie |
+| `GET /user` | Return User with `stats` populated (task count, pomodoro count, syncOK) |
+| `GET /tasks` | Return all active (non-completed) tasks, with all LocalizedString fields |
+| `POST /tasks` | Create task; auto-set `pomos_total = ceil(duration/25)` |
+| `PATCH /tasks/{id}` | Partial update — accept any subset of Task fields |
+| `POST /tasks/{id}/complete` | Set `completed: true`, create CompletedEntry with timestamps |
+| `DELETE /tasks/{id}/complete` | Remove CompletedEntry, restore task to active state |
+| `DELETE /people/{id}` | **Cascade:** clear `assignee_id` on all tasks that reference this person |
+| `POST /ai/classify` | Can be stubbed initially (return random Q1–Q4 per task) |
+| `POST /ai/recommend` | Can be stubbed (return highest-conviction Q1 task) |
+| `POST /ai/parse` | Can be stubbed (return empty TaskCreate with confidence 0) |
+| `POST /focus/sessions` | Increment `pomos_done` on the task; return updated Task |
+| `GET /settings` | Return stored settings or defaults |
+| `PATCH /settings` | Partial update of user settings |
+
+### Authentication Model
+- Session cookie (`lumo_session`) preferred; Bearer JWT accepted as fallback.
+- All endpoints except `/auth/*` require a valid session.
+- `local: true` users have no server session — the backend should treat missing cookies as local-only mode and return 401 where appropriate.
+
+### LocalizedString Policy
+- Tasks, people, and AI responses use `LocalizedString` objects (`{ en: string; zh?: string }`).
+- The backend stores both locales. The frontend resolves which to display based on the user's locale setting — **do not return a pre-resolved string**.
+
+### AI Stubs (acceptable for v2 launch)
+The three AI endpoints (`/ai/classify`, `/ai/recommend`, `/ai/parse`) can be implemented as rule-based stubs at first:
+- **classify**: return Q1 for tasks with due dates in the past, Q2 for near-future, Q3/Q4 otherwise.
+- **recommend**: return the first Q1 task with `today: true`; set `conviction: 0.8`, `next_step: { en: "Start now" }`.
+- **parse**: extract obvious keywords (numbers → duration, "fri/fri" → due), set `confidence: 0.6`.
+
+Real Claude integration can replace stubs in a later sprint without any frontend changes.
