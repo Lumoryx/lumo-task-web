@@ -9,8 +9,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "@/api/client";
-import { LOCAL_USER } from "@/mocks/user";
 import type { User } from "@/types/task";
+
+const LOCAL_USER: User = {
+  id: "local",
+  name: "You",
+  email: "",
+  initials: "YO",
+  local: true,
+  plan: "free",
+  stats: { tasks: 0, pomodoros: 0, syncOK: false },
+};
 
 interface AuthState {
   user: User;

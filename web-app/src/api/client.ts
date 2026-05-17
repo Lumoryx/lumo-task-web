@@ -1,286 +1,257 @@
 /**
- * Mock API client.
+ * Real API client — talks to the local Hono/SQLite backend.
  *
- * Public surface mimics what a real REST/RPC layer would expose. All
- * functions are async + return Promises so callers don't change when you
- * swap this out for `fetch()` against a real backend.
+ * Base URL is resolved once at startup:
+ *  - Electron: port from Electron IPC (injected by main.cjs)
+ *  - Dev/web:  VITE_API_BASE env var, or http://localhost:47291/v1
  *
- * Persistence: state is held in-memory and snapshotted to
- * `localStorage["lumo.tasks.v1"]` after every mutation, so the demo feels
- * stateful across reloads. Clear that key to reset.
- *
- * Latency: every call awaits `delay(...)` so loading states actually show.
- * Tune via `LATENCY_MS`.
+ * JWT token is stored in localStorage and attached to every request.
  */
 
 import type { CompletedEntry, Person, Task, User } from "@/types/task";
-import { SEED_COMPLETED_TODAY, SEED_TASKS } from "@/mocks/tasks";
-import { SEED_PEOPLE } from "@/mocks/people";
-import { LOCAL_USER, SEED_USER } from "@/mocks/user";
 
-const STORAGE_KEY = "lumo.tasks.v1";
-const LATENCY_MS = 120;
+// ── Base URL ─────────────────────────────────────────────────────────────────
 
-interface PersistedShape {
-  tasks: Task[];
-  completed: CompletedEntry[];
-  people: Person[];
+let resolvedBase: string | null = null;
+
+async function getBase(): Promise<string> {
+  if (resolvedBase) return resolvedBase;
+  if (typeof window !== "undefined" && window.electronAPI?.isElectron) {
+    const port = await window.electronAPI.getApiPort();
+    resolvedBase = `http://127.0.0.1:${port}/v1`;
+  } else {
+    resolvedBase = ((import.meta as any).env?.VITE_API_BASE as string | undefined) ?? "http://localhost:47291/v1";
+  }
+  return resolvedBase;
 }
 
-function load(): PersistedShape {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<PersistedShape>;
-      // Migrate old snapshots that pre-date the `people` field.
-      return {
-        tasks: parsed.tasks ?? structuredClone(SEED_TASKS),
-        completed: parsed.completed ?? structuredClone(SEED_COMPLETED_TODAY),
-        people: parsed.people ?? structuredClone(SEED_PEOPLE),
-      };
-    }
-  } catch {
-    /* ignore parse errors — fall through to seed */
+// ── Token ─────────────────────────────────────────────────────────────────────
+
+const TOKEN_KEY = "lumo.token";
+
+function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+// ── Fetch helper ──────────────────────────────────────────────────────────────
+
+async function req<T>(
+  method: string,
+  path: string,
+  body?: unknown
+): Promise<T> {
+  const base = await getBase();
+  const token = getToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${base}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as any).error ?? `HTTP ${res.status}`);
   }
+
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+
+// ── Type adapters (backend snake_case → frontend camelCase where needed) ──────
+
+function adaptTask(raw: any): Task {
   return {
-    tasks: structuredClone(SEED_TASKS),
-    completed: structuredClone(SEED_COMPLETED_TODAY),
-    people: structuredClone(SEED_PEOPLE),
+    id: raw.id,
+    assignee_id: raw.assignee_id ?? undefined,
+    title: raw.title,
+    desc: raw.desc ?? undefined,
+    quadrant: raw.quadrant,
+    today: raw.today,
+    due: raw.due ?? null,
+    duration: raw.duration,
+    pomos_done: raw.pomos_done,
+    pomos_total: raw.pomos_total,
+    conviction: raw.conviction ?? undefined,
+    next_step: raw.next_step ?? undefined,
+    reason: raw.reason ?? undefined,
+    ai_suggest: raw.ai_suggest ?? undefined,
+    completed: raw.completed,
+    not_now: raw.not_now ?? [],
   };
 }
 
-function save(state: PersistedShape) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    /* quota exceeded — silently noop in demo */
-  }
+function adaptEntry(raw: any): CompletedEntry {
+  return {
+    id: raw.id,
+    taskId: raw.task_id ?? undefined,
+    title: raw.title,
+    duration: raw.duration,
+    quadrant: raw.quadrant ?? undefined,
+    startedAt: raw.startedAt ?? undefined,
+    completedAt: raw.completedAt ?? undefined,
+  };
 }
 
-let state: PersistedShape = load();
+function adaptPerson(raw: any): Person {
+  return {
+    id: raw.id,
+    name: raw.name,
+    initials: raw.initials,
+    color: raw.color,
+    email: raw.email ?? undefined,
+  };
+}
 
-const delay = (ms = LATENCY_MS) => new Promise((r) => setTimeout(r, ms));
+// ── Local stand-in user (no-auth fallback) ────────────────────────────────────
 
-/* ── Public API ───────────────────────────────────────────────────── */
+const LOCAL_USER: User = {
+  id: "local",
+  name: "You",
+  email: "",
+  initials: "YO",
+  local: true,
+  plan: "free",
+  stats: { tasks: 0, pomodoros: 0, syncOK: false },
+};
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 export const api = {
-  /** Current user (mock single-user). */
   async getUser(): Promise<User> {
-    await delay(60);
-    return SEED_USER;
+    return req<User>("GET", "/user");
   },
 
-  /** Sign in with email + password. Mock: any non-empty values pass. */
   async signIn(input: { email: string; password: string }): Promise<User> {
-    await delay(400);
-    if (!input.email || !input.password) {
-      throw new Error("Email and password are required.");
-    }
-    if (input.password.length < 4) {
-      throw new Error("Password must be at least 4 characters.");
-    }
-    return {
-      ...SEED_USER,
-      email: input.email,
-      name: input.email.split("@")[0] || SEED_USER.name,
-      initials: (input.email.slice(0, 2) || "AS").toUpperCase(),
-    };
+    const res = await req<{ token: string; user: User }>("POST", "/auth/signin", input);
+    setToken(res.token);
+    return res.user;
   },
 
-  /** Sign in via an OAuth provider (mock). */
-  async signInWithProvider(provider: "google" | "apple" | "github"): Promise<User> {
-    await delay(450);
-    return { ...SEED_USER, name: `${SEED_USER.name} (${provider})` };
+  async signInWithProvider(_provider: "google" | "apple" | "github"): Promise<User> {
+    throw new Error("OAuth providers are not yet supported in local mode.");
   },
 
-  /** Register a new account. Mock returns a user assembled from the form. */
   async register(input: {
     email: string;
     password: string;
     confirm: string;
     nickname?: string;
   }): Promise<User> {
-    await delay(500);
-    if (!input.email.includes("@")) throw new Error("Enter a valid email.");
-    if (input.password.length < 6) throw new Error("Password must be at least 6 characters.");
     if (input.password !== input.confirm) throw new Error("Passwords don't match.");
-    const name = input.nickname?.trim() || input.email.split("@")[0];
-    return {
-      id: `u${Date.now()}`,
+    const res = await req<{ token: string; user: User }>("POST", "/auth/register", {
       email: input.email,
-      name,
-      initials: (name.slice(0, 2) || "U").toUpperCase(),
-      local: false,
-      plan: "free",
-      stats: { tasks: 0, pomodoros: 0, syncOK: true },
-    };
+      password: input.password,
+      name: input.nickname?.trim() || input.email.split("@")[0],
+    });
+    setToken(res.token);
+    return res.user;
   },
 
-  /** Sign out — returns the local-only stand-in. */
   async signOut(): Promise<User> {
-    await delay(120);
+    await req("POST", "/auth/signout").catch(() => {});
+    clearToken();
     return LOCAL_USER;
   },
 
-  /** Full task list. */
   async listTasks(): Promise<Task[]> {
-    await delay();
-    return structuredClone(state.tasks);
+    const rows = await req<any[]>("GET", "/tasks");
+    return rows.map(adaptTask);
   },
 
-  /** Tasks marked for today's plan. */
   async listToday(): Promise<Task[]> {
-    await delay();
-    return structuredClone(state.tasks.filter((t) => t.today && !t.completed));
+    const all = await this.listTasks();
+    return all.filter((t) => t.today && !t.completed);
   },
 
-  /** Completed-today log entries. */
   async listCompletedToday(): Promise<CompletedEntry[]> {
-    await delay();
-    return structuredClone(state.completed);
+    const d = new Date();
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const rows = await req<any[]>("GET", `/completed?date=${date}`);
+    return rows.map(adaptEntry);
   },
 
-  /** Create a new task. ID is generated server-side (here: timestamp). */
   async createTask(input: Omit<Task, "id">): Promise<Task> {
-    await delay();
-    const task: Task = { ...input, id: `t${Date.now()}` };
-    state = { ...state, tasks: [task, ...state.tasks] };
-    save(state);
-    return structuredClone(task);
+    const raw = await req<any>("POST", "/tasks", {
+      title: input.title,
+      desc: input.desc ?? null,
+      quadrant: input.quadrant,
+      today: input.today,
+      due: input.due ?? null,
+      duration: input.duration,
+      pomos_total: input.pomos_total,
+      assignee_id: input.assignee_id ?? null,
+      conviction: input.conviction ?? null,
+      next_step: input.next_step ?? null,
+      reason: input.reason ?? null,
+      ai_suggest: input.ai_suggest ?? null,
+      not_now: input.not_now ?? [],
+    });
+    return adaptTask(raw);
   },
 
-  /** Patch any subset of fields on an existing task. */
   async updateTask(id: string, patch: Partial<Task>): Promise<Task> {
-    await delay();
-    const idx = state.tasks.findIndex((t) => t.id === id);
-    if (idx < 0) throw new Error(`Task ${id} not found`);
-    const next = { ...state.tasks[idx], ...patch };
-    state = {
-      ...state,
-      tasks: state.tasks.map((t, i) => (i === idx ? next : t)),
-    };
-    save(state);
-    return structuredClone(next);
+    const raw = await req<any>("PATCH", `/tasks/${id}`, {
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...(patch.desc !== undefined && { desc: patch.desc }),
+      ...(patch.quadrant !== undefined && { quadrant: patch.quadrant }),
+      ...(patch.today !== undefined && { today: patch.today }),
+      ...(patch.due !== undefined && { due: patch.due }),
+      ...(patch.duration !== undefined && { duration: patch.duration }),
+      ...(patch.pomos_total !== undefined && { pomos_total: patch.pomos_total }),
+      ...(patch.assignee_id !== undefined && { assignee_id: patch.assignee_id }),
+      ...(patch.conviction !== undefined && { conviction: patch.conviction }),
+      ...(patch.next_step !== undefined && { next_step: patch.next_step }),
+      ...(patch.reason !== undefined && { reason: patch.reason }),
+      ...(patch.ai_suggest !== undefined && { ai_suggest: patch.ai_suggest }),
+      ...(patch.not_now !== undefined && { not_now: patch.not_now }),
+    });
+    return adaptTask(raw);
   },
 
-  /** Mark a task complete; also creates a completed-today log entry. */
   async completeTask(id: string): Promise<void> {
-    await delay();
-    const task = state.tasks.find((t) => t.id === id);
-    if (!task) throw new Error(`Task ${id} not found`);
-    const completedAt = new Date().toISOString();
-    const startedAt = new Date(Date.now() - task.duration * 60 * 1000).toISOString();
-    const log: CompletedEntry = {
-      id: `c${Date.now()}`,
-      taskId: id,
-      title: task.title,
-      duration: task.duration,
-      quadrant: task.quadrant,
-      startedAt,
-      completedAt,
-    };
-    state = {
-      ...state,
-      tasks: state.tasks.map((t) =>
-        t.id === id ? { ...t, completed: true, today: false } : t
-      ),
-      completed: [log, ...state.completed],
-    };
-    save(state);
+    await req("POST", `/tasks/${id}/complete`);
   },
 
-  /** Reopen a completed task — removes the log entry and restores the task. */
   async uncompleteTask(logId: string): Promise<void> {
-    await delay(60);
-    const log = state.completed.find((c) => c.id === logId);
-    if (!log) throw new Error(`Log entry ${logId} not found`);
-
-    let tasks = state.tasks;
-    if (log.taskId) {
-      const exists = tasks.some((t) => t.id === log.taskId);
-      if (exists) {
-        tasks = tasks.map((t) =>
-          t.id === log.taskId ? { ...t, completed: false, today: true } : t
-        );
-      } else {
-        // Task was deleted — recreate a minimal version from log data
-        const restored: Task = {
-          id: log.taskId,
-          title: log.title,
-          quadrant: log.quadrant ?? "unclassified",
-          today: true,
-          due: "today",
-          duration: log.duration,
-          pomos_done: 0,
-          pomos_total: Math.ceil(log.duration / 25),
-        };
-        tasks = [restored, ...tasks];
-      }
-    }
-
-    state = {
-      tasks,
-      completed: state.completed.filter((c) => c.id !== logId),
-      people: state.people,
-    };
-    save(state);
+    await req("POST", `/completed/${logId}/reopen`);
   },
 
-  /** Hard-delete a task. */
   async deleteTask(id: string): Promise<void> {
-    await delay();
-    state = { ...state, tasks: state.tasks.filter((t) => t.id !== id) };
-    save(state);
+    await req("DELETE", `/tasks/${id}`);
   },
 
-  /** List all people (team members). */
   async listPeople(): Promise<Person[]> {
-    await delay(60);
-    return structuredClone(state.people);
+    const rows = await req<any[]>("GET", "/people");
+    return rows.map(adaptPerson);
   },
 
-  /** Add a new person. ID generated here (server-side in real API). */
   async createPerson(input: Omit<Person, "id">): Promise<Person> {
-    await delay(80);
-    const person: Person = { ...input, id: `p${Date.now()}` };
-    state = { ...state, people: [...state.people, person] };
-    save(state);
-    return structuredClone(person);
+    const raw = await req<any>("POST", "/people", input);
+    return adaptPerson(raw);
   },
 
-  /** Patch a person's fields. */
   async updatePerson(id: string, patch: Partial<Omit<Person, "id">>): Promise<Person> {
-    await delay(80);
-    const idx = state.people.findIndex((p) => p.id === id);
-    if (idx < 0) throw new Error(`Person ${id} not found`);
-    const next = { ...state.people[idx], ...patch };
-    state = { ...state, people: state.people.map((p, i) => (i === idx ? next : p)) };
-    save(state);
-    return structuredClone(next);
+    const raw = await req<any>("PATCH", `/people/${id}`, patch);
+    return adaptPerson(raw);
   },
 
-  /** Remove a person. Also clears assignee_id on any tasks that referenced them. */
   async deletePerson(id: string): Promise<void> {
-    await delay(80);
-    state = {
-      ...state,
-      people: state.people.filter((p) => p.id !== id),
-      tasks: state.tasks.map((t) =>
-        t.assignee_id === id ? { ...t, assignee_id: undefined } : t
-      ),
-    };
-    save(state);
+    await req("DELETE", `/people/${id}`);
   },
 
-  /** Reset to seed data. Useful in dev. */
   async reset(): Promise<void> {
-    await delay(40);
-    state = {
-      tasks: structuredClone(SEED_TASKS),
-      completed: structuredClone(SEED_COMPLETED_TODAY),
-      people: structuredClone(SEED_PEOPLE),
-    };
-    save(state);
+    // No-op in real API — data is persistent.
   },
 };
 
