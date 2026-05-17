@@ -3,10 +3,12 @@ import { IconClose } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
-import type { Quadrant } from "@/types/task";
+import type { Quadrant, Task } from "@/types/task";
 
 interface QuickCreateProps {
   initialQuadrant?: Quadrant;
+  /** When provided, opens in edit mode for this task. */
+  editTask?: Task;
   onClose: () => void;
   onCreated?: () => void;
 }
@@ -25,15 +27,23 @@ const Q_META: Record<Quadrant, { en: string; zh: string; descEn: string; descZh:
  * Modal for creating a task quickly. Per design: centered, dismiss via X or
  * Escape. Escape is a convenience but the X button is always the primary affordance.
  */
-export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: QuickCreateProps) {
+export function QuickCreate({ initialQuadrant = "Q2", editTask, onClose, onCreated }: QuickCreateProps) {
   const t = useT();
   const locale = useAppStore((s) => s.locale);
   const create = useTasksStore((s) => s.create);
+  const update = useTasksStore((s) => s.update);
 
-  const [title, setTitle] = useState("");
-  const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
-  const [duration, setDuration] = useState(30);
-  const [due, setDue] = useState<string | null>("today");
+  const isEdit = !!editTask;
+
+  const [title, setTitle] = useState(() => {
+    if (!editTask) return "";
+    return locale === "zh"
+      ? (editTask.title.zh ?? editTask.title.en)
+      : editTask.title.en;
+  });
+  const [quadrant, setQuadrant] = useState<Quadrant>(editTask?.quadrant ?? initialQuadrant);
+  const [duration, setDuration] = useState(editTask?.duration ?? 30);
+  const [due, setDue] = useState<string | null>(editTask?.due ?? "today");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -47,22 +57,34 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
 
   async function submit() {
     if (!title.trim()) return;
-    await create({
-      title: { en: title.trim(), zh: title.trim() },
-      quadrant,
-      today: due === "today",
-      due,
-      duration,
-      pomos_done: 0,
-      pomos_total: Math.max(1, Math.ceil(duration / 25)),
-    });
-    onCreated?.();
+    if (isEdit && editTask) {
+      await update(editTask.id, {
+        title: { en: title.trim(), zh: title.trim() },
+        quadrant,
+        today: due === "today",
+        due,
+        duration,
+        pomos_total: Math.max(1, Math.ceil(duration / 25)),
+      });
+      onClose();
+    } else {
+      await create({
+        title: { en: title.trim(), zh: title.trim() },
+        quadrant,
+        today: due === "today",
+        due,
+        duration,
+        pomos_done: 0,
+        pomos_total: Math.max(1, Math.ceil(duration / 25)),
+      });
+      onCreated?.();
+    }
   }
 
   return (
     <div
       onClick={onClose}
-      className="fade-in absolute inset-0 z-[150] flex items-center justify-center"
+      className="fade-in fixed inset-0 z-[150] flex items-center justify-center"
       style={{ background: "rgba(8, 11, 10, 0.6)", backdropFilter: "blur(6px)", padding: "0 32px" }}
     >
       <div
@@ -82,7 +104,11 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
             <span className="core" />
           </span>
           <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-semibold text-text-primary">{t("qc.title")}</div>
+            <div className="text-[13px] font-semibold text-text-primary">
+              {isEdit
+                ? (locale === "zh" ? "编辑任务" : "Edit task")
+                : t("qc.title")}
+            </div>
             <div className="mt-0.5 text-[11px] text-text-muted">
               {locale === "zh"
                 ? "选个象限和时长，我会帮你排上。"
@@ -219,7 +245,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
         <footer className="flex items-center justify-end gap-2 px-[18px] py-3 border-t border-border-faint">
           <button className="btn btn-ghost" onClick={onClose}>{t("qc.cancel")}</button>
           <button className="btn btn-primary" disabled={!title.trim()} onClick={submit}>
-            {t("qc.create")}
+            {isEdit ? (locale === "zh" ? "保存" : "Save") : t("qc.create")}
           </button>
         </footer>
       </div>

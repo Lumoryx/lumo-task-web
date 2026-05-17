@@ -38,6 +38,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "today.due": "Due",
     "today.est": "Est",
     "today.skip": "Skip",
+    "task.edit": "Edit",
+    "task.delete": "Delete",
 
     "matrix.title": "Matrix",
     "matrix.sub": "Eisenhower — urgent vs. important.",
@@ -187,6 +189,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "today.due": "截止",
     "today.est": "预估",
     "today.skip": "跳过",
+    "task.edit": "编辑",
+    "task.delete": "删除",
 
     "matrix.title": "矩阵",
     "matrix.sub": "艾森豪威尔 — 紧急 vs. 重要。",
