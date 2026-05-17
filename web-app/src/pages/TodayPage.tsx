@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TaskRow } from "@/components/TaskRow";
-import { IconArrowRight } from "@/components/icons";
+import { IconArrowRight, IconUndo } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
@@ -431,6 +431,8 @@ interface TimelineProps {
 
 function CompletedTimeline({ entries, locale }: TimelineProps) {
   const ls = useLocaleString();
+  const t = useT();
+  const reopen = useTasksStore((s) => s.reopen);
   const total = entries.reduce((s, c) => s + c.duration, 0);
   const totalLabel =
     total >= 60
@@ -507,14 +509,40 @@ function CompletedTimeline({ entries, locale }: TimelineProps) {
                 )}
               </div>
 
-              <div className="flex-1" style={{ paddingBottom: isLast ? 0 : 20 }}>
-                <div className="flex items-start gap-2 flex-wrap">
+              <div className="flex-1 group" style={{ paddingBottom: isLast ? 0 : 20 }}>
+                <div className="flex items-start gap-2">
                   <span
-                    className="text-sm font-medium text-text-secondary leading-snug"
+                    className="flex-1 text-sm font-medium text-text-secondary leading-snug"
                     style={{ textDecoration: "line-through", textDecorationColor: "var(--text-faint)" }}
                   >
                     {ls(entry.title)}
                   </span>
+                  {/* Reopen button — visible on hover */}
+                  <button
+                    onClick={() => reopen(entry.id)}
+                    title={t("today.reopen")}
+                    className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity rounded-md px-2 py-0.5 text-[11px]"
+                    style={{
+                      color: "var(--text-faint)",
+                      background: "transparent",
+                      border: "1px solid var(--border-faint)",
+                    }}
+                    onMouseEnter={(e) => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.color = "var(--accent-primary)";
+                      el.style.borderColor = "var(--accent-edge)";
+                      el.style.background = "var(--accent-fog)";
+                    }}
+                    onMouseLeave={(e) => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.color = "var(--text-faint)";
+                      el.style.borderColor = "var(--border-faint)";
+                      el.style.background = "transparent";
+                    }}
+                  >
+                    <IconUndo size={11} />
+                    {t("today.reopen")}
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {qChip && (
