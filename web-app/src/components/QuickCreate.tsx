@@ -35,6 +35,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   const [title, setTitle] = useState("");
   const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
   const [duration, setDuration] = useState(30);
+  const [durationRaw, setDurationRaw] = useState("30");
   const [dueDate, setDueDate] = useState<string>(todayISO);
 
   useEffect(() => {
@@ -188,7 +189,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
               >
                 <button
                   type="button"
-                  onClick={() => setDuration((d) => Math.max(1, d - 5))}
+                  onClick={() => { const next = Math.max(1, duration - 1); setDuration(next); setDurationRaw(String(next)); }}
                   className="flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-subtle transition-colors select-none"
                   style={{ width: 32, fontSize: 16, flexShrink: 0, height: "100%" }}
                 >
@@ -198,11 +199,16 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
                   <input
                     type="number"
                     min={1}
-                    value={duration}
+                    value={durationRaw}
                     onChange={(e) => {
+                      setDurationRaw(e.target.value);
                       const v = parseInt(e.target.value);
-                      if (!isNaN(v) && v >= 1) setDuration(v);
-                      else if (e.target.value === "") setDuration(1);
+                      if (!isNaN(v)) setDuration(v);
+                    }}
+                    onBlur={() => {
+                      const clamped = Math.max(1, duration || 1);
+                      setDuration(clamped);
+                      setDurationRaw(String(clamped));
                     }}
                     className="tabular-nums font-semibold text-text-primary bg-transparent border-none outline-none text-center"
                     style={{ fontSize: 13, width: 40 }}
@@ -213,7 +219,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
                 </div>
                 <button
                   type="button"
-                  onClick={() => setDuration((d) => d + 5)}
+                  onClick={() => { const next = duration + 1; setDuration(next); setDurationRaw(String(next)); }}
                   className="flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-subtle transition-colors select-none"
                   style={{ width: 32, fontSize: 16, flexShrink: 0, height: "100%" }}
                 >
