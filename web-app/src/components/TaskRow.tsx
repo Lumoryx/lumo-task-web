@@ -90,19 +90,35 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
 
         {/* ── Right: hover actions + meta ───────────────────────── */}
         <div
-          className="flex items-center gap-0.5 transition-all"
+          className="flex items-center gap-1.5 transition-all"
           style={{
             opacity: hovered ? 1 : 0,
             pointerEvents: hovered ? "auto" : "none",
           }}
         >
-          {/* Start focus */}
-          <IconActionBtn
-            label={t("row.startfocus")}
+          {/* Start focus — labeled pill */}
+          <button
             onClick={(e) => { e.stopPropagation(); navigate("/focus"); }}
+            title={t("row.startfocus")}
+            aria-label={t("row.startfocus")}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors"
+            style={{
+              color: "var(--accent-primary)",
+              background: "var(--accent-fog)",
+              border: "1px solid var(--accent-edge)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent-dim)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent-fog)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-edge)";
+            }}
           >
-            <IconArrowRight size={13} />
-          </IconActionBtn>
+            <IconArrowRight size={12} />
+            {t("row.startfocus")}
+          </button>
 
           {/* ··· more menu — Edit + Delete */}
           <button
@@ -114,19 +130,22 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
               const rect = moreRef.current?.getBoundingClientRect();
               if (rect) setMoreAnchor(rect);
             }}
-            className="flex items-center justify-center w-7 h-7 rounded-md transition-colors"
+            className="flex items-center justify-center w-[28px] h-[26px] rounded-md transition-colors"
             style={{
-              color: moreAnchor ? "var(--text-primary)" : "var(--text-faint)",
-              background: moreAnchor ? "var(--bg-elevated)" : "transparent",
+              color: moreAnchor ? "var(--text-primary)" : "var(--text-secondary)",
+              background: moreAnchor ? "var(--bg-elevated)" : "var(--bg-subtle)",
+              border: `1px solid ${moreAnchor ? "var(--border-strong)" : "var(--border-default)"}`,
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
               (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
             }}
             onMouseLeave={(e) => {
               if (!moreAnchor) {
-                (e.currentTarget as HTMLElement).style.background = "transparent";
-                (e.currentTarget as HTMLElement).style.color = "var(--text-faint)";
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)";
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
               }
             }}
           >
