@@ -170,7 +170,9 @@ export function AccountPage() {
       {/* Security */}
       <Group title={t("account.security")}>
         <Row label={t("account.changePass")}>
-          <button className="btn btn-secondary">{t("account.changePass")}</button>
+          <button className="btn btn-secondary" onClick={() => navigate("/account/change-password")}>
+            {t("account.changePass")}
+          </button>
         </Row>
         <Row label={t("auth.signout")}>
           <button className="btn btn-secondary" onClick={handleSignOut}>
