@@ -111,12 +111,6 @@ export const IconUndo = (p: IconProps) => (
   </svg>
 );
 
-export const IconSparkle = (p: IconProps) => (
-  <svg {...base(p)}>
-    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />
-  </svg>
-);
-
 export const IconEdit = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -126,10 +120,14 @@ export const IconEdit = (p: IconProps) => (
 
 export const IconTrash = (p: IconProps) => (
   <svg {...base(p)}>
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
     <path d="M10 11v6M14 11v6" />
-    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
+
+export const IconSparkle = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />
   </svg>
 );
 

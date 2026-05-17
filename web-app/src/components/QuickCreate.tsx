@@ -183,7 +183,6 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
                 {t("qc.duration")}
               </div>
-              {/* Inline stepper — shows unit label, ±5 step */}
               <div
                 className="flex items-center rounded-md border overflow-hidden"
                 style={{

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Task } from "@/types/task";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
@@ -9,7 +9,8 @@ import { TaskEditModal } from "@/components/TaskEditModal";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
-import { IconArrowRight, IconEdit, IconCheck } from "@/components/icons";
+import { IconArrowRight, IconCheck, IconMore } from "@/components/icons";
+import { TaskMoreMenu } from "@/components/TaskMoreMenu";
 
 interface TaskRowProps {
   task: Task;
@@ -23,11 +24,14 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const navigate = useNavigate();
   const byId = usePeopleStore((s) => s.byId);
   const complete = useTasksStore((s) => s.complete);
+  const remove = useTasksStore((s) => s.remove);
 
   const [hovered, setHovered] = useState(false);
   const [circleHover, setCircleHover] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [moreAnchor, setMoreAnchor] = useState<DOMRect | null>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
 
   const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
@@ -84,8 +88,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
           </div>
         </div>
 
-        {/* ── Right: always-visible meta + hover actions ────────── */}
-        {/* Hover actions — Start focus + Edit */}
+        {/* ── Right: hover actions + meta ───────────────────────── */}
         <div
           className="flex items-center gap-0.5 transition-all"
           style={{
@@ -93,18 +96,42 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
             pointerEvents: hovered ? "auto" : "none",
           }}
         >
+          {/* Start focus */}
           <IconActionBtn
             label={t("row.startfocus")}
             onClick={(e) => { e.stopPropagation(); navigate("/focus"); }}
           >
             <IconArrowRight size={13} />
           </IconActionBtn>
-          <IconActionBtn
-            label={t("popover.edit")}
-            onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
+
+          {/* ··· more menu — Edit + Delete */}
+          <button
+            ref={moreRef}
+            title={locale === "zh" ? "更多操作" : "More actions"}
+            aria-label={locale === "zh" ? "更多操作" : "More actions"}
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = moreRef.current?.getBoundingClientRect();
+              if (rect) setMoreAnchor(rect);
+            }}
+            className="flex items-center justify-center w-7 h-7 rounded-md transition-colors"
+            style={{
+              color: moreAnchor ? "var(--text-primary)" : "var(--text-faint)",
+              background: moreAnchor ? "var(--bg-elevated)" : "transparent",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              if (!moreAnchor) {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-faint)";
+              }
+            }}
           >
-            <IconEdit size={13} />
-          </IconActionBtn>
+            <IconMore size={13} />
+          </button>
         </div>
 
         {/* Assignee avatar — always visible */}
@@ -121,6 +148,15 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
           </span>
         )}
       </div>
+
+      {moreAnchor && (
+        <TaskMoreMenu
+          anchor={moreAnchor}
+          onClose={() => setMoreAnchor(null)}
+          onEdit={() => setEditOpen(true)}
+          onDelete={() => remove(task.id)}
+        />
+      )}
 
       {detailOpen && (
         <TaskDetailModal task={task} onClose={() => setDetailOpen(false)} />
