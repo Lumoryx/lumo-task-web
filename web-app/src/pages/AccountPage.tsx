@@ -153,11 +153,17 @@ export function AccountPage() {
               : "Upgrade for unlimited sync and Lumo Pro."
           }
         >
-          {user.plan === "pro" ? (
-            <button className="btn btn-secondary">{t("account.manage")}</button>
-          ) : (
-            <button className="btn btn-primary">{t("account.upgrade")}</button>
-          )}
+          <span
+            className="inline-flex items-center rounded-md px-3 py-1.5 text-[12px] font-medium"
+            style={{
+              color: "var(--text-faint)",
+              background: "var(--bg-deep)",
+              border: "1px solid var(--border-faint)",
+              letterSpacing: "0.03em",
+            }}
+          >
+            Coming soon
+          </span>
         </Row>
       </Group>
 
@@ -166,28 +172,9 @@ export function AccountPage() {
         <Row label={t("account.changePass")}>
           <button className="btn btn-secondary">{t("account.changePass")}</button>
         </Row>
-        <Row label={t("account.signOutAll")}>
-          <button className="btn btn-secondary">{t("account.signOutAll")}</button>
-        </Row>
         <Row label={t("auth.signout")}>
           <button className="btn btn-secondary" onClick={handleSignOut}>
             {t("auth.signout")}
-          </button>
-        </Row>
-      </Group>
-
-      {/* Danger zone */}
-      <Group title={t("account.danger")} danger>
-        <Row label={t("account.delete")} helper={t("account.delete.helper")}>
-          <button
-            className="btn"
-            style={{
-              background: "transparent",
-              border: "1px solid rgba(255, 107, 107, 0.35)",
-              color: "var(--status-urgent)",
-            }}
-          >
-            {t("account.delete")}
           </button>
         </Row>
       </Group>
