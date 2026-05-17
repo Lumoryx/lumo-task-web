@@ -220,12 +220,13 @@ body {
 
 /* Focus page — secondary complete button */
 .focus-complete-btn {
-  color: var(--text-muted);
-  border: 1px solid transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
 }
 .focus-complete-btn:hover {
   color: var(--text-primary);
-  border-color: var(--border-default);
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
 }
 
 /* Scrollbar */
