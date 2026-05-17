@@ -7,20 +7,23 @@ import { fmtDuration } from "@/lib/format";
 import { IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
 import { TaskActionPopover } from "@/components/TaskActionPopover";
+import { TaskEditModal } from "@/components/TaskEditModal";
+import { usePeopleStore } from "@/store/usePeopleStore";
+import { PersonAvatar } from "@/pages/SettingsPage";
 
 /**
  * Eisenhower 2×2. Each quadrant is a column with a header and a stack
- * of compact task cards. Unclassified tasks go in a bottom strip.
+ * of compact task cards. Unclassified tasks live in a top toolbar strip
+ * alongside the AI classify button (both at the same visual level).
  *
- * Drag a card from one quadrant (or from the Unclassified strip) onto
- * another quadrant to reassign. The target quadrant highlights on
- * dragover. Reassignment goes through the tasks store, which persists
- * via the mock API.
+ * Drag a card from any quadrant (or from the Unclassified strip) onto
+ * another quadrant to reassign. The target quadrant highlights on dragover.
  */
 export function MatrixPage() {
   const t = useT();
   const tasks = useTasksStore((s) => s.tasks);
   const unclassified = tasks.filter((x) => x.quadrant === "unclassified" && !x.completed);
+  const allActive = tasks.filter((x) => !x.completed);
   const [classifyOpen, setClassifyOpen] = useState(false);
 
   const quadrants: Array<{ id: Quadrant; label: string; sub: string }> = [
@@ -31,22 +34,23 @@ export function MatrixPage() {
   ];
 
   return (
-    <div className="fade-in flex flex-col h-full p-7 gap-5">
-      {/* Toolbar: AI classify */}
-      <div className="flex items-center justify-end gap-2 -mb-1">
+    <div className="fade-in flex flex-col h-full p-7 gap-4">
+      {/* Toolbar: unclassified strip (left) + AI classify (right) */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Unclassified drop zone + chips */}
+        <UnclassifiedBar unclassified={unclassified} label={t("matrix.unclassified")} />
+
+        {/* AI classify — always available for all tasks */}
         <button
-          className="btn btn-secondary"
+          className="btn btn-secondary flex-shrink-0"
           onClick={() => setClassifyOpen(true)}
-          disabled={unclassified.length === 0}
-          title={
-            unclassified.length === 0 ? t("matrix.aiClassify.empty") : t("matrix.aiClassify")
-          }
+          disabled={allActive.length === 0}
         >
           <IconSparkle size={14} />
           {t("matrix.aiClassify")}
-          {unclassified.length > 0 && (
+          {allActive.length > 0 && (
             <span className="ml-1 text-[11px] text-text-faint tabular-nums">
-              · {unclassified.length}
+              · {allActive.length}
             </span>
           )}
         </button>
@@ -59,22 +63,44 @@ export function MatrixPage() {
         ))}
       </div>
 
-      {/* Unclassified strip — also a drop target (move task back to "no quadrant") */}
-      {unclassified.length > 0 && (
-        <DropZone target="unclassified" className="flex-shrink-0">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2">
-            {t("matrix.unclassified")}
-            <span className="ml-2 text-text-muted">{unclassified.length}</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {unclassified.map((task) => (
-              <UnclassifiedChip key={task.id} task={task} />
-            ))}
-          </div>
-        </DropZone>
-      )}
-
       {classifyOpen && <AIClassifyModal onClose={() => setClassifyOpen(false)} />}
+    </div>
+  );
+}
+
+/* ── Unclassified bar — drop zone + horizontal chip list ─────────── */
+
+function UnclassifiedBar({ unclassified, label }: { unclassified: Task[]; label: string }) {
+  const { over, handlers } = useTaskDrop("unclassified");
+
+  return (
+    <div
+      {...handlers}
+      className="flex-1 min-w-0 flex items-center gap-2 rounded-lg border px-3 transition-all overflow-hidden"
+      style={{
+        height: 38,
+        borderStyle: unclassified.length === 0 ? "dashed" : "solid",
+        borderColor: over ? "var(--accent-edge)" : "var(--border-faint)",
+        background: over ? "var(--accent-fog)" : "transparent",
+      }}
+    >
+      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint flex-shrink-0">
+        {label}
+        {unclassified.length > 0 && (
+          <span className="ml-1.5 font-normal text-text-muted">{unclassified.length}</span>
+        )}
+      </span>
+      {unclassified.length === 0 ? (
+        <span className="text-[11px] text-text-faint italic ml-1">
+          {over ? "Drop here" : "—"}
+        </span>
+      ) : (
+        <div className="flex items-center gap-1.5 overflow-x-auto min-w-0" style={{ scrollbarWidth: "none" }}>
+          {unclassified.map((task) => (
+            <UnclassifiedChip key={task.id} task={task} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -114,7 +140,6 @@ function makeDragProps(taskId: string) {
     onDragStart: (e: React.DragEvent) => {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData(DND_MIME, taskId);
-      // Make the source slightly transparent during drag
       (e.currentTarget as HTMLElement).style.opacity = "0.4";
     },
     onDragEnd: (e: React.DragEvent) => {
@@ -170,8 +195,12 @@ function QuadrantPanel({ id, title, subtitle }: { id: Quadrant; title: string; s
 function MatrixTaskCard({ task }: { task: Task }) {
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
+  const byId = usePeopleStore((s) => s.byId);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
 
   const openPopover = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -180,11 +209,11 @@ function MatrixTaskCard({ task }: { task: Task }) {
   };
 
   return (
+    <>
     <div
       {...makeDragProps(task.id)}
       className="relative flex items-center gap-2.5 rounded-md px-2.5 py-2 hover:bg-subtle transition-colors cursor-grab active:cursor-grabbing"
     >
-      {/* Circle action trigger */}
       <button
         ref={btnRef}
         onClick={openPopover}
@@ -197,7 +226,12 @@ function MatrixTaskCard({ task }: { task: Task }) {
         }}
       />
       {anchor && (
-        <TaskActionPopover task={task} anchor={anchor} onClose={() => setAnchor(null)} />
+        <TaskActionPopover
+          task={task}
+          anchor={anchor}
+          onClose={() => setAnchor(null)}
+          onEdit={() => setEditOpen(true)}
+        />
       )}
 
       <div className="flex-1 min-w-0">
@@ -207,39 +241,15 @@ function MatrixTaskCard({ task }: { task: Task }) {
           {task.due && <span className="ml-2">· {task.due}</span>}
         </div>
       </div>
+      {assignee && <PersonAvatar person={assignee} size={18} />}
       <span className="pip">
         {Array.from({ length: task.pomos_total }).map((_, i) => (
           <i key={i} className={i < task.pomos_done ? "on" : ""} />
         ))}
       </span>
     </div>
-  );
-}
-
-/* ── Drop zone wrapper for the Unclassified strip ─────────────────── */
-
-function DropZone({
-  target,
-  className,
-  children,
-}: {
-  target: Quadrant | "unclassified";
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const { over, handlers } = useTaskDrop(target);
-  return (
-    <section
-      {...handlers}
-      className={`rounded-xl border p-3 transition-all ${className ?? ""}`}
-      style={{
-        borderStyle: "dashed",
-        borderColor: over ? "var(--accent-edge)" : "var(--border-faint)",
-        background: over ? "var(--accent-fog)" : "transparent",
-      }}
-    >
-      {children}
-    </section>
+    {editOpen && <TaskEditModal task={task} onClose={() => setEditOpen(false)} />}
+    </>
   );
 }
 
@@ -248,7 +258,7 @@ function UnclassifiedChip({ task }: { task: Task }) {
   return (
     <div
       {...makeDragProps(task.id)}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-deep text-text-secondary text-[12px] cursor-grab active:cursor-grabbing"
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border bg-deep text-text-secondary text-[12px] cursor-grab active:cursor-grabbing flex-shrink-0 whitespace-nowrap"
       style={{ borderColor: "var(--border-faint)" }}
     >
       <span className="qdot qdot-un" />

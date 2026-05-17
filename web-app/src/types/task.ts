@@ -16,8 +16,21 @@ export interface LocalizedString {
   zh?: string;
 }
 
+/** A person who can be assigned to tasks. */
+export interface Person {
+  id: string;
+  name: string;
+  /** 1–2 character initials shown in the avatar bubble. */
+  initials: string;
+  /** Hex color for the avatar background. */
+  color: string;
+  email?: string;
+}
+
 export interface Task {
   id: string;
+  /** Person ID — references a Person in the people list. */
+  assignee_id?: string;
   title: LocalizedString;
   desc?: LocalizedString;
   quadrant: Quadrant;

@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
+import { usePeopleStore } from "@/store/usePeopleStore";
 import { useT } from "@/i18n/useT";
-import type { Locale } from "@/types/task";
+import type { Locale, Person } from "@/types/task";
+import { PERSON_COLORS } from "@/mocks/people";
 
 const ACCENT_SWATCHES: Array<{ id: Accent; hex: string; label: string }> = [
   { id: "green", hex: "#3DFFA0", label: "Lumo Green" },
@@ -22,6 +25,7 @@ export function SettingsPage() {
   const { accent, setAccent, density, setDensity, reducedMotion, setReducedMotion, locale, setLocale, setOnboarded } =
     useAppStore();
   const reset = useTasksStore((s) => s.reset);
+  const { people, create: createPerson, update: updatePerson, remove: removePerson } = usePeopleStore();
 
   return (
     <div className="fade-in px-8 py-8 max-w-[760px] mx-auto">
@@ -76,6 +80,14 @@ export function SettingsPage() {
         </Row>
       </Group>
 
+      <MembersGroup
+        people={people}
+        onCreate={createPerson}
+        onUpdate={updatePerson}
+        onRemove={removePerson}
+        t={t}
+      />
+
       <Group title="Data">
         <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
           <button className="btn btn-secondary" onClick={() => reset()}>
@@ -97,6 +109,263 @@ export function SettingsPage() {
           </button>
         </Row>
       </Group>
+    </div>
+  );
+}
+
+/* ── Members management ───────────────────────────────────────────── */
+
+type PersonDraft = { name: string; email: string; initials: string; color: string };
+
+function emptyDraft(): PersonDraft {
+  return { name: "", email: "", initials: "", color: PERSON_COLORS[0] };
+}
+
+function deriveInitials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function MembersGroup({
+  people,
+  onCreate,
+  onUpdate,
+  onRemove,
+  t,
+}: {
+  people: Person[];
+  onCreate: (input: Omit<Person, "id">) => Promise<Person>;
+  onUpdate: (id: string, patch: Partial<Omit<Person, "id">>) => Promise<void>;
+  onRemove: (id: string) => Promise<void>;
+  t: (key: string) => string;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState<PersonDraft>(emptyDraft);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<PersonDraft>(emptyDraft);
+  const [busy, setBusy] = useState(false);
+
+  function startEdit(person: Person) {
+    setEditId(person.id);
+    setEditDraft({ name: person.name, email: person.email ?? "", initials: person.initials, color: person.color });
+  }
+
+  function cancelEdit() {
+    setEditId(null);
+  }
+
+  async function saveEdit() {
+    if (!editId || !editDraft.name.trim()) return;
+    setBusy(true);
+    try {
+      await onUpdate(editId, {
+        name: editDraft.name.trim(),
+        email: editDraft.email.trim() || undefined,
+        initials: editDraft.initials || deriveInitials(editDraft.name),
+        color: editDraft.color,
+      });
+      setEditId(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveNew() {
+    if (!draft.name.trim()) return;
+    setBusy(true);
+    try {
+      await onCreate({
+        name: draft.name.trim(),
+        email: draft.email.trim() || undefined,
+        initials: draft.initials || deriveInitials(draft.name),
+        color: draft.color,
+      });
+      setDraft(emptyDraft());
+      setAdding(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mb-7">
+      <div className="flex items-center justify-between mb-2 pl-0.5">
+        <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint">
+          {t("settings.members")}
+        </h3>
+        {!adding && (
+          <button
+            className="text-[11px] text-accent-primary font-medium"
+            style={{ color: "var(--accent-primary)" }}
+            onClick={() => { setAdding(true); setDraft(emptyDraft()); }}
+          >
+            + {t("settings.members.add")}
+          </button>
+        )}
+      </div>
+
+      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+        {people.length === 0 && !adding && (
+          <div className="px-5 py-4 text-[12px] text-text-muted italic">{t("settings.members.empty")}</div>
+        )}
+
+        {people.map((person) => (
+          <div key={person.id} className="border-t border-border-faint first:border-t-0">
+            {editId === person.id ? (
+              <PersonForm
+                draft={editDraft}
+                onChange={setEditDraft}
+                onSave={saveEdit}
+                onCancel={cancelEdit}
+                busy={busy}
+                t={t}
+              />
+            ) : (
+              <div className="flex items-center gap-3 px-5 py-3">
+                <PersonAvatar person={person} size={32} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium text-text-primary">{person.name}</div>
+                  {person.email && (
+                    <div className="text-[11px] text-text-muted mt-0.5">{person.email}</div>
+                  )}
+                </div>
+                <button
+                  className="text-[11px] text-text-muted hover:text-text-primary transition-colors mr-3"
+                  onClick={() => startEdit(person)}
+                >
+                  {t("settings.members.edit")}
+                </button>
+                <button
+                  className="text-[11px] text-text-muted hover:text-status-urgent transition-colors"
+                  style={{ "--hover-color": "var(--status-urgent)" } as React.CSSProperties}
+                  onClick={() => onRemove(person.id)}
+                >
+                  {t("settings.members.delete")}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {adding && (
+          <div className="border-t border-border-faint first:border-t-0">
+            <PersonForm
+              draft={draft}
+              onChange={setDraft}
+              onSave={saveNew}
+              onCancel={() => setAdding(false)}
+              busy={busy}
+              t={t}
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PersonForm({
+  draft,
+  onChange,
+  onSave,
+  onCancel,
+  busy,
+  t,
+}: {
+  draft: PersonDraft;
+  onChange: (d: PersonDraft) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  busy: boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="px-5 py-4 flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        {/* Avatar preview */}
+        <PersonAvatar
+          person={{ name: draft.name, initials: draft.initials || deriveInitials(draft.name) || "?", color: draft.color }}
+          size={36}
+        />
+        <div className="flex-1 grid grid-cols-2 gap-2">
+          <input
+            autoFocus
+            placeholder={t("settings.members.name")}
+            value={draft.name}
+            onChange={(e) => {
+              const name = e.target.value;
+              onChange({ ...draft, name, initials: deriveInitials(name) });
+            }}
+            className="input"
+            style={{ height: 34, fontSize: 13 }}
+          />
+          <input
+            placeholder={t("settings.members.email") + " (optional)"}
+            value={draft.email}
+            onChange={(e) => onChange({ ...draft, email: e.target.value })}
+            className="input"
+            style={{ height: 34, fontSize: 13 }}
+          />
+          <input
+            placeholder={t("settings.members.initials")}
+            value={draft.initials}
+            maxLength={2}
+            onChange={(e) => onChange({ ...draft, initials: e.target.value.toUpperCase() })}
+            className="input"
+            style={{ height: 34, fontSize: 13 }}
+          />
+          <div className="flex items-center gap-1.5">
+            {PERSON_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => onChange({ ...draft, color: c })}
+                className="rounded-full transition-transform flex-shrink-0"
+                style={{
+                  width: 20,
+                  height: 20,
+                  background: c,
+                  outline: draft.color === c ? "2px solid var(--text-primary)" : "1px solid transparent",
+                  outlineOffset: 2,
+                  transform: draft.color === c ? "scale(1.1)" : "scale(1)",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <button className="btn btn-ghost" onClick={onCancel} disabled={busy} style={{ height: 30, fontSize: 12 }}>
+          {t("settings.members.cancel")}
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={onSave}
+          disabled={busy || !draft.name.trim()}
+          style={{ height: 30, fontSize: 12 }}
+        >
+          {t("settings.members.save")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function PersonAvatar({ person, size = 24 }: { person: Pick<Person, "initials" | "color" | "name">; size?: number }) {
+  return (
+    <div
+      className="flex-shrink-0 flex items-center justify-center rounded-full font-semibold select-none"
+      title={person.name}
+      style={{
+        width: size,
+        height: size,
+        background: person.color,
+        color: "#0d1210",
+        fontSize: Math.round(size * 0.4),
+        letterSpacing: "-0.02em",
+      }}
+    >
+      {person.initials}
     </div>
   );
 }

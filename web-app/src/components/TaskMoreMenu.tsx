@@ -46,13 +46,13 @@ export function TaskMoreMenu({ anchor, onClose, onEdit, onDelete }: Props) {
       >
         <MenuBtn
           icon={<IconEdit size={13} />}
-          label={t("task.edit")}
+          label={t("popover.edit")}
           onClick={() => { onClose(); onEdit(); }}
         />
         <div style={{ height: 1, background: "var(--border-faint)" }} />
         <MenuBtn
           icon={<IconTrash size={13} />}
-          label={t("task.delete")}
+          label={t("popover.delete")}
           danger
           onClick={() => { onClose(); onDelete(); }}
         />

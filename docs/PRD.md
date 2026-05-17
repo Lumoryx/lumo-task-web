@@ -1,7 +1,7 @@
 # Lumo Task — Product Requirements Document
 
-> **Version:** 1.0 — 2026-05-17
-> **Status:** Active (scaffold complete; deeper interactions in progress)
+> **Version:** 2.0 — 2026-05-17
+> **Status:** Active (core feature set complete; backend integration pending)
 > **Audience:** Engineers, designers, and stakeholders building Lumo Task.
 
 ---
@@ -11,10 +11,11 @@
 **Lumo Task** is a personal focus and priority management tool built around the **Eisenhower Matrix**. It helps knowledge workers answer the daily question: *"What should I actually work on right now?"*
 
 The product sits at the intersection of a task manager and a focus coach:
-- It classifies tasks by urgency and importance (Eisenhower quadrants).
-- It surfaces a daily primary task recommendation backed by lightweight AI reasoning.
-- It runs a Pomodoro-style focus timer to protect deep work time.
-- It works entirely offline-first, with optional cloud sync as a future upgrade path.
+- Classifies tasks by urgency and importance (Eisenhower quadrants Q1–Q4).
+- Surfaces a daily primary task recommendation backed by lightweight AI reasoning.
+- Runs a Pomodoro-style focus timer to protect deep work time.
+- Supports **team awareness** — tasks can be assigned to named people tracked within the app.
+- Works entirely **offline-first**, with optional cloud sync as a future upgrade path.
 
 ### Positioning
 
@@ -23,13 +24,15 @@ The product sits at the intersection of a task manager and a focus coach:
 | Prioritization model | Eisenhower Matrix | Tag/list | Time blocks |
 | AI involvement | Classify + recommend | None or tag-suggest | None |
 | Focus mode | Integrated Pomodoro | External tool | External tool |
+| Assignee tracking | Named person + avatar | Limited | None |
 | Primary device | Desktop (web + Tauri) | Mobile-first | All |
 
 ### Design Pillars
 1. **Clarity over completeness** — show the one most important task, not everything.
-2. **Local-first** — the app is fully functional with no account and no network.
+2. **Local-first** — fully functional with no account and no network.
 3. **Keyboard-friendly** — power users never leave the keyboard for common flows.
 4. **Opinionated defaults, flexible configuration** — sensible settings out of the box.
+5. **Bilingual by design** — English and Simplified Chinese as equal first-class languages.
 
 ---
 
@@ -46,6 +49,7 @@ The product sits at the intersection of a task manager and a focus coach:
 - Manager or self-employed professional.
 - Uses Eisenhower Matrix deliberately (familiar with the methodology).
 - Wants a digital version that doesn't require daily re-sorting.
+- **Delegates tasks to others** and wants to track ownership at a glance.
 - Goal: maintain a clean, classified backlog with minimal overhead.
 
 ---
@@ -57,35 +61,45 @@ The product sits at the intersection of a task manager and a focus coach:
 **Purpose:** Answer "what should I work on today?" in one screen.
 
 #### Hero Card (AI Recommendation)
-- Lumo AI selects the top task for the day based on quadrant, due date, completion history, and user overrides.
+- Lumo AI selects the top task based on quadrant, due date, and conviction score.
 - Displays: task title, quadrant chip, confidence bar (0–100%), AI reasoning text (1–2 sentences).
-- User can **accept** (starts focus session) or **dismiss** (removes from recommendation for today).
-- Three visual card variants — Classic (gradient full-width), Conviction (two-column + confidence), Path (timeline) — selectable in settings.
+- "Not now" section lists deprioritized tasks with brief reasons.
+- User can **Start focus** (goes to Focus page) or **Skip** (removes from today's recommendation).
 
 #### Today Task List
-- Tasks with `isToday: true` or due today, ordered by quadrant priority (Q1 → Q2 → Q3 → Q4).
-- Each row: checkbox, title, quadrant dot, due label, pomodoro pips, overflow menu.
-- Checkbox → marks complete with strikethrough animation. Completed tasks move to "Completed" section.
-- Tapping a row → inline expand (subtasks, notes) or full edit modal.
+- Tasks with `today: true`, ordered by quadrant priority (Q1 → Q2 → Q3 → Q4).
+- Each row layout (left → right): **complete circle** | quadrant dot | title + meta | *(hover: Start Focus icon · Edit icon)* | assignee avatar | quadrant chip.
+- **Left circle** — click directly completes the task (no intermediate popup). Hover shows a green ✓ checkmark preview.
+- **Center content area** — click opens the **Task Detail Modal** (see below).
+- **Right hover actions** — revealed on row hover: `→` Start Focus (navigates to Focus page), `✏` Edit (opens Edit modal). Assignee avatar and quadrant chip are always visible.
+- Completed tasks appear in a "Completed today" timeline at the bottom with timestamps and a reopen button.
 
-#### Compose Bar
-- Natural language input pinned to the bottom of the content area.
-- Input field + submit button.
-- On submit: calls `/api/tasks/parse` → shows ParseConfirmDialog with the structured result for user review before saving.
-- Keyboard shortcut: `N` or `C` to focus compose bar (when no input is focused).
+#### Task Detail Modal
+- Opens when clicking a task row's content area.
+- Header: quadrant accent color bar, quadrant code + label, full task title, X close button.
+- Body grid: Due date, Estimate, Pomodoro progress (n/total), Assignee (with avatar), Today toggle button, Next step text (when set by AI).
+- Footer: **Start Focus** (primary), **Edit** (opens Edit modal), **Mark Complete**.
+- Dismissible via X button, backdrop click, or `Escape`.
 
-#### ParseConfirmDialog
-- Shows parsed result: title, quadrant, due date, estimated pomos.
-- User can edit any field before confirming.
-- Confirm → creates task; Cancel → returns to compose bar with text preserved.
+#### Task Edit Modal
+- Full CRUD form for existing tasks.
+- Fields: title (free text), quadrant (2×2 card selector), due date (date picker), duration (stepper), today toggle, assignee chip picker.
+- Footer: **Delete task** (left, confirm-to-delete — requires two clicks), **Cancel**, **Save changes**.
+- `Cmd/Ctrl+Enter` saves; `Escape` closes.
 
-#### Empty State
-- Breathing orb animation (CSS keyframe glow pulse on `.lumo-glyph`).
-- CTA: "Add your first task" button.
+#### Quick Create (Modal)
+- Triggered via "+" button in topbar or keyboard shortcut.
+- **Centered modal** with semi-transparent backdrop blur.
+- Fields:
+  - **Task title** — free text, auto-focused.
+  - **Quadrant** — 2×2 grid of cards (Q1/Q2/Q3/Q4), each with dot, code, label, description.
+  - **Due date** — native `<input type="date">` calendar picker, defaults to today.
+  - **Duration** — stepper with ± 1 min buttons and free-entry input; validated on blur (min: 1 min).
+  - **Assignee** — chip picker (Unassigned + one chip per person); hidden when no people exist.
+- Keyboard: `Cmd/Ctrl+Enter` submits; `Escape` closes.
 
-#### In-Progress State
-- When a focus session is active: progress ring + elapsed time banner at top of Today.
-- Links to Focus page.
+#### All-Done State
+- When no today tasks remain: breathing orb + congratulatory message + completed task log.
 
 ---
 
@@ -93,34 +107,33 @@ The product sits at the intersection of a task manager and a focus coach:
 
 **Purpose:** Visualize and manage the full task backlog by Eisenhower quadrant.
 
-#### Layout Variants
-Three variants, user-selectable via segmented control in the page header:
+#### Toolbar (Top Strip)
+- **Left — Unclassified bar:** horizontal scrollable strip of unclassified task chips. Each chip shows quadrant dot, task title, AI suggestion badge (when available). Accepts drag-drop from any quadrant card. Styled with dashed border when empty.
+- **Right — AI Classify button:** always visible; shows count of all active tasks. Disabled only when no active tasks exist.
 
-| Variant | Layout | Best for |
-|---------|--------|----------|
-| Classic | 2×2 equal grid | Overview, balanced backlogs |
-| List | 4 vertical sections, full width | Long task lists |
-| Hybrid | Q1 wider column + Q2/Q3/Q4 stacked | Q1-heavy backlogs |
+#### 2×2 Quadrant Grid
+- Four equal panels: Q1 (red), Q2 (green), Q3 (cyan), Q4 (graphite).
+- Each panel: header with color dot, quadrant code + label, subtitle, task count.
+- Accepts drag-drop from other panels and from the Unclassified bar.
+- Drag-over: panel border becomes accent-colored with inset glow.
 
-#### Quadrant Boxes
-Each box: quadrant header (color-coded), task count chip, task cards, "Add task" button at bottom.
+#### Matrix Task Card
+- Compact row: drag handle (grab cursor), circle action trigger, task title (truncated), duration, due date, **assignee avatar** (when set), pomodoro pips.
+- Circle trigger → `TaskActionPopover` (portal-rendered at `document.body` to avoid overflow clipping). Popover actions: Start Focus, Mark Complete, Edit (opens TaskEditModal), Toggle Today.
+- Cards are draggable (HTML5 DnD, `opacity: 0.4` while dragging).
 
-#### Matrix Card (Drag-and-Drop)
-- HTML5 Drag-and-Drop (no external library).
-- Draggable cards within and between quadrants.
-- Drop zone highlights with 2px dashed accent border.
-- On drop: optimistic UI update + API call to update quadrant.
+#### Unclassified Chip
+- Displays in the top toolbar strip.
+- Shows: quadrant dot (grey), task title, AI suggestion badge (`chip-ai` class).
+- Draggable; drop onto any quadrant panel to classify.
 
-#### Unclassified Strip
-- Horizontal scrollable strip above the matrix grid.
-- Shows tasks where `quadrant === 'unclassified'`.
-- "AI Classify" button → opens ClassifyConfirmDialog.
-
-#### ClassifyConfirmDialog (AI Classify)
-- Shows all unclassified tasks with Lumo's suggested quadrant and reasoning.
-- User can override any suggestion inline before applying.
-- "Apply All" button → batch-updates all quadrants.
-- Summary row: count per quadrant.
+#### AI Classify Modal
+- **Covers ALL active tasks**, not just unclassified ones.
+- Unclassified tasks appear first; already-classified tasks below.
+- Per row: current quadrant chip (for classified tasks), task title, hint text ("Lumo suggests Qx" or "Current: Qx"), quadrant selector buttons (Q1–Q4).
+- Summary bar: live count per quadrant + "N items pending change" when modified.
+- Apply button: disabled until at least one quadrant changes; only submits tasks that actually changed.
+- Close via X button or `Escape` key.
 
 ---
 
@@ -128,46 +141,50 @@ Each box: quadrant header (color-coded), task count chip, task cards, "Add task"
 
 **Purpose:** Distraction-free Pomodoro timer for the current task.
 
-#### Entry Points
-- "Start Focus" button on Today hero card.
-- "Focus" button on any task row overflow menu.
-- Sidebar nav → Focus (redirects to Today if no active session).
-
 #### Timer Experience
-- Full-viewport canvas. Topbar and sidebar hidden.
-- SVG progress ring: 240px diameter, 8px stroke, `--accent-primary` foreground, `--border-subtle` track.
-- Default session: 25 minutes. Configurable in Settings.
-- Timer display: `MM:SS` in JetBrains Mono 64px.
-- Task title below timer.
-- Controls: **Pause/Resume**, **Complete Session**, **Abandon**.
+- Full-viewport canvas. Topbar hidden; sidebar visible.
+- Ambient radial gradient background (subtle accent glow).
+- Top strip: quadrant chip, task title, next step text, "Do not disturb" indicator, Exit button.
+- SVG progress ring (380px): gradient arc from `--accent-primary` to `--accent-dim`; rotating dot at leading edge.
+- Center: round number label, **large `MM:SS` countdown** (88px mono), action buttons.
 
-#### Session Completion
-- Increments task's `completedPomos` count.
-- Shows FocusComplete screen: total time, pomos completed, quick action to start next session or return to Today.
+#### Action Buttons (vertical stack, center canvas)
+1. **Mark complete** (primary) — accent-filled pill button; marks task done + navigates to Today.
+2. **Pause / Resume** (secondary) — slim border pill; toggles timer state; icon changes between `IconPause` / `IconPlay`.
 
-#### Pomodoro Configuration (in Settings)
-- Work duration: 15 / 20 / 25 / 30 / 45 / 60 min (default: 25).
-- Break duration: 5 / 10 / 15 min (default: 5).
-- Sessions before long break: 2–6 (default: 4).
-- Long break duration: 15 / 20 / 30 min (default: 15).
+#### Metadata Row (below buttons)
+- Estimated duration and actual elapsed time, side by side.
+
+#### Empty State (no today tasks)
+- Ghost SVG ring with reduced opacity.
+- Breathing triple-orb Lumo animation.
+- Ghost "25:00" display.
+- Heading + description + two CTAs: "Go to Today" (primary), "Open Matrix" (secondary).
+
+#### Task Selection Logic
+- Picks the first `today: true, quadrant: "Q1", completed: false` task.
+- Falls back to first `today: true, completed: false` task.
 
 ---
 
 ### 3.4 Settings Page
 
-Six sections, navigated via a left rail:
+Five settings sections, each a card group:
 
-| Section | Key Settings |
-|---------|-------------|
-| **Appearance** | Accent theme (Green/Cyan/Amber/Graphite), layout density, reduce motion |
-| **Language** | Interface language (English / 中文) |
-| **AI** | Enable AI features toggle, AI provider, API key (for future real AI) |
-| **Focus** | Pomodoro durations, break intervals, sound/notification preferences |
-| **Sync** | Cloud sync status, last sync time, "Replay onboarding" |
-| **Account** | User profile (name, email, avatar), plan badge, sign out |
-| **Privacy** | Data deletion, export |
+| Section | Contents |
+|---------|----------|
+| **Appearance** | Accent color (4 swatches), layout density (Comfortable / Compact), Reduced motion toggle |
+| **Language** | Locale selector (English / 中文) |
+| **Members** | Add/edit/remove team members; each member has name, email (optional), initials (auto-derived), color (8-swatch palette) |
+| **Data** | Reset demo data button, Replay onboarding button |
 
-**Replay Onboarding:** Available in Sync section. Resets onboarding completion flag and navigates to the onboarding flow.
+#### Members Section (Settings → 成员)
+- Lists all people with: colored initials avatar, name, email, Edit / Remove buttons.
+- "Add member" link in section header → inline form expands at bottom of list.
+- Inline form: name input (auto-derives initials), email input, initials override, 8-color picker. Avatar preview updates live as user types.
+- Edit: expands the same form inline for the selected person.
+- Remove: immediately deletes person and clears `assignee_id` on any tasks that referenced them.
+- Empty state: italic placeholder text.
 
 ---
 
@@ -177,63 +194,89 @@ Five-step wizard shown on first launch (or after "Replay onboarding"):
 
 | Step | Content |
 |------|---------|
-| 1. Welcome | Brand intro, tagline, "Get Started" |
-| 2. Language | Choose English or 中文 |
-| 3. Accent | Pick from 4 color swatches; live preview |
+| 1. Welcome | Brand intro, tagline, "Let's set it up" CTA |
+| 2. Language | Choose English or 中文; applies immediately |
+| 3. Accent color | 4 swatches; live preview via CSS vars |
 | 4. Density | Comfortable vs. Compact; live preview |
-| 5. Done | Confirmation, navigate to Today |
+| 5. Done | "All set" confirmation, "Open the matrix" CTA |
 
-- Each step is a full-screen centered card.
-- Progress dots at bottom.
-- "Back" and "Next" navigation.
-- Settings are applied immediately on selection (not on final confirm).
+- Settings applied immediately on selection (not on final confirm).
+- Progress dots at bottom; Back/Next navigation; Skip available on each step.
 
 ---
 
 ### 3.6 Authentication (Local-First)
 
-**Default mode:** No account required. All data is stored in `localStorage`. The app is fully functional without any sign-in.
+**Default mode:** No account required. All data stored in `localStorage`. Fully functional without sign-in.
 
-**Optional sign-in** (for cloud sync, when implemented):
-
-| Screen | Fields |
-|--------|--------|
-| Login | Email, password, "Remember me", OAuth buttons (Google, GitHub) |
-| Register | Name, email, password, confirm password, OAuth buttons |
-| Account | Profile info, plan badge, usage stats, "Sign Out" |
-
-**Auth flows:**
-- Login success → redirect to `/today`.
-- Register success → redirect to onboarding (step 1).
-- Sign out → clears auth store, redirect to `/login`.
-
-**Sidebar footer behavior:**
-- Signed in: user avatar card (initials, plan badge, sync status dot) → tap → navigate `/account`.
-- Signed out: green status dot + "Sign In" pill → tap → navigate `/login`.
+**Optional sign-in** (for cloud sync, future):
+- Login: email + password + OAuth (Google / Apple / GitHub).
+- Register: email, password, confirm, optional nickname.
+- Sidebar footer: user avatar + plan badge when signed in; "Sign In" pill when local-only.
 
 ---
 
 ## 4. Data Model
+
+All types live in `src/types/task.ts`. Never redefine in components — import from there.
 
 ### Task
 ```typescript
 interface Task {
   id: string;
   title: LocalizedString;
-  description?: LocalizedString;
-  quadrant: Quadrant;           // 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'unclassified'
-  isToday: boolean;
-  dueDate?: string;             // ISO date string
-  estimatedPomos: number;
-  completedPomos: number;
-  isCompleted: boolean;
-  completedAt?: string;
-  subtasks: Subtask[];
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
-  aiConfidence?: number;        // 0–1, from AI classification
-  aiReason?: LocalizedString;   // AI's reasoning for quadrant placement
+  desc?: LocalizedString;
+  quadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'unclassified';
+  today: boolean;               // included in today's plan
+  due: string | null;           // ISO date string, e.g. "2026-05-17"
+  duration: number;             // estimated minutes
+  pomos_done: number;
+  pomos_total: number;
+  assignee_id?: string;         // Person.id reference
+  conviction?: number;          // 0–1, AI confidence for recommendation
+  next_step?: LocalizedString;  // AI-suggested next action
+  reason?: LocalizedString;     // AI rationale for today recommendation
+  ai_suggest?: Quadrant;        // AI-suggested quadrant (when unclassified)
+  completed?: boolean;
+  not_now?: Array<{ id: string; reason: LocalizedString }>;
+}
+```
+
+### Person
+```typescript
+interface Person {
+  id: string;
+  name: string;
+  initials: string;   // 1–2 chars, shown in avatar bubble
+  color: string;      // hex, from preset palette
+  email?: string;
+}
+```
+
+### CompletedEntry
+```typescript
+interface CompletedEntry {
+  id: string;
+  taskId?: string;            // original Task.id for reopen
+  title: LocalizedString;
+  duration: number;           // actual minutes
+  quadrant?: Quadrant;
+  startedAt?: string;         // ISO timestamp
+  completedAt?: string;       // ISO timestamp
+}
+```
+
+### User
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+  local: boolean;
+  plan?: 'free' | 'pro';
+  renewsAt?: string;
+  stats?: { tasks: number; pomodoros: number; syncOK: boolean };
 }
 ```
 
@@ -245,80 +288,70 @@ interface LocalizedString {
 }
 ```
 
-### User
-```typescript
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  initials: string;
-  plan: 'free' | 'pro';
-  avatarUrl?: string;
-}
-```
-
-### AppSettings
-```typescript
-interface AppSettings {
-  locale: 'en' | 'zh';
-  accent: 'green' | 'cyan' | 'amber' | 'graphite';
-  density: 'comfortable' | 'compact';
-  reducedMotion: boolean;
-  aiEnabled: boolean;
-  pomoDuration: number;      // minutes
-  breakDuration: number;
-  longBreakDuration: number;
-  sessionsBeforeLongBreak: number;
-  onboardingComplete: boolean;
-}
-```
-
 ---
 
 ## 5. API Layer Architecture
 
 ### Design Principle
-**One file to swap for real backend:** `src/api/client.ts`. Everything else is untouched when moving from mock to production.
+**One file to swap for a real backend:** `src/api/client.ts`.
 
-```typescript
-// src/api/client.ts
-const USE_MOCK = import.meta.env.VITE_API_MODE !== 'real'
+All functions are `async` and return `Promise<T>` — callers are unchanged when switching from mock to production.
 
-export async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-  if (USE_MOCK) return mockDispatch<T>(path, options)
-  const res = await fetch(`${import.meta.env.VITE_API_BASE}${path}`, options)
-  if (!res.ok) throw new ApiError(res.status, await res.text())
-  return res.json()
-}
+```
+.env                → VITE_API_MODE=mock   (default, local dev)
+.env.production     → VITE_API_MODE=real + VITE_API_BASE=https://api.lumotask.app
 ```
 
-To connect a real backend: set `VITE_API_MODE=real` and `VITE_API_BASE=https://api.lumotask.app` in `.env.production`.
+### Persistence
+- Mock: in-memory state snapshotted to `localStorage["lumo.tasks.v1"]` after every mutation.
+- Backward-compatible migration: fields missing from old snapshots fall back to seed data (e.g. `people` added in v2).
+- Clear `localStorage["lumo.tasks.v1"]` in devtools to reset to seed.
 
-### Mock Layer
-All mock handlers are in `src/api/mock/`. They simulate network latency:
+### API Endpoints (implemented in mock; ready for real backend)
 
-| Endpoint type | Latency |
-|---------------|---------|
-| CRUD (tasks) | 50–150ms |
+| Resource | Method | Path | Purpose |
+|----------|--------|------|---------|
+| User | GET | `/user` | Current user profile |
+| Auth | POST | `/auth/signin` | Email/password sign-in |
+| Auth | POST | `/auth/register` | New account registration |
+| Auth | POST | `/auth/signout` | Sign out |
+| Tasks | GET | `/tasks` | Full task list |
+| Tasks | POST | `/tasks` | Create task |
+| Tasks | PUT | `/tasks/:id` | Update task fields |
+| Tasks | DELETE | `/tasks/:id` | Hard delete task |
+| Tasks | POST | `/tasks/:id/complete` | Mark complete + create log entry |
+| Tasks | DELETE | `/tasks/:id/complete` | Reopen (uncomplete) task |
+| People | GET | `/people` | All people (team members) |
+| People | POST | `/people` | Create person |
+| People | PUT | `/people/:id` | Update person |
+| People | DELETE | `/people/:id` | Delete person + clear assignee refs |
+| AI | POST | `/ai/classify` | Batch quadrant suggestions for tasks |
+| AI | POST | `/ai/recommend` | Today's primary task recommendation |
+| AI | POST | `/ai/parse` | Natural language → structured task |
+| Focus | POST | `/focus/sessions` | Start/complete a Pomodoro session |
+| Settings | GET | `/settings` | User app settings |
+| Settings | PUT | `/settings` | Update settings |
+
+### Mock Latency
+
+| Operation | Simulated latency |
+|-----------|------------------|
+| CRUD | 80–120ms |
+| AI classify / recommend | 400–800ms |
 | NLP parse | 150–300ms |
-| AI recommend / classify | 400–800ms |
-
-Mock data is seeded from `src/mocks/tasks.ts` on first load and persisted to `localStorage`.
 
 ### Store Layer
-All data access from components goes through **Zustand stores**:
-
 ```
-Component → Store action → API call → localStorage (mock) / HTTP (real)
+Component → Store action → api.method() → localStorage / HTTP
 ```
 
-Stores:
-- `useTasksStore` — task CRUD, today list, AI classify, optimistic updates
-- `useAppStore` — settings (accent, locale, density, AI config), persist middleware
-- `useAuthStore` — user profile, isSignedIn flag, login/logout actions
-- `useFocusStore` — active session state, timer tick, pomo counter
+Stores and their responsibilities:
+- `useTasksStore` — all task CRUD, completed log, optimistic updates
+- `usePeopleStore` — people CRUD, `byId` selector
+- `useAppStore` — locale, accent, density, reducedMotion, onboarding state
+- (future) `useAuthStore` — user profile, isSignedIn flag
 
-**Rule:** Components never import from `src/api/` directly. Only stores do.
+**Rule:** Components never import from `src/api/` directly. Only stores call API functions.
 
 ---
 
@@ -330,116 +363,137 @@ Stores:
 | Framework | React 18 + TypeScript (strict) |
 | Build | Vite 5 |
 | Routing | React Router v6 (`BrowserRouter`) |
-| State | Zustand with `persist` middleware |
-| Styling | CSS custom properties + utility classes (no framework dependency) |
+| State | Zustand (no persist middleware — custom localStorage in API layer) |
+| Styling | CSS custom properties + Tailwind utility classes |
+| Icons | Inline SVG components in `src/components/icons/index.tsx` |
 | Persistence | `localStorage` (mock); HTTP API (real) |
 | Desktop (future) | Tauri (Rust + system WebView) |
 
-### Routing Structure
+### Routing
 ```
-/                  → redirect → /today
-/today             → Today page
-/matrix            → Matrix page
-/focus             → Focus page (redirect to /today if no active session)
-/settings/:section → Settings page
-/login             → Login page
-/register          → Register page
-/account           → Account page (requires sign-in)
-/onboarding        → Onboarding flow
+/           → redirect → /today
+/today      → Today page
+/matrix     → Matrix page
+/focus      → Focus page
+/settings   → Settings page
+/login      → Login page
+/register   → Register page
+/account    → Account page
+/onboarding → Onboarding flow
 ```
 
 ### File Organization
 ```
 web-app/src/
-├── api/           → API client + mock handlers (only data-fetching logic)
-├── components/    → Shared UI components (no page-specific logic)
-├── hooks/         → Custom React hooks
-├── i18n/          → String tables (en/zh)
-├── layout/        → App shell, Sidebar, Topbar
-├── mocks/         → Seed data
-├── pages/         → Page-level components (routed)
-├── store/         → Zustand stores
-├── types/         → TypeScript type definitions
-└── utils/         → Pure helper functions
+├── api/           # API client (client.ts) — only file that changes for real backend
+├── components/    # Shared UI: Shell, QuickCreate, TaskRow, AIClassifyModal, etc.
+├── i18n/          # String tables (strings.ts) + hooks (useT.ts)
+├── lib/           # Pure helpers: format.ts (fmtDuration, fmtMMSS, getDueLabel)
+├── mocks/         # Seed data: tasks.ts, people.ts, user.ts
+├── pages/         # Page-level components: TodayPage, MatrixPage, FocusPage, SettingsPage
+├── store/         # Zustand stores: useTasksStore, usePeopleStore, useAppStore
+└── types/         # Domain types: task.ts (Task, Person, User, CompletedEntry, ...)
 ```
-
-### Key Architectural Rules
-1. Types are defined once in `src/types/task.ts`. Never redefine `Task`, `User`, etc.
-2. Components never touch `localStorage` — all persistence via API layer.
-3. Components never call API functions — only store actions.
-4. CSS tokens are the single source of truth for all visual values.
-5. All user-facing strings go through `useT()` or `useLocaleString()`.
 
 ---
 
-## 7. Development Workflow
+## 7. Visual Design System
 
-### Local Development
+### CSS Custom Properties (Design Tokens)
+All tokens are defined in `src/index.css` and overridden by the accent theme system.
+
+| Category | Key Tokens |
+|----------|-----------|
+| Surfaces | `--bg-base`, `--bg-surface`, `--bg-elevated`, `--bg-subtle`, `--bg-deep` |
+| Borders | `--border-default`, `--border-strong`, `--border-faint` |
+| Text | `--text-primary`, `--text-secondary`, `--text-muted`, `--text-faint` |
+| Accent | `--accent-primary`, `--accent-dim`, `--accent-glow`, `--accent-fog`, `--accent-edge` |
+| Quadrants | `--q1-color` (red), `--q2-color` (green), `--q3-color` (cyan), `--q4-color` (graphite) |
+
+### CSS Component Classes
+| Class | Usage |
+|-------|-------|
+| `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost` | All buttons |
+| `.input` | All text inputs |
+| `.chip`, `.chip-q1`–`.chip-q4`, `.chip-ai` | Quadrant + AI badges |
+| `.qdot`, `.qdot-q1`–`.qdot-q4`, `.qdot-un` | 6px colored dots |
+| `.pip` | Pomodoro pip row (filled/unfilled dots) |
+| `.scroll-y` | Scrollable containers with thin scrollbar |
+| `.fade-in` | Entry animation for pages/modals |
+| `.lumo-glyph` | Animated Lumo orb (halo + core) |
+| `.lumo-pulse` | Ambient 1px top-bar shimmer |
+| `.nav-item`, `.nav-item.active` | Sidebar navigation items |
+
+### Accent Themes
+Four themes, applied by JS writing CSS vars to `:root`:
+- **Lumo Green** (default): `#3DFFA0`
+- **Calm Cyan**: `#38D4D4`
+- **Warm Amber**: `#FFAA44`
+- **Graphite**: `#A0ADB0`
+
+---
+
+## 8. Internationalization
+
+- Locale stored in `useAppStore`.
+- All static UI strings: `src/i18n/strings.ts` → `useT()` hook.
+- Domain object text (task titles, descriptions): `LocalizedString` → `useLocaleString()` hook.
+- Date/time formatting: locale-aware via `fmtDuration(duration, locale)`.
+- Fallback: `zh` fields are optional; missing values fall back to `en`.
+
+---
+
+## 9. Development Workflow
+
+### Commands
 ```bash
-make          # Install deps (if needed) + start dev server at :5173
-make build    # Type check + production bundle
-make ci       # Full CI gate: typecheck + lint + build
-make reset    # Print commands to clear localStorage demo data
+npm run dev        # dev server at :5173
+npm run build      # tsc -b + vite build
+npm run typecheck  # tsc --noEmit
 ```
-
-### Auto-Commit Pipeline
-After each Claude Code session, the Stop hook automatically:
-1. Stages all changes in `web-app/`
-2. Commits with timestamp summary
-3. Pushes to the current branch
-4. Creates a PR (if none exists) or arms auto-merge on the existing PR
 
 ### CI Gate (GitHub Actions)
-Four-job pipeline on every push:
-
-| Job | Checks |
-|-----|--------|
-| Type Check | `tsc --noEmit` |
-| Lint | ESLint with `@typescript-eslint` + `react-hooks` + `react-refresh` |
-| Build | `vite build` (also uploads dist artifact) |
-| CI (aggregate) | Passes only if all three above pass |
-
-Branch protection on `main` requires the **CI** status check. Squash merge only. Auto-merge enabled — PRs merge automatically once the gate passes.
-
-### Dependency Updates
-Dependabot runs weekly (Monday, Asia/Shanghai):
-- Minor and patch npm updates batched into one PR (`chore(deps)` prefix).
-- Major versions require manual review.
-- GitHub Actions also updated weekly.
+Three jobs on every push: **Type Check** (`tsc --noEmit`) → **Lint** (ESLint) → **Build** (`vite build`).
+Branch protection on `main` requires all three. Squash merge only.
 
 ---
 
-## 8. Roadmap
+## 10. Roadmap
 
-### Now (Scaffold Complete)
-- Full-viewport shell (sidebar + topbar + content)
-- Mock API + localStorage persistence
-- Today / Matrix / Focus / Settings pages
-- HTML5 Drag-and-Drop between Matrix quadrants
-- AI Classify modal (mock heuristics)
-- Onboarding flow (5 steps)
-- Bilingual (en / zh)
+### Done ✅
+- Full-viewport shell (sidebar 220px + topbar 56px + content)
+- Mock API + localStorage persistence with schema migration
+- Today page: hero card, task list, completed log, all-done state, Quick Create modal
+- Matrix page: 2×2 grid, unclassified toolbar strip, HTML5 DnD, AI Classify modal (all tasks)
+- Focus page: SVG progress ring, vertical button stack, empty state
+- Settings page: appearance, language, **members management**
+- Onboarding: 5-step wizard
+- Bilingual (en / zh) throughout
 - 4 accent themes
+- **Assignee/People feature**: Settings members CRUD, avatar display in Today + Matrix, QuickCreate picker
+- Task reopen from completed log (timeline with timestamps)
+- **TaskActionPopover** on Matrix cards: Start Focus / Complete / Edit / Toggle Today
+- **Task Edit Modal**: full CRUD — title, quadrant, due date, duration, today toggle, assignee, confirm-to-delete
+- **Task Detail Modal**: all fields + Next step + Today toggle; footer: Start Focus / Edit / Complete
+- **Today task row redesign**: left circle = direct complete; hover = right-side icon actions; click content = Detail Modal
 
-### Next (High Priority)
-- [ ] Real Pomodoro timer (interval-based, persist across tab focus loss)
-- [ ] Task edit modal (full CRUD from Today and Matrix)
-- [ ] Subtask support (checkbox list within a task)
-- [ ] Due date picker with relative labels ("Today", "Tomorrow", "This week")
-- [ ] Search (fuzzy, cross-page, keyboard shortcut ⌘K)
-- [ ] Unit + integration test suite
+### High Priority Next
+- [ ] Real Pomodoro timer (survives tab-switch / minimize; Web Worker for background persistence)
+- [ ] Search (fuzzy, ⌘K shortcut, cross-page)
+- [ ] Natural language task parse (`/ai/parse` endpoint + compose bar)
+- [ ] Unit + integration tests (Vitest + Testing Library)
 
 ### Later
-- [ ] Real AI backend (task parsing, quadrant classification, daily recommendation)
-- [ ] Cloud sync (user account → server-side task storage)
+- [ ] Real AI backend (Anthropic Claude for classify / recommend / parse)
+- [ ] Cloud sync (Supabase or custom API)
 - [ ] Tauri desktop shell (Windows .exe / macOS .dmg)
-- [ ] Mobile-responsive layout (not primary, but accessible)
-- [ ] Push notifications / system tray reminders (desktop only)
 - [ ] Recurring tasks
 - [ ] Weekly review view
+- [ ] Push notifications / system tray (desktop)
+- [ ] Filter by assignee
 
-### Explicitly Out of Scope (For Now)
-- Team/collaborative features
-- Project/sub-project hierarchy (tasks are flat)
+### Out of Scope (v1)
+- Multi-user collaboration / shared workspaces
+- Project / sub-project hierarchy (tasks are flat)
 - Email or calendar integration
 - Billing / payment flows

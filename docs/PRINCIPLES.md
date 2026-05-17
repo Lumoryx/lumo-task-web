@@ -1,0 +1,368 @@
+# Lumo Task — Core Development Principles
+
+This document captures the authoritative rules, conventions, and interaction standards for the Lumo Task frontend. Use it as the reference when designing new features, reviewing PRs, or onboarding contributors.
+
+---
+
+## 1. Architecture Rules
+
+### 1.1 Layered Data Flow
+
+```
+Component/Page
+    ↓ calls store action
+Zustand Store (useTasksStore, usePeopleStore, useAppStore)
+    ↓ calls api.*
+src/api/client.ts  ←── mock today, real fetch tomorrow
+    ↓ reads/writes
+localStorage (mock) / REST API (production)
+```
+
+- **Components never touch localStorage directly.** No `localStorage.getItem` in any component or hook.
+- **Components never import from `src/mocks/`.** Seed data and mock helpers are strictly internal to the API layer.
+- **Components never call `api.*` directly.** They dispatch store actions. The store owns optimistic updates, error recovery, and loading flags.
+- **Types are the contract.** `src/types/task.ts` defines `Task`, `Person`, `User`, `CompletedEntry`. If a field is missing, add it to the type first, then wire through. Do not redefine these shapes locally.
+
+### 1.2 API Client Contract
+
+Every function in `src/api/client.ts` must:
+
+- Return a `Promise<T>` — never a synchronous value.
+- Simulate latency via `await delay(...)` so loading states are always exercised.
+- Mirror the shape a real REST endpoint would return (same field names, same nesting).
+
+To swap in a real backend: replace the body of each `api.*` function with a `fetch()` call. Callers do not change.
+
+### 1.3 Store Actions
+
+Each store (Zustand) action pattern:
+
+```typescript
+async addTask(input) {
+  // 1. Optimistic local update (optional but preferred for mutations)
+  set(state => ({ tasks: [optimistic, ...state.tasks] }))
+  try {
+    const result = await api.createTask(input)
+    // 2. Replace optimistic with confirmed server response
+    set(state => ({ tasks: state.tasks.map(t => t.id === optimistic.id ? result : t) }))
+  } catch {
+    // 3. Roll back on error
+    set(state => ({ tasks: state.tasks.filter(t => t.id !== optimistic.id) }))
+  }
+}
+```
+
+---
+
+## 2. Type System
+
+### 2.1 LocalizedString
+
+All user-visible text on domain objects (task title, description, next step, reason) uses `LocalizedString`:
+
+```typescript
+interface LocalizedString { en: string; zh?: string }
+```
+
+- Use `useLocaleString()` hook to resolve to the active locale's string.
+- Static UI labels (button text, section headers) live in `src/i18n/strings.ts` and are accessed via `useT(key)`.
+
+### 2.2 Adding Fields
+
+1. Add to `src/types/task.ts` (optional fields default to `?`).
+2. Update `src/mocks/tasks.ts` seed data so the UI has something to render.
+3. Update `src/api/client.ts` if the field requires API handling.
+4. Update relevant Zustand store actions.
+5. Use from components.
+
+Never add a field to a component that isn't declared in the type.
+
+---
+
+## 3. Styling & Design Tokens
+
+### 3.1 Never Use Raw Hex Colors
+
+All colors come from CSS custom properties defined in `src/styles/tokens.css`:
+
+```css
+/* Correct */
+color: var(--text-primary)
+background: var(--bg-elevated)
+border-color: var(--border-default)
+
+/* Wrong */
+color: #1a1a1a
+background: #ffffff
+```
+
+Quadrant colors: `var(--q1-color)` through `var(--q4-color)`.  
+Accent colors: `var(--accent-primary)`, `var(--accent-fog)`, `var(--accent-glow)`, `var(--accent-edge)`.
+
+### 3.2 Tailwind Semantic Classes
+
+Prefer Tailwind utility classes that map to semantic tokens:
+
+```
+bg-surface, bg-subtle, bg-elevated
+text-text-primary, text-text-secondary, text-text-muted, text-text-faint
+border-border-faint, border-border-default, border-border-strong
+```
+
+Use inline `style={{ color: "var(--accent-primary)" }}` only when a Tailwind class doesn't exist for that token.
+
+### 3.3 CSS Classes for Reusable Patterns
+
+Use global CSS classes from `src/styles/global.css` for standard patterns:
+
+| Class | Use |
+|-------|-----|
+| `.btn.btn-primary` | Primary action button |
+| `.btn.btn-secondary` | Secondary action button |
+| `.btn.btn-ghost` | Tertiary / text button |
+| `.btn.btn-danger` | Destructive action |
+| `.chip.chip-q1` … `.chip-q4` | Quadrant label chips |
+| `.qdot.qdot-q1` … `.qdot-un` | Quadrant color dot (7px circle) |
+| `.pip` + `i.on` | Pomodoro pip progress indicator |
+| `.input` | Standard text input |
+| `.fade-in` | Entrance opacity animation |
+
+### 3.4 Layout
+
+- The app fills the viewport. No `max-width` container around the shell.
+- Sidebar: 220px fixed width.
+- Topbar: 56px fixed height.
+- Focus page: hides topbar, content fills `inset: 56px 0 0` → effectively full-screen.
+- No window chrome, no card-like centered background — this is a web/desktop app pattern.
+
+---
+
+## 4. Interaction Conventions
+
+### 4.1 Task Row Standard Layout
+
+```
+[complete circle] [qdot] [title + meta] [hover actions] [assignee] [quadrant chip]
+```
+
+- **Left circle**: direct single-click complete. On hover, shows a checkmark icon. No popover.
+- **Center content area** (title + meta): single-click opens the **Detail Modal**.
+- **Right hover actions**: fade in on row hover (`opacity: 0 / pointer-events: none` when not hovered). Never shift layout — buttons are always in the DOM.
+- **Standard right-side hover actions**: Start Focus (`→`), Edit (pencil icon).
+- **Quadrant chip**: always visible, clickable to open Detail Modal.
+
+### 4.2 Modals
+
+All modals:
+- Are rendered via `createPortal(..., document.body)` to escape scroll containers and stacking contexts.
+- Have a real **close button (X)** in the header. `Esc` is a convenience shortcut but never the only affordance.
+- Are dismissable by clicking the backdrop overlay.
+- Enter with `.fade-in` CSS animation.
+
+**Detail Modal** → shows read-only task info. Footer has: Start Focus, Edit, Mark Complete.  
+**Edit Modal** → full CRUD form. Has a two-click confirm-delete pattern.
+
+### 4.3 Confirm-to-Delete Pattern
+
+Destructive deletes require two clicks:
+
+```
+First click:  button text changes to "Confirm delete?" (warning color)
+Second click: executes delete + closes modal
+Timer reset:  after 3 seconds of inactivity, first state is restored
+```
+
+### 4.4 Hover-Reveal Actions
+
+```tsx
+<div style={{
+  opacity: hovered ? 1 : 0,
+  pointerEvents: hovered ? "auto" : "none",
+  transition: "opacity 150ms",
+}}>
+  {/* action buttons */}
+</div>
+```
+
+Always use CSS `opacity` + `pointer-events`, never `display: none` / `visibility`. This prevents layout shift.
+
+### 4.5 Quadrant Picker (2×2 Grid)
+
+Always render quadrant selection as a 2×2 grid with color-coded borders:
+
+```
+[Q1 Urgent+Important] [Q2 Important·Not Urgent]
+[Q3 Urgent·Not Imp.]  [Q4 Neither]
+```
+
+Selected quadrant gets `border: 2px solid var(--q{n}-color)` and `background: var(--q{n}-color)20`.
+
+---
+
+## 5. Modal Lifecycle & State Ownership
+
+### 5.1 The Core Rule
+
+**Modal state must be owned by the nearest stable parent**, not by the component that triggers the close action.
+
+### 5.2 Anti-Pattern (wrong)
+
+```tsx
+function Popover({ onClose }) {
+  const [editOpen, setEditOpen] = useState(false)  // ← WRONG
+  return (
+    <>
+      <button onClick={() => { onClose(); setEditOpen(true); }}>Edit</button>  // onClose unmounts this!
+      {editOpen && <EditModal />}  // never renders
+    </>
+  )
+}
+```
+
+### 5.3 Correct Pattern
+
+```tsx
+// Parent owns the modal state
+function Parent() {
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  return (
+    <>
+      <Popover onClose={() => setPopoverOpen(false)} onEdit={() => setEditOpen(true)} />
+      {editOpen && <EditModal onClose={() => setEditOpen(false)} />}
+    </>
+  )
+}
+```
+
+### 5.4 Detail → Edit Modal Replacement Pattern
+
+When a Detail Modal's "Edit" button is clicked, replace itself with the Edit Modal (no layering):
+
+```tsx
+function TaskDetailModal({ task, onClose }) {
+  const [editOpen, setEditOpen] = useState(false)
+  if (editOpen) {
+    return <TaskEditModal task={task} onClose={() => { setEditOpen(false); onClose(); }} />
+  }
+  return createPortal(<...detail view...>, document.body)
+}
+```
+
+---
+
+## 6. Internationalization (i18n)
+
+### 6.1 Two Types of Strings
+
+| Type | Where | Hook |
+|------|-------|------|
+| Static UI labels | `src/i18n/strings.ts` | `useT(key)` |
+| Domain object text (titles, descriptions) | `LocalizedString` field on Task etc. | `useLocaleString()(field)` |
+
+### 6.2 Adding a New UI String
+
+Add entries for **both** `en` and `zh` simultaneously:
+
+```typescript
+// src/i18n/strings.ts
+"myfeature.label": { en: "My Label", zh: "我的标签" },
+"myfeature.action": { en: "Do Thing", zh: "执行操作" },
+```
+
+Never ship a feature with missing zh translations. Use a reasonable zh fallback if unsure — it can be refined.
+
+### 6.3 Locale-Aware Formatting
+
+- Dates/times: use `getDueLabel(task.due, locale)` from `src/lib/format.ts`.
+- Durations: use `fmtDuration(minutes, locale)` from `src/lib/format.ts`.
+- Pomodoro counts: `{done}/{total}` is universal — no localization needed.
+
+---
+
+## 7. Component Design Rules
+
+### 7.1 No Prop Drilling Beyond 2 Levels
+
+If data needs to travel more than two component hops, put it in a Zustand store, not in props. This keeps component trees shallow and refactorable.
+
+### 7.2 No Inline Logic in JSX
+
+Extract non-trivial derivations before the `return`:
+
+```tsx
+// Correct — derive before render
+const qLabel = locale === "zh" ? Q_LABEL_ZH[task.quadrant] : Q_LABEL_EN[task.quadrant]
+const due = getDueLabel(task.due, locale)
+
+// Wrong — logic inside JSX
+<span>{locale === "zh" ? Q_LABEL_ZH[task.quadrant] : Q_LABEL_EN[task.quadrant]}</span>
+```
+
+### 7.3 Icon Components
+
+All SVG icons live in `src/components/icons.tsx` as named exports (`IconArrowRight`, `IconEdit`, `IconCheck`, etc.). Props: `size?: number`, `strokeWidth?: number`, `className?: string`.
+
+Never inline SVG paths directly in component files.
+
+### 7.4 No Comments for Obvious Code
+
+Write comments only when the **why** is non-obvious. Never comment what the code already says through naming.
+
+---
+
+## 8. State Management
+
+### 8.1 Store Responsibilities
+
+| Store | Owns |
+|-------|------|
+| `useTasksStore` | tasks[], completed[], loading flags, CRUD + complete/uncomplete actions |
+| `usePeopleStore` | people[], CRUD actions |
+| `useAppStore` | locale, accent, density, reducedMotion |
+
+### 8.2 Derived Data in Components
+
+Don't cache derived values in stores. Compute them in the component or in `useMemo`:
+
+```tsx
+// Component
+const todayTasks = useTasksStore(s => s.tasks.filter(t => t.today && !t.completed))
+```
+
+### 8.3 Loading & Error States
+
+Every async store action should:
+1. Set a loading flag before the `await`.
+2. Clear it in a `finally` block.
+3. Surface errors via a local `error` field, not `console.error` only.
+
+---
+
+## 9. Feature Development Checklist
+
+When implementing any new feature, in order:
+
+- [ ] Add/update types in `src/types/task.ts`
+- [ ] Update seed data in `src/mocks/tasks.ts`
+- [ ] Add API method in `src/api/client.ts`
+- [ ] Expose store action in the relevant `src/store/*.ts`
+- [ ] Add i18n strings in `src/i18n/strings.ts` (both `en` and `zh`)
+- [ ] Implement the UI component(s)
+- [ ] Verify: `npm run typecheck` — zero errors
+- [ ] Verify: UI interaction in browser (golden path + edge cases)
+
+---
+
+## 10. What Not to Do
+
+| Don't | Do instead |
+|-------|-----------|
+| `localStorage.getItem(...)` in a component | Use a store that calls `api.*` |
+| Import from `src/mocks/` in a component | Import from `src/types/` and `src/api/` |
+| Hard-code `#3ecf8e` or any hex | Use `var(--accent-primary)` or equivalent token |
+| Add UI-only strings directly as JSX string literals | Add to `strings.ts`, use `useT()` |
+| Nest two open modals simultaneously | Use the replacement pattern (§5.4) |
+| Call `api.*` from a component | Dispatch a store action |
+| Ship with TypeScript errors suppressed via `@ts-ignore` | Fix the type |
+| Skip zh translations | Add both locales at the same time |
