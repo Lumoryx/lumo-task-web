@@ -1,13 +1,15 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useT, useLocaleString } from "@/i18n/useT";
 import type { Quadrant, Task } from "@/types/task";
 import { useAppStore } from "@/store/useAppStore";
-import { fmtDuration } from "@/lib/format";
-import { IconSparkle } from "@/components/icons";
+import { fmtDuration, getDueLabel } from "@/lib/format";
+import { IconArrowRight, IconCheck, IconMore, IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
-import { TaskActionPopover } from "@/components/TaskActionPopover";
+import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
+import { TaskMoreMenu } from "@/components/TaskMoreMenu";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 
@@ -190,65 +192,155 @@ function QuadrantPanel({ id, title, subtitle }: { id: Quadrant; title: string; s
   );
 }
 
-/* ── Matrix task card with circle action trigger ─────────────────── */
+/* ── Matrix task card — TaskRow style + drag-and-drop ────────────── */
 
 function MatrixTaskCard({ task }: { task: Task }) {
+  const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
+  const navigate = useNavigate();
   const byId = usePeopleStore((s) => s.byId);
-  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const complete = useTasksStore((s) => s.complete);
+  const remove = useTasksStore((s) => s.remove);
+
+  const [hovered, setHovered] = useState(false);
+  const [circleHover, setCircleHover] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
+  const [moreAnchor, setMoreAnchor] = useState<DOMRect | null>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
 
   const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
-
-  const openPopover = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = btnRef.current?.getBoundingClientRect();
-    if (rect) setAnchor(rect);
-  };
+  const due = getDueLabel(task.due, locale);
 
   return (
     <>
-    <div
-      {...makeDragProps(task.id)}
-      className="relative flex items-center gap-2.5 rounded-md px-2.5 py-2 hover:bg-subtle transition-colors cursor-grab active:cursor-grabbing"
-    >
-      <button
-        ref={btnRef}
-        onClick={openPopover}
-        onMouseDown={(e) => e.stopPropagation()}
-        className="flex-shrink-0 w-4 h-4 rounded-full border-[1.5px] transition-all cursor-default"
+      <div
+        {...makeDragProps(task.id)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="flex items-center gap-2 border-b border-border-faint rounded-md transition-colors cursor-grab active:cursor-grabbing"
         style={{
-          borderColor: anchor ? "var(--accent-primary)" : "var(--border-strong)",
-          boxShadow: anchor ? "0 0 6px var(--accent-glow)" : "none",
-          background: "transparent",
+          padding: "8px 6px",
+          marginLeft: -6,
+          marginRight: -6,
+          background: hovered ? "var(--bg-subtle)" : "transparent",
         }}
-      />
-      {anchor && (
-        <TaskActionPopover
-          task={task}
-          anchor={anchor}
-          onClose={() => setAnchor(null)}
+      >
+        {/* Complete circle */}
+        <button
+          onMouseEnter={() => setCircleHover(true)}
+          onMouseLeave={() => setCircleHover(false)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); complete(task.id); }}
+          aria-label={t("row.complete")}
+          className="flex-shrink-0 flex items-center justify-center w-[16px] h-[16px] rounded-full border-[1.5px] transition-all"
+          style={{
+            borderColor: circleHover ? "var(--accent-primary)" : "var(--border-strong)",
+            background: circleHover ? "var(--accent-fog)" : "transparent",
+            boxShadow: circleHover ? "0 0 6px var(--accent-glow)" : "none",
+            color: "var(--accent-primary)",
+            cursor: "default",
+          }}
+        >
+          {circleHover && <IconCheck size={9} strokeWidth={2.5} />}
+        </button>
+
+        {/* Content area — click opens detail */}
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => setDetailOpen(true)}
+        >
+          <div className="text-[13px] font-medium text-text-primary truncate leading-snug">
+            {ls(task.title)}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-text-muted tabular-nums">
+            {due && <span>{due}</span>}
+            {task.duration > 0 && <span>{fmtDuration(task.duration, locale)}</span>}
+            <span className="pip">
+              {Array.from({ length: task.pomos_total }).map((_, i) => (
+                <i key={i} className={i < task.pomos_done ? "on" : ""} />
+              ))}
+            </span>
+          </div>
+        </div>
+
+        {/* Hover actions */}
+        <div
+          className="flex items-center gap-1 transition-all"
+          style={{ opacity: hovered ? 1 : 0, pointerEvents: hovered ? "auto" : "none" }}
+        >
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); navigate("/focus"); }}
+            title={t("row.startfocus")}
+            aria-label={t("row.startfocus")}
+            className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors"
+            style={{
+              color: "var(--accent-primary)",
+              background: "var(--accent-fog)",
+              border: "1px solid var(--accent-edge)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent-dim)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent-fog)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-edge)";
+            }}
+          >
+            <IconArrowRight size={11} />
+            {t("row.startfocus")}
+          </button>
+
+          <button
+            ref={moreRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            title={locale === "zh" ? "更多操作" : "More actions"}
+            aria-label={locale === "zh" ? "更多操作" : "More actions"}
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = moreRef.current?.getBoundingClientRect();
+              if (rect) setMoreAnchor(rect);
+            }}
+            className="flex items-center justify-center w-[24px] h-[22px] rounded-md transition-colors"
+            style={{
+              color: moreAnchor ? "var(--text-primary)" : "var(--text-secondary)",
+              background: moreAnchor ? "var(--bg-elevated)" : "var(--bg-subtle)",
+              border: `1px solid ${moreAnchor ? "var(--border-strong)" : "var(--border-default)"}`,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              if (!moreAnchor) {
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)";
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+              }
+            }}
+          >
+            <IconMore size={12} />
+          </button>
+        </div>
+
+        {/* Assignee avatar — always visible */}
+        {assignee && <PersonAvatar person={assignee} size={18} />}
+      </div>
+
+      {moreAnchor && (
+        <TaskMoreMenu
+          anchor={moreAnchor}
+          onClose={() => setMoreAnchor(null)}
           onEdit={() => setEditOpen(true)}
+          onDelete={() => remove(task.id)}
         />
       )}
-
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] text-text-primary truncate">{ls(task.title)}</div>
-        <div className="text-[11px] text-text-muted tabular-nums mt-0.5">
-          {fmtDuration(task.duration, locale)}
-          {task.due && <span className="ml-2">· {task.due}</span>}
-        </div>
-      </div>
-      {assignee && <PersonAvatar person={assignee} size={18} />}
-      <span className="pip">
-        {Array.from({ length: task.pomos_total }).map((_, i) => (
-          <i key={i} className={i < task.pomos_done ? "on" : ""} />
-        ))}
-      </span>
-    </div>
-    {editOpen && <TaskEditModal task={task} onClose={() => setEditOpen(false)} />}
+      {detailOpen && <TaskDetailModal task={task} onClose={() => setDetailOpen(false)} />}
+      {editOpen && <TaskEditModal task={task} onClose={() => setEditOpen(false)} />}
     </>
   );
 }
