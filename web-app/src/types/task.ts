@@ -54,6 +54,8 @@ export interface CompletedEntry {
   completedAt?: string;
   /** Quadrant of the source task, for the timeline chip. */
   quadrant?: Quadrant;
+  /** Original task ID — used to restore the task when reopening. */
+  taskId?: string;
 }
 
 export interface User {

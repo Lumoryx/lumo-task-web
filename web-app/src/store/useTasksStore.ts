@@ -24,6 +24,7 @@ interface TasksState {
   create: (input: Omit<Task, "id">) => Promise<Task>;
   update: (id: string, patch: Partial<Task>) => Promise<void>;
   complete: (id: string) => Promise<void>;
+  reopen: (logId: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   reset: () => Promise<void>;
 }
@@ -60,7 +61,12 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
   async complete(id) {
     await api.completeTask(id);
-    // refetch to pick up the new completed-today entry
+    const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
+    set({ tasks, completed });
+  },
+
+  async reopen(logId) {
+    await api.uncompleteTask(logId);
     const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
     set({ tasks, completed });
   },

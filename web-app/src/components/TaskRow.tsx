@@ -1,28 +1,31 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Task } from "@/types/task";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
-import { useTasksStore } from "@/store/useTasksStore";
 import { fmtDuration, getDueLabel } from "@/lib/format";
+import { TaskActionPopover } from "@/components/TaskActionPopover";
 
 interface TaskRowProps {
   task: Task;
   compact?: boolean;
 }
 
-/**
- * Single task line item — circular check, quadrant dot, title + meta.
- * Reused in Today's plan list and Matrix list view.
- */
 export function TaskRow({ task, compact = false }: TaskRowProps) {
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
-  const complete = useTasksStore((s) => s.complete);
   const [hovered, setHovered] = useState(false);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
+
+  const openPopover = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) setAnchor(rect);
+  };
 
   return (
     <div
@@ -36,11 +39,23 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
         background: hovered ? "var(--bg-subtle)" : "transparent",
       }}
     >
+      {/* Circle trigger */}
       <button
-        onClick={() => complete(task.id)}
-        className="flex-shrink-0 w-[18px] h-[18px] rounded-full border-[1.5px] border-border-strong"
+        ref={btnRef}
+        onClick={openPopover}
+        className="flex-shrink-0 w-[18px] h-[18px] rounded-full border-[1.5px] transition-all"
+        style={{
+          borderColor: anchor ? "var(--accent-primary)" : "var(--border-strong)",
+          boxShadow: anchor ? "0 0 6px var(--accent-glow)" : "none",
+          background: "transparent",
+        }}
         aria-label={t("focus.complete")}
       />
+
+      {anchor && (
+        <TaskActionPopover task={task} anchor={anchor} onClose={() => setAnchor(null)} />
+      )}
+
       <span className={`qdot qdot-${q}`} />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium text-text-primary">{ls(task.title)}</div>

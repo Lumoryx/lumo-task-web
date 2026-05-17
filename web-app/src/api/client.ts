@@ -158,6 +158,7 @@ export const api = {
     const startedAt = new Date(Date.now() - task.duration * 60 * 1000).toISOString();
     const log: CompletedEntry = {
       id: `c${Date.now()}`,
+      taskId: id,
       title: task.title,
       duration: task.duration,
       quadrant: task.quadrant,
@@ -170,6 +171,42 @@ export const api = {
         t.id === id ? { ...t, completed: true, today: false } : t
       ),
       completed: [log, ...state.completed],
+    };
+    save(state);
+  },
+
+  /** Reopen a completed task — removes the log entry and restores the task. */
+  async uncompleteTask(logId: string): Promise<void> {
+    await delay(60);
+    const log = state.completed.find((c) => c.id === logId);
+    if (!log) throw new Error(`Log entry ${logId} not found`);
+
+    let tasks = state.tasks;
+    if (log.taskId) {
+      const exists = tasks.some((t) => t.id === log.taskId);
+      if (exists) {
+        tasks = tasks.map((t) =>
+          t.id === log.taskId ? { ...t, completed: false, today: true } : t
+        );
+      } else {
+        // Task was deleted — recreate a minimal version from log data
+        const restored: Task = {
+          id: log.taskId,
+          title: log.title,
+          quadrant: log.quadrant ?? "unclassified",
+          today: true,
+          due: "today",
+          duration: log.duration,
+          pomos_done: 0,
+          pomos_total: Math.ceil(log.duration / 25),
+        };
+        tasks = [restored, ...tasks];
+      }
+    }
+
+    state = {
+      tasks,
+      completed: state.completed.filter((c) => c.id !== logId),
     };
     save(state);
   },

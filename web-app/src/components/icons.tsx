@@ -104,6 +104,13 @@ export const IconClose = (p: IconProps) => (
   </svg>
 );
 
+export const IconUndo = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M3 7h14a4 4 0 0 1 0 8H7" />
+    <path d="M7 4L3 7l4 3" />
+  </svg>
+);
+
 export const IconSparkle = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />

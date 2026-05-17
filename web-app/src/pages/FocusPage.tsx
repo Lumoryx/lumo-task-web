@@ -36,11 +36,104 @@ export function FocusPage() {
 
   if (!task) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-10 text-text-muted">
-        <div className="text-sm">Nothing to focus on. Add a task first.</div>
-        <button className="btn btn-secondary mt-4" onClick={() => navigate("/today")}>
-          {t("focus.exit")}
-        </button>
+      <div
+        className="fade-in flex flex-col items-center justify-center h-full relative"
+        style={{
+          background:
+            "radial-gradient(60% 50% at 50% 100%, rgba(61,255,160,0.04) 0%, transparent 70%), var(--bg-base)",
+        }}
+      >
+        {/* Ghost atmosphere ring — dimmed, no progress arc */}
+        <div className="relative mb-10" style={{ width: 280, height: 280 }}>
+          {/* Ambient glow — breathing softly */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              inset: -20,
+              background: "radial-gradient(circle, var(--accent-glow) 0%, transparent 65%)",
+              opacity: 0.35,
+              animation: "lumoBreath 5s ease-in-out infinite",
+            }}
+          />
+          {/* Ghost SVG ring */}
+          <svg viewBox="0 0 280 280" className="absolute inset-0" style={{ opacity: 0.18 }}>
+            <circle cx="140" cy="140" r="120" fill="none" stroke="var(--accent-primary)" strokeWidth="2" />
+          </svg>
+          {/* Outer border ring */}
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{ border: "0.5px solid var(--accent-edge)", opacity: 0.3 }}
+          />
+
+          {/* Center — Lumo waiting state */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            {/* Breathing triple orb */}
+            <div className="relative" style={{ width: 56, height: 56 }}>
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: "radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)",
+                  animation: "lumoBreath 4s ease-in-out infinite",
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  inset: 10,
+                  border: "1px solid var(--accent-edge)",
+                  animation: "lumoBreath 4s ease-in-out infinite reverse",
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  inset: 20,
+                  background: "var(--accent-primary)",
+                  boxShadow: "0 0 14px var(--accent-primary)",
+                  animation: "lumoBreath 4s ease-in-out infinite",
+                }}
+              />
+            </div>
+
+            {/* Ghost time display */}
+            <div
+              className="font-mono tabular-nums"
+              style={{
+                fontSize: 38,
+                fontWeight: 200,
+                letterSpacing: "-0.04em",
+                color: "var(--text-faint)",
+                lineHeight: 1,
+              }}
+            >
+              25:00
+            </div>
+          </div>
+        </div>
+
+        {/* Text */}
+        <h2
+          className="font-semibold mb-2.5 text-center"
+          style={{ fontSize: 20, color: "var(--text-primary)", letterSpacing: "-0.01em" }}
+        >
+          {t("focus.empty.title")}
+        </h2>
+        <p
+          className="text-sm leading-relaxed text-center mb-8"
+          style={{ color: "var(--text-secondary)", maxWidth: 300 }}
+        >
+          {t("focus.empty.sub")}
+        </p>
+
+        {/* CTAs */}
+        <div className="flex items-center gap-3">
+          <button className="btn btn-primary btn-lg" onClick={() => navigate("/today")}>
+            {t("focus.empty.cta")}
+          </button>
+          <button className="btn btn-secondary" onClick={() => navigate("/matrix")}>
+            {t("focus.empty.matrix")}
+          </button>
+        </div>
       </div>
     );
   }
