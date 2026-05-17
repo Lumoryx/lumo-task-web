@@ -54,6 +54,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.exit": "Exit",
     "focus.round": "Round",
     "focus.of": "of",
+    "focus.empty.title": "Nothing to focus on",
+    "focus.empty.sub": "Pick a task from Today or the Matrix to start a session.",
+    "focus.empty.cta": "Go to Today",
+    "focus.empty.matrix": "Open Matrix",
 
     "qc.title": "New task",
     "qc.placeholder": "What needs doing?",
@@ -198,6 +202,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.exit": "退出",
     "focus.round": "第",
     "focus.of": "/",
+    "focus.empty.title": "没有可专注的任务",
+    "focus.empty.sub": "前往今天或矩阵，选一项任务开始专注。",
+    "focus.empty.cta": "前往今天",
+    "focus.empty.matrix": "打开矩阵",
 
     "qc.title": "新建任务",
     "qc.placeholder": "要做点什么?",
