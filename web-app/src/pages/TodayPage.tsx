@@ -273,6 +273,155 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
   );
 }
 
+// ─── Empty State ───────────────────────────────────────────────────────────
+
+function TodayEmptyState() {
+  const navigate = useNavigate();
+  const t = useT();
+  const locale = useAppStore((s) => s.locale);
+
+  return (
+    <div
+      className="fade-in flex flex-col items-center justify-center text-center"
+      style={{ minHeight: "65vh", padding: "48px 32px" }}
+    >
+      {/* Breathing triple-ring orb */}
+      <div className="relative mb-10" style={{ width: 136, height: 136 }}>
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: "radial-gradient(circle, var(--accent-glow) 0%, transparent 65%)",
+            animation: "lumoBreath 4s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: 24,
+            border: "1px solid var(--accent-edge)",
+            animation: "lumoBreath 4s ease-in-out infinite reverse",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: 42,
+            border: "1px solid var(--accent-primary)",
+            opacity: 0.35,
+            animation: "lumoBreath 3.2s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: 56,
+            background: "var(--accent-primary)",
+            boxShadow: "0 0 20px var(--accent-primary)",
+            animation: "lumoBreath 4s ease-in-out infinite",
+          }}
+        />
+      </div>
+
+      <h2
+        className="font-semibold mb-3"
+        style={{ fontSize: 22, color: "var(--text-primary)", letterSpacing: "-0.01em" }}
+      >
+        {t("today.empty.title")}
+      </h2>
+      <p
+        className="text-sm leading-relaxed mb-8"
+        style={{ color: "var(--text-secondary)", maxWidth: 360 }}
+      >
+        {t("today.empty.sub")}
+      </p>
+
+      <button className="btn btn-secondary" onClick={() => navigate("/matrix")}>
+        {t("today.empty.cta")}
+        <span style={{ marginLeft: 4, opacity: 0.7 }}>→</span>
+      </button>
+
+      {/* Subtle hint row */}
+      <div
+        className="flex items-center gap-5 mt-12 text-[11px] tabular-nums"
+        style={{ color: "var(--text-faint)" }}
+      >
+        {(locale === "zh"
+          ? ["Q1 · 立即做", "Q2 · 安排做", "Q3 · 委托做"]
+          : ["Q1 · Do first", "Q2 · Schedule", "Q3 · Delegate"]
+        ).map((label, i) => (
+          <span key={i} className="flex items-center gap-1.5">
+            <span
+              className="inline-block rounded-full"
+              style={{
+                width: 6, height: 6,
+                background: ["var(--q1-color)", "var(--q2-color)", "var(--q3-color)"][i],
+              }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── All-done Banner ────────────────────────────────────────────────────────
+
+function AllDoneBanner({ locale }: { locale: Locale }) {
+  const t = useT();
+
+  return (
+    <div
+      className="fade-in flex items-center gap-4 rounded-xl border mb-10"
+      style={{
+        padding: "18px 24px",
+        borderColor: "var(--accent-edge)",
+        background: "linear-gradient(135deg, var(--accent-fog) 0%, var(--bg-surface) 60%)",
+        boxShadow: "0 0 30px var(--accent-fog)",
+      }}
+    >
+      {/* Animated orb */}
+      <div className="lumo-glyph flex-shrink-0" style={{ width: 20, height: 20 }}>
+        <div className="halo" />
+        <div className="core" />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div
+          className="font-semibold text-sm"
+          style={{ color: "var(--accent-primary)" }}
+        >
+          {t("today.alldone.title")}
+        </div>
+        <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+          {t("today.alldone.sub")}
+        </div>
+      </div>
+
+      {/* Subtle checkmark cluster */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="rounded-full border-2 flex items-center justify-center"
+            style={{
+              width: 16, height: 16,
+              borderColor: "var(--accent-primary)",
+              background: "var(--accent-dim)",
+              opacity: 0.4 + i * 0.2,
+              transform: `scale(${0.75 + i * 0.125})`,
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--bg-base)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12l5 5 11-11" />
+            </svg>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Completed Timeline ────────────────────────────────────────────────────
 
 interface TimelineProps {
@@ -417,16 +566,15 @@ export function TodayPage() {
     tasks.filter((x) => x.today && !x.completed).length === 0 && completed.length > 0;
 
   if (!top && completed.length === 0) {
-    return (
-      <div className="fade-in px-8 py-10">
-        <div className="text-2xl font-semibold text-text-primary">{t("today.empty.title")}</div>
-        <div className="mt-2 text-sm text-text-muted">{t("today.empty.sub")}</div>
-      </div>
-    );
+    return <TodayEmptyState />;
   }
 
   return (
     <div className="fade-in px-8 py-8">
+      {!top && completed.length > 0 && (
+        <AllDoneBanner locale={locale} />
+      )}
+
       {top && (
         <>
           <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-3 flex items-center gap-2">
