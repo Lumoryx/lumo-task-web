@@ -1,0 +1,18 @@
+# CODEOWNERS — every PR requires review from the assigned owner(s).
+# Syntax: <pattern> <@github-username> ...
+# Last matching rule wins.
+
+# Default: repo owner reviews everything
+*                   @jalenforwu
+
+# Frontend
+/web-app/           @jalenforwu
+
+# Backend
+/backend/           @jalenforwu
+
+# CI / deployment config — extra careful here
+/.github/           @jalenforwu
+/vercel.json        @jalenforwu
+/render.yaml        @jalenforwu
+/Makefile           @jalenforwu

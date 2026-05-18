@@ -16,14 +16,24 @@ runMigrations();
 
 const app = new Hono();
 
+// LUMO_ALLOWED_ORIGINS: comma-separated list of extra origins allowed in production.
+// e.g. "https://lumo-task.vercel.app,https://lumo.example.com"
+const extraOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 app.use(
   "/*",
   cors({
-    // Allow the Vite dev server and Electron (file:// sends no Origin header)
-    origin: (origin) =>
-      !origin || origin === "null" || origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")
-        ? origin ?? "*"
-        : null,
+    origin: (origin) => {
+      // Electron and local dev: no origin header or localhost
+      if (!origin || origin === "null") return "*";
+      if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return origin;
+      // Production: explicitly allowed origins
+      if (extraOrigins.includes(origin)) return origin;
+      return null;
+    },
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   })
