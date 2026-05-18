@@ -46,7 +46,9 @@ export const useAuthStore = create<AuthState>()(
           const user = await api.signIn({ email, password });
           set({ user, loading: false });
         } catch (e) {
-          set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+          const msg = e instanceof Error ? e.message : String(e);
+          set({ loading: false, error: msg });
+          toast.error("登录失败", msg);
           throw e;
         }
       },
@@ -57,7 +59,9 @@ export const useAuthStore = create<AuthState>()(
           const user = await api.signInWithProvider(provider);
           set({ user, loading: false });
         } catch (e) {
-          set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+          const msg = e instanceof Error ? e.message : String(e);
+          set({ loading: false, error: msg });
+          toast.error("登录失败", msg);
           throw e;
         }
       },
@@ -68,7 +72,9 @@ export const useAuthStore = create<AuthState>()(
           const user = await api.register(input);
           set({ user, loading: false });
         } catch (e) {
-          set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+          const msg = e instanceof Error ? e.message : String(e);
+          set({ loading: false, error: msg });
+          toast.error("注册失败", msg);
           throw e;
         }
       },
