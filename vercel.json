@@ -1,9 +1,7 @@
 {
-  "framework": "vite",
-  "rootDirectory": "web-app",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm ci",
+  "installCommand": "cd web-app && npm ci",
+  "buildCommand": "cd web-app && npm run build",
+  "outputDirectory": "web-app/dist",
   "rewrites": [
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
