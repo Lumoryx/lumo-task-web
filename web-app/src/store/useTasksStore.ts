@@ -11,6 +11,7 @@ import { create } from "zustand";
 import { api } from "@/api/client";
 import type { CompletedEntry, Task } from "@/types/task";
 import { toast } from "@/store/useToastStore";
+import { t } from "@/i18n/useT";
 
 interface TasksState {
   tasks: Task[];
@@ -48,7 +49,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ loading: false, error: msg });
-      toast.error("加载任务失败", msg);
+      toast.error(t("error.task.load"), msg);
     }
   },
 
@@ -63,7 +64,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       return task;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error("创建任务失败", msg);
+      toast.error(t("error.task.create"), msg);
       throw e;
     }
   },
@@ -74,7 +75,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       set({ tasks: get().tasks.map((t) => (t.id === id ? next : t)) });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error("更新任务失败", msg);
+      toast.error(t("error.task.update"), msg);
       throw e;
     }
   },
@@ -86,7 +87,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       set({ tasks, completed });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error("完成任务失败", msg);
+      toast.error(t("error.task.complete"), msg);
       throw e;
     }
   },
@@ -98,7 +99,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       set({ tasks, completed });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error("恢复任务失败", msg);
+      toast.error(t("error.task.reopen"), msg);
       throw e;
     }
   },
@@ -109,7 +110,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       set({ tasks: get().tasks.filter((t) => t.id !== id) });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error("删除任务失败", msg);
+      toast.error(t("error.task.delete"), msg);
       throw e;
     }
   },

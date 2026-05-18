@@ -8,6 +8,12 @@ export function useT() {
   return (key: string): string => STRINGS[locale][key] ?? key;
 }
 
+/** Non-hook translator — safe to call from Zustand stores and plain functions. */
+export function t(key: string): string {
+  const locale = useAppStore.getState().locale;
+  return STRINGS[locale][key] ?? STRINGS["en"][key] ?? key;
+}
+
 /** Pick the right field off a `LocalizedString`, falling back to English. */
 export function pickLocale(value: LocalizedString | undefined, locale: Locale): string {
   if (!value) return "";

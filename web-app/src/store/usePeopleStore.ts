@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { api } from "@/api/client";
 import type { Person } from "@/types/task";
 import { toast } from "@/store/useToastStore";
+import { t } from "@/i18n/useT";
 
 interface PeopleState {
   people: Person[];
@@ -29,7 +30,7 @@ export const usePeopleStore = create<PeopleState>((set, get) => ({
       set({ people, loading: false });
     } catch (e) {
       set({ loading: false });
-      toast.error("加载成员失败", e instanceof Error ? e.message : String(e));
+      toast.error(t("error.person.load"), e instanceof Error ? e.message : String(e));
     }
   },
 
@@ -43,7 +44,7 @@ export const usePeopleStore = create<PeopleState>((set, get) => ({
       set({ people: [...get().people, person] });
       return person;
     } catch (e) {
-      toast.error("添加成员失败", e instanceof Error ? e.message : String(e));
+      toast.error(t("error.person.create"), e instanceof Error ? e.message : String(e));
       throw e;
     }
   },
@@ -53,7 +54,7 @@ export const usePeopleStore = create<PeopleState>((set, get) => ({
       const next = await api.updatePerson(id, patch);
       set({ people: get().people.map((p) => (p.id === id ? next : p)) });
     } catch (e) {
-      toast.error("更新成员失败", e instanceof Error ? e.message : String(e));
+      toast.error(t("error.person.update"), e instanceof Error ? e.message : String(e));
       throw e;
     }
   },
@@ -63,7 +64,7 @@ export const usePeopleStore = create<PeopleState>((set, get) => ({
       await api.deletePerson(id);
       set({ people: get().people.filter((p) => p.id !== id) });
     } catch (e) {
-      toast.error("删除成员失败", e instanceof Error ? e.message : String(e));
+      toast.error(t("error.person.delete"), e instanceof Error ? e.message : String(e));
       throw e;
     }
   },
