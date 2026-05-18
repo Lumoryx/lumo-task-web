@@ -13,7 +13,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function LoginPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { signIn, signInWithProvider, loading } = useAuthStore();
+  const { signIn, loading } = useAuthStore();
   const [email, setEmail] = useState("alex@stride.studio");
   const [password, setPassword] = useState("demo1234");
 
@@ -24,15 +24,6 @@ export function LoginPage() {
       navigate("/today");
     } catch {
       /* error surfaces via store */
-    }
-  }
-
-  async function oauth(provider: "google" | "apple" | "github") {
-    try {
-      await signInWithProvider(provider);
-      navigate("/today");
-    } catch {
-      /* */
     }
   }
 
@@ -80,9 +71,9 @@ export function LoginPage() {
         <Divider label={t("auth.or")} />
 
         <div className="flex flex-col gap-2">
-          <OAuthButton provider="google" label={t("auth.google")} onClick={() => oauth("google")} disabled={loading} />
-          <OAuthButton provider="apple" label={t("auth.apple")} onClick={() => oauth("apple")} disabled={loading} />
-          <OAuthButton provider="github" label={t("auth.github")} onClick={() => oauth("github")} disabled={loading} />
+          <OAuthButton provider="google" label={t("auth.google")} comingSoon />
+          <OAuthButton provider="apple" label={t("auth.apple")} comingSoon />
+          <OAuthButton provider="github" label={t("auth.github")} comingSoon />
         </div>
 
         <div className="mt-[18px] flex justify-center gap-3.5 text-xs text-text-secondary">

@@ -32,20 +32,39 @@ export function OAuthButton({
   label,
   onClick,
   disabled,
+  comingSoon,
 }: {
   provider: Provider;
   label: string;
   onClick?: () => void;
   disabled?: boolean;
+  comingSoon?: boolean;
 }) {
   return (
     <button
       className="btn btn-secondary w-full justify-center"
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || comingSoon}
+      title={comingSoon ? "Coming soon" : undefined}
     >
       {ICONS[provider]}
       <span>{label}</span>
+      {comingSoon && (
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: "10px",
+            fontWeight: 500,
+            color: "var(--text-faint)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "4px",
+            padding: "1px 5px",
+            lineHeight: "1.4",
+          }}
+        >
+          Soon
+        </span>
+      )}
     </button>
   );
 }
