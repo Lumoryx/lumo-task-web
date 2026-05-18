@@ -243,3 +243,40 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; }
+
+/* ── Floating Pet ───────────────────────────────────────────────────────── */
+@keyframes petBounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes wagTail {
+  0%, 100% { transform: rotate(-20deg); }
+  50%       { transform: rotate(20deg); }
+}
+@keyframes petBlink {
+  0%, 85%, 100% { transform: scaleY(1); }
+  90%            { transform: scaleY(0.08); }
+}
+@keyframes petBubbleIn {
+  from { opacity: 0; transform: translateX(-50%) scale(0.85) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+}
+@keyframes petSparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50%       { opacity: 1; transform: scale(1.4); }
+}
+.pet-tail {
+  transform-origin: 50px 42px;
+  animation: wagTail 0.9s ease-in-out infinite;
+}
+.pet-eye-l {
+  transform-origin: 24px 21px;
+  animation: petBlink 4s ease-in-out infinite;
+}
+.pet-eye-r {
+  transform-origin: 40px 21px;
+  animation: petBlink 4s ease-in-out infinite 0.12s;
+}
+.pet-sparkle {
+  animation: petSparkle 0.6s ease-in-out infinite;
+}

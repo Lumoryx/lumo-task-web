@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { QuickCreate } from "@/components/QuickCreate";
+import { FloatingPet } from "@/components/FloatingPet";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -62,6 +63,7 @@ export function Shell() {
           )}
         </main>
       </div>
+      <FloatingPet />
     </div>
   );
 }
