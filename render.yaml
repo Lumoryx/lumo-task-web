@@ -4,21 +4,19 @@ services:
     runtime: node
     rootDir: backend
     region: singapore          # closest to CN users; change to ohio/oregon as needed
-    plan: free                 # upgrade to starter ($7/mo) for always-on
+    plan: free                 # free tier: spins down after 15 min idle, ephemeral storage
     buildCommand: npm ci && npm run build
     startCommand: node dist/bundle.cjs
     healthCheckPath: /health
 
-    disk:
-      name: lumo-sqlite-data
-      mountPath: /data
-      sizeGB: 1
+    # NOTE: No persistent disk on free plan.
+    # SQLite data lives in the ephemeral filesystem and is reset on each deploy
+    # or cold-start. Suitable for demo / development use.
+    # Upgrade to Render Starter ($7/mo) and re-add the disk block to persist data.
 
     envVars:
       - key: NODE_ENV
         value: production
-      - key: LUMO_DB_PATH
-        value: /data/lumo.db
       - key: LUMO_JWT_SECRET
         generateValue: true    # Render auto-generates a secure random value
       - key: LUMO_ALLOWED_ORIGINS
