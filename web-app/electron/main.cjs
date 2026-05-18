@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain } = require("electron");
+const { app, BrowserWindow, shell, ipcMain, utilityProcess } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -15,33 +15,6 @@ function getOrCreateJwtSecret() {
   const secret = crypto.randomBytes(48).toString("hex");
   fs.writeFileSync(secretPath, secret, { mode: 0o600 });
   return secret;
-}
-
-// ── Find node.exe ─────────────────────────────────────────────────────────────
-
-function findNodeExe() {
-  // Try paths where Node.js is commonly installed on Windows
-  const candidates = [
-    // Bundled alongside Electron binary (some setups)
-    path.join(path.dirname(process.execPath), "node.exe"),
-    // Common install locations
-    path.join(process.env.PROGRAMFILES || "C:\\Program Files", "nodejs", "node.exe"),
-    path.join(process.env.LOCALAPPDATA || "", "Programs", "nodejs", "node.exe"),
-    path.join(process.env.LOCALAPPDATA || "", "nvm", "current", "node.exe"),
-  ];
-
-  // Also try resolving from PATH
-  const pathDirs = (process.env.PATH || "").split(path.delimiter);
-  for (const dir of pathDirs) {
-    candidates.push(path.join(dir, "node.exe"), path.join(dir, "node"));
-  }
-
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-
-  // Fallback: hope 'node' is in PATH
-  return "node";
 }
 
 // ── Free port finder ──────────────────────────────────────────────────────────
@@ -100,13 +73,13 @@ async function startBackend() {
   };
 
   if (app.isPackaged) {
-    // ── Packaged: spawn with system Node.js or embedded node in Electron ──────
+    // ── Packaged: use Electron's built-in Node.js via utilityProcess.fork() ───
+    // This avoids requiring the user to have Node.js installed separately.
     const backendEntry = path.join(process.resourcesPath, "backend", "bundle.cjs");
-    const nodeExe = findNodeExe();
 
-    backendProcess = spawn(nodeExe, [backendEntry], { env, stdio: "pipe" });
-    backendProcess.stdout.on("data", (d) => process.stdout.write("[backend] " + d));
-    backendProcess.stderr.on("data", (d) => process.stderr.write("[backend] " + d));
+    backendProcess = utilityProcess.fork(backendEntry, [], { env, stdio: "pipe" });
+    backendProcess.stdout?.on("data", (d) => process.stdout.write("[backend] " + d));
+    backendProcess.stderr?.on("data", (d) => process.stderr.write("[backend] " + d));
     backendProcess.on("exit", (code) => {
       if (code !== 0) console.error(`[backend] exited with code ${code}`);
     });
