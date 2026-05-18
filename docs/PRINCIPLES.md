@@ -395,35 +395,59 @@ A well-formed error message has three components:
 
 Use these patterns consistently. Map backend error shapes to them in `src/api/client.ts` before they reach the store.
 
-| Scenario | title | message |
-|---|---|---|
-| Network unreachable | `"网络连接失败"` | `"无法连接到服务器，请检查网络后重试。"` |
-| Session expired (401) | `"登录已过期"` | `"请重新登录后继续操作。"` |
-| Permission denied (403) | `"权限不足"` | `"你没有执行此操作的权限。"` |
-| Resource not found (404) | `"内容不存在"` | `"该内容可能已被删除或地址有误。"` |
-| Validation failed (422) | `"输入内容有误"` | Surface the specific field error from the server. |
-| Server error (5xx) | `"服务器错误"` | `"服务器暂时无法处理请求，请稍后重试。"` |
-| Request timeout | `"请求超时"` | `"服务器响应过慢，请检查网络或稍后重试。"` |
-| Offline / no backend | `"后台服务未启动"` | `"本地服务无响应，请重启应用后再试。"` |
+All toast titles **must** come from the i18n system (`strings.ts`) so they switch automatically with the user's language. Hard-coding a Chinese or English string is a violation of this standard.
+
+```ts
+// Correct: title from i18n, message is the raw API error
+import { t } from "@/i18n/useT";
+toast.error(t("error.task.create"), msg);
+
+// Wrong: hard-coded string
+toast.error("创建任务失败", msg);   // ❌ breaks English locale
+toast.error("Failed to create task", msg); // ❌ breaks Chinese locale
+```
+
+| Scenario | i18n key | EN title | ZH title |
+|---|---|---|---|
+| Load tasks | `error.task.load` | Failed to load tasks | 加载任务失败 |
+| Create task | `error.task.create` | Failed to create task | 创建任务失败 |
+| Update task | `error.task.update` | Failed to update task | 更新任务失败 |
+| Complete task | `error.task.complete` | Failed to complete task | 完成任务失败 |
+| Reopen task | `error.task.reopen` | Failed to reopen task | 恢复任务失败 |
+| Delete task | `error.task.delete` | Failed to delete task | 删除任务失败 |
+| Load members | `error.person.load` | Failed to load members | 加载成员失败 |
+| Add member | `error.person.create` | Failed to add member | 添加成员失败 |
+| Update member | `error.person.update` | Failed to update member | 更新成员失败 |
+| Remove member | `error.person.delete` | Failed to remove member | 删除成员失败 |
+| Sign in | `error.auth.signin` | Sign in failed | 登录失败 |
+| Register | `error.auth.register` | Registration failed | 注册失败 |
+| Sign out | `error.auth.signout` | Sign out failed | 退出登录失败 |
+| Network unreachable | `error.network` | Network unavailable | 网络连接失败 |
+| Session expired (401) | `error.auth.expired` | Session expired | 登录已过期 |
+| Permission denied (403) | `error.forbidden` | Permission denied | 权限不足 |
+| Server error (5xx) | `error.server` | Server error | 服务器错误 |
 
 ### 9.4 How to Call the Toast
 
+The `t()` helper in `@/i18n/useT` works outside React components (Zustand stores, utility functions). Use it for all toast titles.
+
 ```ts
 import { toast } from "@/store/useToastStore";
+import { t } from "@/i18n/useT";
 
 // Minimal — title only (validation, simple confirmations)
-toast.error("密码不一致");
+toast.error(t("account.changePass.err.mismatch"));
 
 // Full — title + actionable message (API failures)
-toast.error("创建任务失败", "服务器返回 500，请稍后重试。");
+toast.error(t("error.task.create"), mapApiError(msg));
 
 // Duration override — persistent until dismissed (critical, blocking errors)
-toast.error("登录已过期", "请重新登录后继续。", { duration: 0 });
+toast.error(t("error.auth.expired"), t("error.auth.expired.detail"), { duration: 0 });
 
-// From a store action (standard pattern)
+// Standard store action pattern
 } catch (e) {
   const msg = e instanceof Error ? e.message : String(e);
-  toast.error("更新任务失败", mapApiError(msg));
+  toast.error(t("error.task.update"), mapApiError(msg));
   throw e;
 }
 ```
@@ -434,22 +458,26 @@ Raw server error strings are often not user-friendly. Map them in a central help
 
 ```ts
 // src/api/client.ts (or a dedicated src/lib/errors.ts)
+import { t } from "@/i18n/useT";
+
 export function mapApiError(raw: string): string {
   if (raw.includes("401") || raw.toLowerCase().includes("unauthorized"))
-    return "登录已过期，请重新登录。";
+    return t("error.api.unauthorized");
   if (raw.includes("403"))
-    return "你没有执行此操作的权限。";
+    return t("error.api.forbidden");
   if (raw.includes("404"))
-    return "内容不存在或已被删除。";
+    return t("error.api.notfound");
   if (raw.includes("429"))
-    return "操作过于频繁，请稍后重试。";
+    return t("error.api.ratelimit");
   if (/5\d\d/.test(raw))
-    return "服务器暂时无法处理请求，请稍后重试。";
+    return t("error.api.server");
   if (raw.toLowerCase().includes("network") || raw.toLowerCase().includes("fetch"))
-    return "网络连接失败，请检查网络后重试。";
+    return t("error.api.network");
   return raw; // fall back to raw message if no pattern matches
 }
 ```
+
+Add the corresponding keys to `strings.ts` under both `en` and `zh` when implementing this helper.
 
 ### 9.6 What Not to Do
 
@@ -457,7 +485,7 @@ export function mapApiError(raw: string): string {
 |---|---|
 | Inline `<div>` with hardcoded `rgba(255,107,107,…)` | `toast.error(title, message)` |
 | `console.error(e)` only | `toast.error()` + `throw e` so the store re-throws to the caller |
-| Show raw HTTP status: `"HTTP 401"` | Map to plain language: `"登录已过期"` |
+| Show raw HTTP status: `"HTTP 401"` | Map via `mapApiError()` → `t("error.api.unauthorized")` |
 | Show the full stack trace or JS exception | Extract `.message` and humanize it |
 | Use `error` severity for a recoverable warning | Use `warning` |
 | Toast on every keystroke or micro-interaction | Reserve toast for async boundary failures |

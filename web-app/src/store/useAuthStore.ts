@@ -11,6 +11,7 @@ import { persist } from "zustand/middleware";
 import { api } from "@/api/client";
 import type { User } from "@/types/task";
 import { toast } from "@/store/useToastStore";
+import { t } from "@/i18n/useT";
 
 const LOCAL_USER: User = {
   id: "local",
@@ -48,7 +49,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           set({ loading: false, error: msg });
-          toast.error("登录失败", msg);
+          toast.error(t("error.auth.signin"), msg);
           throw e;
         }
       },
@@ -61,7 +62,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           set({ loading: false, error: msg });
-          toast.error("登录失败", msg);
+          toast.error(t("error.auth.signin"), msg);
           throw e;
         }
       },
@@ -74,7 +75,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           set({ loading: false, error: msg });
-          toast.error("注册失败", msg);
+          toast.error(t("error.auth.register"), msg);
           throw e;
         }
       },
@@ -86,7 +87,7 @@ export const useAuthStore = create<AuthState>()(
           set({ user, loading: false });
         } catch (e) {
           set({ loading: false });
-          toast.error("退出登录失败", e instanceof Error ? e.message : String(e));
+          toast.error(t("error.auth.signout"), e instanceof Error ? e.message : String(e));
         }
       },
 
