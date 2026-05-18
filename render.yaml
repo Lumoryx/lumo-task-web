@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: lumo-task-backend
+    runtime: node
+    rootDir: backend
+    region: singapore          # closest to CN users; change to ohio/oregon as needed
+    plan: free                 # upgrade to starter ($7/mo) for always-on
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/bundle.cjs
+    healthCheckPath: /health
+
+    disk:
+      name: lumo-sqlite-data
+      mountPath: /data
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LUMO_DB_PATH
+        value: /data/lumo.db
+      - key: LUMO_JWT_SECRET
+        generateValue: true    # Render auto-generates a secure random value
+      - key: LUMO_ALLOWED_ORIGINS
+        sync: false            # Set manually in Render dashboard after Vercel deploy
