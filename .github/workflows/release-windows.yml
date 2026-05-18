@@ -1,0 +1,102 @@
+name: Release (Windows)
+
+# Runs automatically on every merge to main.
+# Can also be triggered manually with an optional version tag.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag (e.g. v1.2.0). Leave empty to use auto date+SHA tag.'
+        required: false
+        default: ''
+
+# GITHUB_TOKEN needs write access to create releases and tags.
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # ── Backend ────────────────────────────────────────────────────────────
+      - name: Install backend deps
+        run: npm ci --include=dev
+        working-directory: backend
+
+      - name: Build backend bundle
+        run: npm run build
+        working-directory: backend
+
+      # ── Frontend ───────────────────────────────────────────────────────────
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: web-app
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: web-app
+
+      # ── Electron packaging ─────────────────────────────────────────────────
+      - name: Package Windows installer (NSIS x64)
+        run: npx electron-builder --win --x64
+        working-directory: web-app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Find the produced .exe ─────────────────────────────────────────────
+      - name: Locate installer
+        id: installer
+        shell: pwsh
+        run: |
+          $file = Get-ChildItem -Path "web-app/dist-electron" -Filter "*.exe" -Recurse |
+                  Select-Object -First 1
+          "path=$($file.FullName)"  | Out-File -Append $env:GITHUB_OUTPUT
+          "name=$($file.Name)"      | Out-File -Append $env:GITHUB_OUTPUT
+
+      # ── Determine release tag ──────────────────────────────────────────────
+      - name: Determine release tag
+        id: release-tag
+        shell: pwsh
+        run: |
+          $input_ver = "${{ github.event.inputs.version }}"
+          if ($input_ver -ne "") {
+            "tag=$input_ver"       | Out-File -Append $env:GITHUB_OUTPUT
+            "prerelease=false"     | Out-File -Append $env:GITHUB_OUTPUT
+          } else {
+            $date = Get-Date -Format "yyyy.MM.dd"
+            $sha  = "${{ github.sha }}".Substring(0, 7)
+            "tag=v$date-$sha"     | Out-File -Append $env:GITHUB_OUTPUT
+            "prerelease=true"     | Out-File -Append $env:GITHUB_OUTPUT
+          }
+
+      # ── Create GitHub Release & upload installer ───────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:   ${{ steps.release-tag.outputs.tag }}
+          name:       Lumo Task ${{ steps.release-tag.outputs.tag }}
+          prerelease: ${{ steps.release-tag.outputs.prerelease == 'true' }}
+          files:      ${{ steps.installer.outputs.path }}
+          body: |
+            ## Lumo Task for Windows (x64)
+
+            下载 `${{ steps.installer.outputs.name }}` 双击安装即可。
+
+            > **提示**：首次运行 Windows 可能弹出 SmartScreen 安全提示，点击「更多信息」→「仍要运行」即可正常安装。
+
+            ---
+            **构建信息**
+            - Commit: [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            - 触发方式: `${{ github.event_name }}`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
