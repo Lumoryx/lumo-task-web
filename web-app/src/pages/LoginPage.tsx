@@ -80,9 +80,9 @@ export function LoginPage() {
         <Divider label={t("auth.or")} />
 
         <div className="flex flex-col gap-2">
-          <OAuthButton provider="google" label={t("auth.google")} onClick={() => oauth("google")} disabled={loading} />
-          <OAuthButton provider="apple" label={t("auth.apple")} onClick={() => oauth("apple")} disabled={loading} />
-          <OAuthButton provider="github" label={t("auth.github")} onClick={() => oauth("github")} disabled={loading} />
+          <OAuthButton provider="google" label={t("auth.google")} comingSoon />
+          <OAuthButton provider="apple" label={t("auth.apple")} comingSoon />
+          <OAuthButton provider="github" label={t("auth.github")} comingSoon />
         </div>
 
         <div className="mt-[18px] flex justify-center gap-3.5 text-xs text-text-secondary">
