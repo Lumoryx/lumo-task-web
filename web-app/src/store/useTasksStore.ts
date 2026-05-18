@@ -21,6 +21,7 @@ interface TasksState {
   todayTasks: () => Task[];
   // actions
   load: () => Promise<void>;
+  clear: () => void;
   create: (input: Omit<Task, "id">) => Promise<Task>;
   update: (id: string, patch: Partial<Task>) => Promise<void>;
   complete: (id: string) => Promise<void>;
@@ -46,6 +47,10 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) });
     }
+  },
+
+  clear() {
+    set({ tasks: [], completed: [], loading: false, error: null });
   },
 
   async create(input) {
