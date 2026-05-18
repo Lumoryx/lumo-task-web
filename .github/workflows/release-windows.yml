@@ -48,10 +48,8 @@ jobs:
 
       # ── Electron packaging ─────────────────────────────────────────────────
       - name: Package Windows installer (NSIS x64)
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win --x64 --publish never
         working-directory: web-app
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ── Find the produced .exe ─────────────────────────────────────────────
       - name: Locate installer
