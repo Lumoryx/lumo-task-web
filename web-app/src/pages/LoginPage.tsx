@@ -13,7 +13,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function LoginPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { signIn, signInWithProvider, loading } = useAuthStore();
+  const { signIn, loading } = useAuthStore();
   const [email, setEmail] = useState("alex@stride.studio");
   const [password, setPassword] = useState("demo1234");
 
@@ -24,15 +24,6 @@ export function LoginPage() {
       navigate("/today");
     } catch {
       /* error surfaces via store */
-    }
-  }
-
-  async function oauth(provider: "google" | "apple" | "github") {
-    try {
-      await signInWithProvider(provider);
-      navigate("/today");
-    } catch {
-      /* */
     }
   }
 
