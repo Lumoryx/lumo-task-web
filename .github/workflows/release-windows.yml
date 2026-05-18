@@ -68,23 +68,21 @@ jobs:
         run: |
           $input_ver = "${{ github.event.inputs.version }}"
           if ($input_ver -ne "") {
-            "tag=$input_ver"       | Out-File -Append $env:GITHUB_OUTPUT
-            "prerelease=false"     | Out-File -Append $env:GITHUB_OUTPUT
+            "tag=$input_ver" | Out-File -Append $env:GITHUB_OUTPUT
           } else {
             $date = Get-Date -Format "yyyy.MM.dd"
             $sha  = "${{ github.sha }}".Substring(0, 7)
-            "tag=v$date-$sha"     | Out-File -Append $env:GITHUB_OUTPUT
-            "prerelease=true"     | Out-File -Append $env:GITHUB_OUTPUT
+            "tag=v$date-$sha" | Out-File -Append $env:GITHUB_OUTPUT
           }
 
       # ── Create GitHub Release & upload installer ───────────────────────────
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name:   ${{ steps.release-tag.outputs.tag }}
-          name:       Lumo Task ${{ steps.release-tag.outputs.tag }}
-          prerelease: ${{ steps.release-tag.outputs.prerelease == 'true' }}
-          files:      ${{ steps.installer.outputs.path }}
+          tag_name: ${{ steps.release-tag.outputs.tag }}
+          name:     Lumo Task ${{ steps.release-tag.outputs.tag }}
+          draft:    false
+          files:    ${{ steps.installer.outputs.path }}
           body: |
             ## Lumo Task for Windows (x64)
 
