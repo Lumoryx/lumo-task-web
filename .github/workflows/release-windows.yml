@@ -1,16 +1,16 @@
 name: Release (Windows)
 
-# Runs automatically on every merge to main.
-# Can also be triggered manually with an optional version tag.
+# Triggered by pushing a version tag (e.g. git tag v1.2.0 && git push origin v1.2.0)
+# or manually via workflow_dispatch with an explicit version.
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release tag (e.g. v1.2.0). Leave empty to use auto date+SHA tag.'
-        required: false
-        default: ''
+        description: 'Release tag (e.g. v1.2.0). Required for manual runs.'
+        required: true
 
 # GITHUB_TOKEN needs write access to create releases and tags.
 permissions:
@@ -66,14 +66,12 @@ jobs:
         id: release-tag
         shell: pwsh
         run: |
-          $input_ver = "${{ github.event.inputs.version }}"
-          if ($input_ver -ne "") {
-            "tag=$input_ver" | Out-File -Append $env:GITHUB_OUTPUT
+          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "${{ github.event.inputs.version }}"
           } else {
-            $date = Get-Date -Format "yyyy.MM.dd"
-            $sha  = "${{ github.sha }}".Substring(0, 7)
-            "tag=v$date-$sha" | Out-File -Append $env:GITHUB_OUTPUT
+            "${{ github.ref_name }}"
           }
+          "tag=$tag" | Out-File -Append $env:GITHUB_OUTPUT
 
       # ── Create GitHub Release & upload installer ───────────────────────────
       - name: Create GitHub Release
