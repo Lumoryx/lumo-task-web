@@ -353,11 +353,119 @@ const todayTasks = useTasksStore(s => s.tasks.filter(t => t.today && !t.complete
 Every async store action should:
 1. Set a loading flag before the `await`.
 2. Clear it in a `finally` block.
-3. Surface errors via a local `error` field, not `console.error` only.
+3. Surface errors via `toast.error()` from `@/store/useToastStore` — never `console.error` only, never a bespoke inline `<div>`.
 
 ---
 
-## 9. Feature Development Checklist
+## 9. Error Notification Standard
+
+All user-visible errors must go through the unified toast system (`useToastStore` / `ToastStack`). This section defines the rules for message content and when to use which severity level.
+
+### 9.1 The Four Severity Levels
+
+| Level | Token | When to use |
+|-------|-------|-------------|
+| `error` | `--status-urgent` (#ff6b6b) | An operation failed and the user must act or retry. Data was **not** saved. |
+| `warning` | `--status-warning` (#ffb347) | The operation completed but with a caveat. Data was saved, but something is degraded. |
+| `success` | `--status-success` (#a8e64b) | A significant action completed — use sparingly (not every save needs confirmation). |
+| `info` | `--status-info` (#5bc8d4) | Neutral background information the user should know but doesn't need to act on. |
+
+### 9.2 Message Content Rules
+
+A well-formed error message has three components:
+
+```
+[title]   — What went wrong (noun phrase, ≤ 30 chars, no trailing period)
+[message] — Why it happened + what the user can do (1–2 sentences)
+```
+
+**Industry-standard checklist for every error:**
+
+- **Say what failed** — name the specific action, not a generic "操作失败".  
+  ✓ `"创建任务失败"` &nbsp; ✗ `"操作失败"`
+- **Give the reason** — include the underlying cause when it is user-actionable.  
+  ✓ `"服务器返回 401，请重新登录"` &nbsp; ✗ `"Unauthorized"`
+- **State what to do next** — when recovery is non-obvious, say so.  
+  ✓ `"请检查网络连接后重试"` &nbsp; ✗ (silent)
+- **Use plain language** — no raw HTTP status codes, no stack traces, no internal identifiers in the title.
+- **Keep it honest** — do not say "成功" and show a toast for a partial write. Use `warning` instead.
+- **Match the locale** — title and message must both be in the active locale (Chinese when `locale === "zh"`).
+
+### 9.3 Standard Error Message Patterns
+
+Use these patterns consistently. Map backend error shapes to them in `src/api/client.ts` before they reach the store.
+
+| Scenario | title | message |
+|---|---|---|
+| Network unreachable | `"网络连接失败"` | `"无法连接到服务器，请检查网络后重试。"` |
+| Session expired (401) | `"登录已过期"` | `"请重新登录后继续操作。"` |
+| Permission denied (403) | `"权限不足"` | `"你没有执行此操作的权限。"` |
+| Resource not found (404) | `"内容不存在"` | `"该内容可能已被删除或地址有误。"` |
+| Validation failed (422) | `"输入内容有误"` | Surface the specific field error from the server. |
+| Server error (5xx) | `"服务器错误"` | `"服务器暂时无法处理请求，请稍后重试。"` |
+| Request timeout | `"请求超时"` | `"服务器响应过慢，请检查网络或稍后重试。"` |
+| Offline / no backend | `"后台服务未启动"` | `"本地服务无响应，请重启应用后再试。"` |
+
+### 9.4 How to Call the Toast
+
+```ts
+import { toast } from "@/store/useToastStore";
+
+// Minimal — title only (validation, simple confirmations)
+toast.error("密码不一致");
+
+// Full — title + actionable message (API failures)
+toast.error("创建任务失败", "服务器返回 500，请稍后重试。");
+
+// Duration override — persistent until dismissed (critical, blocking errors)
+toast.error("登录已过期", "请重新登录后继续。", { duration: 0 });
+
+// From a store action (standard pattern)
+} catch (e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  toast.error("更新任务失败", mapApiError(msg));
+  throw e;
+}
+```
+
+### 9.5 Mapping API Errors
+
+Raw server error strings are often not user-friendly. Map them in a central helper before passing to toast:
+
+```ts
+// src/api/client.ts (or a dedicated src/lib/errors.ts)
+export function mapApiError(raw: string): string {
+  if (raw.includes("401") || raw.toLowerCase().includes("unauthorized"))
+    return "登录已过期，请重新登录。";
+  if (raw.includes("403"))
+    return "你没有执行此操作的权限。";
+  if (raw.includes("404"))
+    return "内容不存在或已被删除。";
+  if (raw.includes("429"))
+    return "操作过于频繁，请稍后重试。";
+  if (/5\d\d/.test(raw))
+    return "服务器暂时无法处理请求，请稍后重试。";
+  if (raw.toLowerCase().includes("network") || raw.toLowerCase().includes("fetch"))
+    return "网络连接失败，请检查网络后重试。";
+  return raw; // fall back to raw message if no pattern matches
+}
+```
+
+### 9.6 What Not to Do
+
+| Don't | Do instead |
+|---|---|
+| Inline `<div>` with hardcoded `rgba(255,107,107,…)` | `toast.error(title, message)` |
+| `console.error(e)` only | `toast.error()` + `throw e` so the store re-throws to the caller |
+| Show raw HTTP status: `"HTTP 401"` | Map to plain language: `"登录已过期"` |
+| Show the full stack trace or JS exception | Extract `.message` and humanize it |
+| Use `error` severity for a recoverable warning | Use `warning` |
+| Toast on every keystroke or micro-interaction | Reserve toast for async boundary failures |
+| Swallow errors silently | Always surface something — silent failures erode trust |
+
+---
+
+## 11. Feature Development Checklist
 
 When implementing any new feature, in order:
 
@@ -372,7 +480,7 @@ When implementing any new feature, in order:
 
 ---
 
-## 10. What Not to Do
+## 12. What Not to Do
 
 | Don't | Do instead |
 |-------|-----------|
@@ -387,7 +495,7 @@ When implementing any new feature, in order:
 
 ---
 
-## 11. Electron Desktop Conventions
+## 13. Electron Desktop Conventions
 
 These rules apply whenever touching code that runs in the packaged desktop app.
 

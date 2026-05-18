@@ -13,7 +13,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function LoginPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { signIn, signInWithProvider, loading, error, clearError } = useAuthStore();
+  const { signIn, signInWithProvider, loading } = useAuthStore();
   const [email, setEmail] = useState("alex@stride.studio");
   const [password, setPassword] = useState("demo1234");
 
@@ -54,10 +54,7 @@ export function LoginPage() {
               autoComplete="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => {
-                clearError();
-                setEmail(e.target.value);
-              }}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
           <Field label={t("auth.password")}>
@@ -67,25 +64,9 @@ export function LoginPage() {
               autoComplete="current-password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => {
-                clearError();
-                setPassword(e.target.value);
-              }}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
-
-          {error && (
-            <div
-              className="text-[12px] px-3 py-2 rounded-md"
-              style={{
-                background: "rgba(255, 107, 107, 0.08)",
-                border: "1px solid rgba(255, 107, 107, 0.35)",
-                color: "var(--status-urgent)",
-              }}
-            >
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"

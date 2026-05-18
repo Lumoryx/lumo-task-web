@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconArrowLeft, IconCheck } from "@/components/icons";
 import { useT } from "@/i18n/useT";
+import { toast } from "@/store/useToastStore";
 
 /**
  * /account/change-password — form to update the user's password.
@@ -16,24 +17,22 @@ export function ChangePasswordPage() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
 
     if (!current || !next || !confirm) {
-      setError(t("account.changePass.err.empty"));
+      toast.error(t("account.changePass.err.empty"));
       return;
     }
     if (next !== confirm) {
-      setError(t("account.changePass.err.mismatch"));
+      toast.error(t("account.changePass.err.mismatch"));
       return;
     }
     if (next.length < 8) {
-      setError(t("account.changePass.err.short"));
+      toast.error(t("account.changePass.err.short"));
       return;
     }
 
@@ -95,7 +94,7 @@ export function ChangePasswordPage() {
                 placeholder="••••••••"
                 value={current}
                 className="input"
-                onChange={(e) => { setError(null); setCurrent(e.target.value); }}
+                onChange={(e) => setCurrent(e.target.value)}
               />
             </Field>
 
@@ -108,7 +107,7 @@ export function ChangePasswordPage() {
                 placeholder="••••••••"
                 value={next}
                 className="input"
-                onChange={(e) => { setError(null); setNext(e.target.value); }}
+                onChange={(e) => setNext(e.target.value)}
               />
             </Field>
 
@@ -121,22 +120,9 @@ export function ChangePasswordPage() {
                 placeholder="••••••••"
                 value={confirm}
                 className="input"
-                onChange={(e) => { setError(null); setConfirm(e.target.value); }}
+                onChange={(e) => setConfirm(e.target.value)}
               />
             </Field>
-
-            {error && (
-              <div
-                className="mx-5 mb-4 px-3 py-2 rounded-md text-[12px]"
-                style={{
-                  background: "rgba(255, 107, 107, 0.08)",
-                  border: "1px solid rgba(255, 107, 107, 0.35)",
-                  color: "var(--status-urgent)",
-                }}
-              >
-                {error}
-              </div>
-            )}
 
             <div
               className="flex items-center justify-end gap-2 px-5 py-4 border-t"

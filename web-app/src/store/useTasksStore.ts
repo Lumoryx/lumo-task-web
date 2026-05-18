@@ -10,6 +10,7 @@
 import { create } from "zustand";
 import { api } from "@/api/client";
 import type { CompletedEntry, Task } from "@/types/task";
+import { toast } from "@/store/useToastStore";
 
 interface TasksState {
   tasks: Task[];
@@ -45,7 +46,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
       set({ tasks, completed, loading: false });
     } catch (e) {
-      set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ loading: false, error: msg });
+      toast.error("加载任务失败", msg);
     }
   },
 
@@ -54,31 +57,61 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
 
   async create(input) {
-    const task = await api.createTask(input);
-    set({ tasks: [task, ...get().tasks] });
-    return task;
+    try {
+      const task = await api.createTask(input);
+      set({ tasks: [task, ...get().tasks] });
+      return task;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("创建任务失败", msg);
+      throw e;
+    }
   },
 
   async update(id, patch) {
-    const next = await api.updateTask(id, patch);
-    set({ tasks: get().tasks.map((t) => (t.id === id ? next : t)) });
+    try {
+      const next = await api.updateTask(id, patch);
+      set({ tasks: get().tasks.map((t) => (t.id === id ? next : t)) });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("更新任务失败", msg);
+      throw e;
+    }
   },
 
   async complete(id) {
-    await api.completeTask(id);
-    const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
-    set({ tasks, completed });
+    try {
+      await api.completeTask(id);
+      const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
+      set({ tasks, completed });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("完成任务失败", msg);
+      throw e;
+    }
   },
 
   async reopen(logId) {
-    await api.uncompleteTask(logId);
-    const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
-    set({ tasks, completed });
+    try {
+      await api.uncompleteTask(logId);
+      const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
+      set({ tasks, completed });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("恢复任务失败", msg);
+      throw e;
+    }
   },
 
   async remove(id) {
-    await api.deleteTask(id);
-    set({ tasks: get().tasks.filter((t) => t.id !== id) });
+    try {
+      await api.deleteTask(id);
+      set({ tasks: get().tasks.filter((t) => t.id !== id) });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error("删除任务失败", msg);
+      throw e;
+    }
   },
 
   async reset() {

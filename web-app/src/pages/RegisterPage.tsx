@@ -12,7 +12,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function RegisterPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { register, loading, error, clearError } = useAuthStore();
+  const { register, loading } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -48,10 +48,7 @@ export function RegisterPage() {
               autoComplete="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => {
-                clearError();
-                setEmail(e.target.value);
-              }}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
           <Field label={t("auth.password")}>
@@ -61,10 +58,7 @@ export function RegisterPage() {
               autoComplete="new-password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => {
-                clearError();
-                setPassword(e.target.value);
-              }}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
           <Field label={t("auth.confirm")}>
@@ -74,10 +68,7 @@ export function RegisterPage() {
               autoComplete="new-password"
               placeholder="••••••••"
               value={confirm}
-              onChange={(e) => {
-                clearError();
-                setConfirm(e.target.value);
-              }}
+              onChange={(e) => setConfirm(e.target.value)}
             />
           </Field>
           <Field
@@ -115,19 +106,6 @@ export function RegisterPage() {
             </button>
             <span>{t("auth.terms")}</span>
           </label>
-
-          {error && (
-            <div
-              className="text-[12px] px-3 py-2 rounded-md"
-              style={{
-                background: "rgba(255, 107, 107, 0.08)",
-                border: "1px solid rgba(255, 107, 107, 0.35)",
-                color: "var(--status-urgent)",
-              }}
-            >
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"

@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "@/api/client";
 import type { User } from "@/types/task";
+import { toast } from "@/store/useToastStore";
 
 const LOCAL_USER: User = {
   id: "local",
@@ -45,7 +46,9 @@ export const useAuthStore = create<AuthState>()(
           const user = await api.signIn({ email, password });
           set({ user, loading: false });
         } catch (e) {
-          set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+          const msg = e instanceof Error ? e.message : String(e);
+          set({ loading: false, error: msg });
+          toast.error("登录失败", msg);
           throw e;
         }
       },
@@ -56,7 +59,9 @@ export const useAuthStore = create<AuthState>()(
           const user = await api.signInWithProvider(provider);
           set({ user, loading: false });
         } catch (e) {
-          set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+          const msg = e instanceof Error ? e.message : String(e);
+          set({ loading: false, error: msg });
+          toast.error("登录失败", msg);
           throw e;
         }
       },
@@ -67,15 +72,22 @@ export const useAuthStore = create<AuthState>()(
           const user = await api.register(input);
           set({ user, loading: false });
         } catch (e) {
-          set({ loading: false, error: e instanceof Error ? e.message : String(e) });
+          const msg = e instanceof Error ? e.message : String(e);
+          set({ loading: false, error: msg });
+          toast.error("注册失败", msg);
           throw e;
         }
       },
 
       async signOut() {
         set({ loading: true, error: null });
-        const user = await api.signOut();
-        set({ user, loading: false });
+        try {
+          const user = await api.signOut();
+          set({ user, loading: false });
+        } catch (e) {
+          set({ loading: false });
+          toast.error("退出登录失败", e instanceof Error ? e.message : String(e));
+        }
       },
 
       clearError: () => set({ error: null }),
