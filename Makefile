@@ -70,7 +70,7 @@ backend-build: $(BACKEND)/node_modules     ## Compile backend TypeScript → bac
 	@echo ">>> Backend built."
 
 backend-dev: $(BACKEND)/node_modules       ## Run backend in dev mode (tsx watch, port 47291)
-	cd $(BACKEND) && npm run dev
+	cd $(BACKEND) && LUMO_JWT_SECRET=dev-secret npm run dev
 
 backend-migrate: $(BACKEND)/node_modules   ## Run DB migrations (creates lumo.db in backend/)
 	cd $(BACKEND) && npm run migrate
@@ -80,11 +80,10 @@ backend-seed: $(BACKEND)/node_modules      ## Seed DB with demo data
 
 dev-full: $(APP)/node_modules $(BACKEND)/node_modules   ## Run frontend + backend concurrently
 	@echo ">>> Starting frontend (5173) and backend (47291) together..."
-	npx --yes concurrently \
-		--names "frontend,backend" \
-		--prefix-colors "cyan,green" \
-		"cd $(APP) && npm run dev" \
-		"cd $(BACKEND) && LUMO_JWT_SECRET=dev-secret npm run dev"
+	@trap 'kill 0' INT TERM EXIT; \
+	 ( cd $(BACKEND) && LUMO_JWT_SECRET=dev-secret npm run dev ) & \
+	 ( cd $(APP) && npm run dev ) & \
+	 wait
 
 # -----------------------------------------------------------------------
 # Desktop packaging

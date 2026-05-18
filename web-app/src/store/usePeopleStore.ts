@@ -9,6 +9,7 @@ interface PeopleState {
   byId: (id: string) => Person | undefined;
   // actions
   load: () => Promise<void>;
+  clear: () => void;
   create: (input: Omit<Person, "id">) => Promise<Person>;
   update: (id: string, patch: Partial<Omit<Person, "id">>) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -28,6 +29,10 @@ export const usePeopleStore = create<PeopleState>((set, get) => ({
     } catch {
       set({ loading: false });
     }
+  },
+
+  clear() {
+    set({ people: [], loading: false });
   },
 
   async create(input) {

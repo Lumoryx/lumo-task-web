@@ -13,6 +13,7 @@ import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { applyAccentTheme, useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
+import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 
 /**
  * App root.
@@ -25,7 +26,10 @@ export default function App() {
   const accent = useAppStore((s) => s.accent);
   const onboarded = useAppStore((s) => s.onboarded);
   const loadTasks = useTasksStore((s) => s.load);
+  const clearTasks = useTasksStore((s) => s.clear);
   const loadPeople = usePeopleStore((s) => s.load);
+  const clearPeople = usePeopleStore((s) => s.clear);
+  const isSignedIn = useAuthStore(selectIsSignedIn);
   const location = useLocation();
 
   useEffect(() => {
@@ -33,9 +37,14 @@ export default function App() {
   }, [accent]);
 
   useEffect(() => {
-    loadTasks();
-    loadPeople();
-  }, [loadTasks, loadPeople]);
+    if (isSignedIn) {
+      loadTasks();
+      loadPeople();
+    } else {
+      clearTasks();
+      clearPeople();
+    }
+  }, [isSignedIn, loadTasks, loadPeople, clearTasks, clearPeople]);
 
   // First-run gate — redirect to onboarding unless already there.
   if (!onboarded && location.pathname !== "/onboarding") {
