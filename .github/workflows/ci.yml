@@ -142,8 +142,10 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Audit frontend deps
-        run: cd web-app && npm ci && npm audit --audit-level=high
+      # devDeps (electron, electron-builder, vite, esbuild) are build-only tools
+      # and are never shipped to production — omit them from the audit.
+      - name: Audit frontend deps (production only)
+        run: cd web-app && npm ci && npm audit --audit-level=high --omit=dev
 
       - name: Audit backend deps
         run: cd backend && npm ci && npm audit --audit-level=high
