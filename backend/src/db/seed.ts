@@ -5,7 +5,7 @@ import { hashPassword } from "../lib/password.js";
 runMigrations();
 
 const userId = "u1";
-const password = await hashPassword("password123");
+const password = await hashPassword("demo1234");
 
 const now = new Date().toISOString();
 

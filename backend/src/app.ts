@@ -1,0 +1,49 @@
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/user.js";
+import tasksRoutes from "./routes/tasks.js";
+import peopleRoutes from "./routes/people.js";
+import completedRoutes from "./routes/completed.js";
+import focusRoutes from "./routes/focus.js";
+import settingsRoutes from "./routes/settings.js";
+import aiRoutes from "./routes/ai.js";
+
+const allowedOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const exactOrigins = allowedOrigins.filter((o) => !o.startsWith("."));
+const suffixPatterns = allowedOrigins.filter((o) => o.startsWith("."));
+
+export const app = new Hono();
+
+app.use(
+  "/*",
+  cors({
+    origin: (origin) => {
+      if (!origin || origin === "null") return "*";
+      if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return origin;
+      if (exactOrigins.includes(origin)) return origin;
+      if (suffixPatterns.some((p) => origin.endsWith(p))) return origin;
+      return null;
+    },
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  })
+);
+
+const v1 = new Hono();
+v1.route("/auth", authRoutes);
+v1.route("/user", userRoutes);
+v1.route("/tasks", tasksRoutes);
+v1.route("/people", peopleRoutes);
+v1.route("/completed", completedRoutes);
+v1.route("/focus", focusRoutes);
+v1.route("/settings", settingsRoutes);
+v1.route("/ai", aiRoutes);
+
+app.route("/v1", v1);
+
+app.get("/health", (c) => c.json({ ok: true }));

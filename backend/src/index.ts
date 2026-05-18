@@ -1,63 +1,9 @@
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { runMigrations } from "./db/migrate.js";
-import authRoutes from "./routes/auth.js";
-import userRoutes from "./routes/user.js";
-import tasksRoutes from "./routes/tasks.js";
-import peopleRoutes from "./routes/people.js";
-import completedRoutes from "./routes/completed.js";
-import focusRoutes from "./routes/focus.js";
-import settingsRoutes from "./routes/settings.js";
-import aiRoutes from "./routes/ai.js";
+import { runMigrations, ensureDefaultUser } from "./db/migrate.js";
+import { app } from "./app.js";
 
-// Run migrations on startup
 runMigrations();
-
-const app = new Hono();
-
-// LUMO_ALLOWED_ORIGINS: comma-separated list of allowed production origins.
-// Entries starting with "." are treated as suffix wildcards.
-// e.g. "https://lumo-task.vercel.app,.vercel.app,https://lumo.example.com"
-const allowedOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const exactOrigins = allowedOrigins.filter((o) => !o.startsWith("."));
-const suffixPatterns = allowedOrigins.filter((o) => o.startsWith("."));
-
-app.use(
-  "/*",
-  cors({
-    origin: (origin) => {
-      // Electron and local dev: no origin header or localhost
-      if (!origin || origin === "null") return "*";
-      if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return origin;
-      // Exact match
-      if (exactOrigins.includes(origin)) return origin;
-      // Suffix wildcard match (e.g. ".vercel.app" matches any *.vercel.app)
-      if (suffixPatterns.some((p) => origin.endsWith(p))) return origin;
-      return null;
-    },
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  })
-);
-
-const v1 = new Hono();
-v1.route("/auth", authRoutes);
-v1.route("/user", userRoutes);
-v1.route("/tasks", tasksRoutes);
-v1.route("/people", peopleRoutes);
-v1.route("/completed", completedRoutes);
-v1.route("/focus", focusRoutes);
-v1.route("/settings", settingsRoutes);
-v1.route("/ai", aiRoutes);
-
-app.route("/v1", v1);
-
-app.get("/health", (c) => c.json({ ok: true }));
+ensureDefaultUser();
 
 const port = parseInt(process.env.LUMO_PORT ?? "47291");
 
