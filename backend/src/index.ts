@@ -16,12 +16,16 @@ runMigrations();
 
 const app = new Hono();
 
-// LUMO_ALLOWED_ORIGINS: comma-separated list of extra origins allowed in production.
-// e.g. "https://lumo-task.vercel.app,https://lumo.example.com"
-const extraOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
+// LUMO_ALLOWED_ORIGINS: comma-separated list of allowed production origins.
+// Entries starting with "." are treated as suffix wildcards.
+// e.g. "https://lumo-task.vercel.app,.vercel.app,https://lumo.example.com"
+const allowedOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+
+const exactOrigins = allowedOrigins.filter((o) => !o.startsWith("."));
+const suffixPatterns = allowedOrigins.filter((o) => o.startsWith("."));
 
 app.use(
   "/*",
@@ -30,8 +34,10 @@ app.use(
       // Electron and local dev: no origin header or localhost
       if (!origin || origin === "null") return "*";
       if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return origin;
-      // Production: explicitly allowed origins
-      if (extraOrigins.includes(origin)) return origin;
+      // Exact match
+      if (exactOrigins.includes(origin)) return origin;
+      // Suffix wildcard match (e.g. ".vercel.app" matches any *.vercel.app)
+      if (suffixPatterns.some((p) => origin.endsWith(p))) return origin;
       return null;
     },
     allowHeaders: ["Content-Type", "Authorization"],
