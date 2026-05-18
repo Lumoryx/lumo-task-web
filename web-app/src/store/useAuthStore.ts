@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "@/api/client";
 import type { User } from "@/types/task";
+import { toast } from "@/store/useToastStore";
 
 const LOCAL_USER: User = {
   id: "local",
@@ -74,8 +75,13 @@ export const useAuthStore = create<AuthState>()(
 
       async signOut() {
         set({ loading: true, error: null });
-        const user = await api.signOut();
-        set({ user, loading: false });
+        try {
+          const user = await api.signOut();
+          set({ user, loading: false });
+        } catch (e) {
+          set({ loading: false });
+          toast.error("退出登录失败", e instanceof Error ? e.message : String(e));
+        }
       },
 
       clearError: () => set({ error: null }),
