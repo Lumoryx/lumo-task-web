@@ -210,7 +210,7 @@ function MatrixTaskCard({ task }: { task: Task }) {
   const [moreAnchor, setMoreAnchor] = useState<DOMRect | null>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
 
-  const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
+  const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(task.due, locale);
 
   return (
@@ -327,8 +327,24 @@ function MatrixTaskCard({ task }: { task: Task }) {
           </button>
         </div>
 
-        {/* Assignee avatar — always visible */}
-        {assignee && <PersonAvatar person={assignee} size={18} />}
+        {/* Assignee avatars — stacked */}
+        {assignees.length > 0 && (
+          <div className="flex items-center" style={{ gap: 0 }}>
+            {assignees.slice(0, 2).map((p, i) => (
+              <div key={p.id} style={{ marginLeft: i > 0 ? -5 : 0, zIndex: 2 - i, position: "relative" }}>
+                <PersonAvatar person={p} size={18} />
+              </div>
+            ))}
+            {assignees.length > 2 && (
+              <div
+                className="flex items-center justify-center rounded-full text-[9px] font-semibold"
+                style={{ width: 18, height: 18, marginLeft: -5, background: "var(--bg-subtle)", border: "1px solid var(--border-default)", color: "var(--text-faint)", flexShrink: 0 }}
+              >
+                +{assignees.length - 2}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {moreAnchor && (

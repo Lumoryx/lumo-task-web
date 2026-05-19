@@ -22,7 +22,7 @@ const TaskCreateBody = z.object({
   due: z.string().nullable().optional(),
   duration: z.number().int().default(0),
   pomos_total: z.number().int().default(0),
-  assignee_id: z.string().nullable().optional(),
+  assignee_ids: z.array(z.string()).default([]),
   conviction: z.number().nullable().optional(),
   next_step: LocalizedString.optional().nullable(),
   reason: LocalizedString.optional().nullable(),
@@ -38,7 +38,7 @@ const TaskUpdateBody = TaskCreateBody.partial();
 function rowToTask(row: any) {
   return {
     id: row.id,
-    assignee_id: row.assignee_id ?? null,
+    assignee_ids: JSON.parse(row.assignee_ids ?? "[]"),
     title: { en: row.title_en, ...(row.title_zh ? { zh: row.title_zh } : {}) },
     desc: row.desc_en ? { en: row.desc_en, ...(row.desc_zh ? { zh: row.desc_zh } : {}) } : null,
     quadrant: row.quadrant,
@@ -74,19 +74,19 @@ app.post("/", zValidator("json", TaskCreateBody), (c) => {
 
   db.prepare(`
     INSERT INTO tasks (
-      id, user_id, assignee_id, title_en, title_zh, desc_en, desc_zh,
+      id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
       quadrant, today, due, duration, pomos_done, pomos_total, conviction,
       next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
       created_at, updated_at
     ) VALUES (
-      :id, :user_id, :assignee_id, :title_en, :title_zh, :desc_en, :desc_zh,
+      :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
       :quadrant, :today, :due, :duration, 0, :pomos_total, :conviction,
       :next_step_en, :next_step_zh, :reason_en, :reason_zh, :ai_suggest, :not_now_json,
       :now, :now
     )
   `).run({
     id, user_id: userId,
-    assignee_id: body.assignee_id ?? null,
+    assignee_ids: JSON.stringify(body.assignee_ids ?? []),
     title_en: body.title.en, title_zh: body.title.zh ?? null,
     desc_en: body.desc?.en ?? null, desc_zh: body.desc?.zh ?? null,
     quadrant: body.quadrant ?? "unclassified",
@@ -125,7 +125,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
   if (!existing) return c.json({ error: "Not found" }, 404);
 
   const merged = {
-    assignee_id: "assignee_id" in body ? (body.assignee_id ?? null) : existing.assignee_id,
+    assignee_ids: "assignee_ids" in body ? JSON.stringify(body.assignee_ids ?? []) : existing.assignee_ids,
     title_en: body.title?.en ?? existing.title_en,
     title_zh: body.title?.zh ?? existing.title_zh ?? null,
     desc_en: "desc" in body ? (body.desc?.en ?? null) : existing.desc_en,
@@ -146,7 +146,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
 
   db.prepare(`
     UPDATE tasks SET
-      assignee_id = :assignee_id, title_en = :title_en, title_zh = :title_zh,
+      assignee_ids = :assignee_ids, title_en = :title_en, title_zh = :title_zh,
       desc_en = :desc_en, desc_zh = :desc_zh, quadrant = :quadrant,
       today = :today, due = :due, duration = :duration, pomos_total = :pomos_total,
       conviction = :conviction, next_step_en = :next_step_en, next_step_zh = :next_step_zh,

@@ -29,8 +29,8 @@ export interface Person {
 
 export interface Task {
   id: string;
-  /** Person ID — references a Person in the people list. */
-  assignee_id?: string;
+  /** Person IDs — references People in the people list. Multiple allowed. */
+  assignee_ids?: string[];
   title: LocalizedString;
   desc?: LocalizedString;
   quadrant: Quadrant;

@@ -33,7 +33,7 @@ export function runMigrations() {
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
-      assignee_id TEXT,
+      assignee_ids TEXT NOT NULL DEFAULT '[]',
       title_en TEXT NOT NULL,
       title_zh TEXT,
       desc_en TEXT,
@@ -94,6 +94,17 @@ export function runMigrations() {
       onboarding_complete INTEGER NOT NULL DEFAULT 0
     );
   `);
+
+  // Migrate: rename assignee_id → assignee_ids (JSON array) for existing DBs
+  const cols = db.prepare("PRAGMA table_info(tasks)").all() as any[];
+  const hasOldCol = cols.some((c: any) => c.name === "assignee_id");
+  const hasNewCol = cols.some((c: any) => c.name === "assignee_ids");
+  if (hasOldCol && !hasNewCol) {
+    db.exec("ALTER TABLE tasks ADD COLUMN assignee_ids TEXT NOT NULL DEFAULT '[]'");
+    db.exec("UPDATE tasks SET assignee_ids = json_array(assignee_id) WHERE assignee_id IS NOT NULL AND assignee_id != ''");
+  } else if (!hasNewCol) {
+    db.exec("ALTER TABLE tasks ADD COLUMN assignee_ids TEXT NOT NULL DEFAULT '[]'");
+  }
 }
 
 // When run directly

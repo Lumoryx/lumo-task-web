@@ -40,7 +40,10 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   const [duration, setDuration] = useState(30);
   const [durationRaw, setDurationRaw] = useState("30");
   const [dueDate, setDueDate] = useState<string>(todayISO);
-  const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  function toggleAssignee(id: string) {
+    setAssigneeIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -62,7 +65,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
       duration,
       pomos_done: 0,
       pomos_total: Math.max(1, Math.ceil(duration / 25)),
-      assignee_id: assigneeId,
+      assignee_ids: assigneeIds,
     });
     onCreated?.();
   }
@@ -233,41 +236,44 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
             </div>
           </div>
 
-          {/* Assignee */}
+          {/* Assignees — multi-select */}
           {people.length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
-                {t("qc.assignee")}
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint">
+                  {t("qc.assignee")}
+                </div>
+                {assigneeIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAssigneeIds([])}
+                    className="text-[10px] transition-colors"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    {t("qc.assignee.none")}
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setAssigneeId(undefined)}
-                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] transition-colors"
-                  style={{
-                    border: assigneeId === undefined ? "1px solid var(--accent-edge)" : "1px solid var(--border-default)",
-                    background: assigneeId === undefined ? "var(--accent-fog)" : "var(--bg-surface)",
-                    color: assigneeId === undefined ? "var(--accent-primary)" : "var(--text-secondary)",
-                  }}
-                >
-                  {t("qc.assignee.none")}
-                </button>
-                {people.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setAssigneeId(p.id)}
-                    className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] transition-colors"
-                    style={{
-                      border: assigneeId === p.id ? "1px solid var(--accent-edge)" : "1px solid var(--border-default)",
-                      background: assigneeId === p.id ? "var(--accent-fog)" : "var(--bg-surface)",
-                      color: assigneeId === p.id ? "var(--accent-primary)" : "var(--text-secondary)",
-                    }}
-                  >
-                    <PersonAvatar person={p} size={16} />
-                    {p.name}
-                  </button>
-                ))}
+                {people.map((p) => {
+                  const selected = assigneeIds.includes(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => toggleAssignee(p.id)}
+                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] transition-colors"
+                      style={{
+                        border: selected ? "1px solid var(--accent-edge)" : "1px solid var(--border-default)",
+                        background: selected ? "var(--accent-fog)" : "var(--bg-surface)",
+                        color: selected ? "var(--accent-primary)" : "var(--text-secondary)",
+                      }}
+                    >
+                      <PersonAvatar person={p} size={16} />
+                      {p.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
