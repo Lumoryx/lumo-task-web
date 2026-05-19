@@ -1,16 +1,15 @@
 name: Release (Windows)
 
-# Triggered by pushing a version tag (e.g. git tag v1.2.0 && git push origin v1.2.0)
-# or manually via workflow_dispatch with an explicit version.
+# Triggered manually. Tag is auto-generated as v{YYYY.MM.DD}-{sha} to comply
+# with repository tag-creation rules. An optional version_label (e.g. "v1.0.1")
+# is embedded in the release name for human readability.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release tag (e.g. v1.2.0). Required for manual runs.'
-        required: true
+      version_label:
+        description: 'Version label shown in release name, e.g. v1.0.1 (optional)'
+        required: false
+        default: ''
 
 # GITHUB_TOKEN needs write access to create releases and tags.
 permissions:
@@ -61,24 +60,25 @@ jobs:
           "path=$($file.FullName)"  | Out-File -Append $env:GITHUB_OUTPUT
           "name=$($file.Name)"      | Out-File -Append $env:GITHUB_OUTPUT
 
-      # ── Determine release tag ──────────────────────────────────────────────
-      - name: Determine release tag
-        id: release-tag
+      # ── Generate release tag (v{YYYY.MM.DD}-{short-sha}) ──────────────────
+      - name: Generate release tag and name
+        id: release-meta
         shell: pwsh
         run: |
-          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            "${{ github.event.inputs.version }}"
-          } else {
-            "${{ github.ref_name }}"
-          }
-          "tag=$tag" | Out-File -Append $env:GITHUB_OUTPUT
+          $date  = Get-Date -Format "yyyy.MM.dd"
+          $sha   = "${{ github.sha }}".Substring(0, 7)
+          $tag   = "v${date}-${sha}"
+          $label = "${{ github.event.inputs.version_label }}".Trim()
+          $name  = if ($label) { "Lumo Task ${label} (${tag})" } else { "Lumo Task ${tag}" }
+          "tag=$tag"   | Out-File -Append $env:GITHUB_OUTPUT
+          "name=$name" | Out-File -Append $env:GITHUB_OUTPUT
 
       # ── Create GitHub Release & upload installer ───────────────────────────
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release-tag.outputs.tag }}
-          name:     Lumo Task ${{ steps.release-tag.outputs.tag }}
+          tag_name: ${{ steps.release-meta.outputs.tag }}
+          name:     ${{ steps.release-meta.outputs.name }}
           draft:    false
           files:    ${{ steps.installer.outputs.path }}
           body: |
@@ -91,6 +91,6 @@ jobs:
             ---
             **构建信息**
             - Commit: [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
-            - 触发方式: `${{ github.event_name }}`
+            - 版本标签: `${{ github.event.inputs.version_label || '(未设置)' }}`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
