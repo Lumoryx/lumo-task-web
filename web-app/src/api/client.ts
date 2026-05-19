@@ -73,7 +73,7 @@ async function req<T>(
 function adaptTask(raw: any): Task {
   return {
     id: raw.id,
-    assignee_id: raw.assignee_id ?? undefined,
+    assignee_ids: raw.assignee_ids ?? [],
     title: raw.title,
     desc: raw.desc ?? undefined,
     quadrant: raw.quadrant,
@@ -190,7 +190,7 @@ export const api = {
       due: input.due ?? null,
       duration: input.duration,
       pomos_total: input.pomos_total,
-      assignee_id: input.assignee_id ?? null,
+      assignee_ids: input.assignee_ids ?? [],
       conviction: input.conviction ?? null,
       next_step: input.next_step ?? null,
       reason: input.reason ?? null,
@@ -209,7 +209,7 @@ export const api = {
       ...(patch.due !== undefined && { due: patch.due }),
       ...(patch.duration !== undefined && { duration: patch.duration }),
       ...(patch.pomos_total !== undefined && { pomos_total: patch.pomos_total }),
-      ...(patch.assignee_id !== undefined && { assignee_id: patch.assignee_id }),
+      ...(patch.assignee_ids !== undefined && { assignee_ids: patch.assignee_ids }),
       ...(patch.conviction !== undefined && { conviction: patch.conviction }),
       ...(patch.next_step !== undefined && { next_step: patch.next_step }),
       ...(patch.reason !== undefined && { reason: patch.reason }),

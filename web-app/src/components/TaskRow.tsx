@@ -33,7 +33,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const [moreAnchor, setMoreAnchor] = useState<DOMRect | null>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
 
-  const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
+  const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
 
@@ -153,8 +153,24 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
           </button>
         </div>
 
-        {/* Assignee avatar — always visible */}
-        {assignee && <PersonAvatar person={assignee} size={20} />}
+        {/* Assignee avatars — stacked */}
+        {assignees.length > 0 && (
+          <div className="flex items-center" style={{ gap: 0 }}>
+            {assignees.slice(0, 3).map((p, i) => (
+              <div key={p.id} style={{ marginLeft: i > 0 ? -6 : 0, zIndex: 3 - i, position: "relative" }}>
+                <PersonAvatar person={p} size={20} />
+              </div>
+            ))}
+            {assignees.length > 3 && (
+              <div
+                className="flex items-center justify-center rounded-full text-[9px] font-semibold"
+                style={{ width: 20, height: 20, marginLeft: -6, background: "var(--bg-subtle)", border: "1px solid var(--border-default)", color: "var(--text-faint)", flexShrink: 0 }}
+              >
+                +{assignees.length - 3}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quadrant chip — always visible */}
         {task.quadrant !== "unclassified" && (

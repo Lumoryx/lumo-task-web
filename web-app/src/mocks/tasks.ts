@@ -10,7 +10,7 @@ import type { Task, CompletedEntry } from "@/types/task";
 export const SEED_TASKS: Task[] = [
   {
     id: "t1",
-    assignee_id: "p1",
+    assignee_ids: ["p1"],
     title: {
       en: "Finish homepage wireframes for client review",
       zh: "完成客户评审用的首页线框",
@@ -62,7 +62,7 @@ export const SEED_TASKS: Task[] = [
   },
   {
     id: "t4",
-    assignee_id: "p2",
+    assignee_ids: ["p2"],
     title: { en: "Refactor auth module — token rotation", zh: "重构 auth 模块的 Token 轮换" },
     quadrant: "Q2",
     today: false,
@@ -74,7 +74,7 @@ export const SEED_TASKS: Task[] = [
   },
   {
     id: "t5",
-    assignee_id: "p3",
+    assignee_ids: ["p3"],
     title: { en: "Approve Acme invoices", zh: "审批 Acme 发票" },
     quadrant: "Q3",
     today: true,

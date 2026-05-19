@@ -49,7 +49,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const byId = usePeopleStore((s) => s.byId);
   const [editOpen, setEditOpen] = useState(false);
 
-  const assignee = task.assignee_id ? byId(task.assignee_id) : undefined;
+  const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(task.due, locale);
   const qColor = Q_COLOR[task.quadrant] ?? "var(--text-faint)";
   const qLabel = locale === "zh" ? Q_LABEL_ZH[task.quadrant] : Q_LABEL_EN[task.quadrant];
@@ -150,16 +150,20 @@ export function TaskDetailModal({ task, onClose }: Props) {
             </div>
           )}
 
-          {/* Assignee */}
-          {assignee && (
-            <div className="col-span-2 flex items-center gap-2">
+          {/* Assignees */}
+          {assignees.length > 0 && (
+            <div className="col-span-2 flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-medium" style={{ color: "var(--text-faint)", minWidth: 64 }}>
                 {t("detail.assignee")}
               </span>
-              <PersonAvatar person={assignee} size={20} />
-              <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                {assignee.name}
-              </span>
+              {assignees.map((p) => (
+                <div key={p.id} className="flex items-center gap-1.5">
+                  <PersonAvatar person={p} size={20} />
+                  <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                    {p.name}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
 

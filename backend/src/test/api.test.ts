@@ -682,21 +682,21 @@ describe("PATCH /v1/people/:id", () => {
 });
 
 describe("DELETE /v1/people/:id", () => {
-  test("200 → deletes person and clears assignee_id on tasks", async () => {
+  test("200 → deletes person and removes them from assignee_ids on tasks", async () => {
     // Create a task assigned to personId
     const { body: task } = await req("POST", "/v1/tasks", {
       token: demoToken,
-      body: { title: { en: "Assigned task" }, assignee_id: personId },
+      body: { title: { en: "Assigned task" }, assignee_ids: [personId] },
     });
-    assert.equal(task.assignee_id, personId, "task should have assignee");
+    assert.deepEqual(task.assignee_ids, [personId], "task should have assignee");
 
     // Delete the person
     const { status } = await req("DELETE", `/v1/people/${personId}`, { token: demoToken });
     assert.equal(status, 200);
 
-    // Task should now have null assignee
+    // Task should now have empty assignee_ids
     const { body: updatedTask } = await req("GET", `/v1/tasks/${task.id}`, { token: demoToken });
-    assert.equal(updatedTask.assignee_id, null, "assignee should be cleared after person deleted");
+    assert.deepEqual(updatedTask.assignee_ids, [], "assignee should be removed after person deleted");
 
     // Clean up task
     await req("DELETE", `/v1/tasks/${task.id}`, { token: demoToken });

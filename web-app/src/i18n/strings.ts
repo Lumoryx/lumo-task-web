@@ -180,8 +180,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.members.initials": "Initials",
     "settings.members.edit": "Edit",
 
-    "qc.assignee": "Assignee",
-    "qc.assignee.none": "Unassigned",
+    "qc.assignee": "Assignees",
+    "qc.assignee.none": "Clear",
 
     "edit.title": "Edit task",
     "edit.save": "Save changes",

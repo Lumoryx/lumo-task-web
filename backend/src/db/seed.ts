@@ -46,7 +46,7 @@ for (const p of people) {
 // Seed tasks
 const tasks = [
   {
-    id: "t1", assignee_id: "p1",
+    id: "t1", assignee_ids: JSON.stringify(["p1"]),
     title_en: "Finish homepage wireframes for client review",
     title_zh: "完成客户评审用的首页线框",
     desc_en: "Hero, features section, footer. Polish enough for Friday's review.",
@@ -64,7 +64,7 @@ const tasks = [
     ]),
   },
   {
-    id: "t2", assignee_id: null,
+    id: "t2", assignee_ids: JSON.stringify([]),
     title_en: "Draft Q3 OKRs", title_zh: "起草 Q3 OKR 初稿",
     desc_en: "Three objectives, five KRs each.", desc_zh: "三个目标,每个 5 个关键结果。",
     quadrant: "Q2", today: 1, due: null,
@@ -73,7 +73,7 @@ const tasks = [
     ai_suggest: null, not_now_json: "[]",
   },
   {
-    id: "t3", assignee_id: null,
+    id: "t3", assignee_ids: JSON.stringify([]),
     title_en: "Reply to investor follow-up email", title_zh: "回复投资人跟进邮件",
     desc_en: null, desc_zh: null,
     quadrant: "Q1", today: 1, due: now.slice(0, 10),
@@ -82,7 +82,7 @@ const tasks = [
     ai_suggest: null, not_now_json: "[]",
   },
   {
-    id: "t4", assignee_id: "p2",
+    id: "t4", assignee_ids: JSON.stringify(["p2"]),
     title_en: "Refactor auth module — token rotation", title_zh: "重构 auth 模块的 Token 轮换",
     desc_en: null, desc_zh: null,
     quadrant: "Q2", today: 0, due: null,
@@ -91,7 +91,7 @@ const tasks = [
     ai_suggest: "Q2", not_now_json: "[]",
   },
   {
-    id: "t5", assignee_id: "p3",
+    id: "t5", assignee_ids: JSON.stringify(["p3"]),
     title_en: "Approve Acme invoices", title_zh: "审批 Acme 发票",
     desc_en: null, desc_zh: null,
     quadrant: "Q3", today: 1, due: now.slice(0, 10),
@@ -100,7 +100,7 @@ const tasks = [
     ai_suggest: null, not_now_json: "[]",
   },
   {
-    id: "t6", assignee_id: null,
+    id: "t6", assignee_ids: JSON.stringify([]),
     title_en: "Clean up Downloads folder", title_zh: "清理下载文件夹",
     desc_en: null, desc_zh: null,
     quadrant: "Q4", today: 0, due: null,
@@ -109,7 +109,7 @@ const tasks = [
     ai_suggest: null, not_now_json: "[]",
   },
   {
-    id: "t7", assignee_id: null,
+    id: "t7", assignee_ids: JSON.stringify([]),
     title_en: "Plan team offsite agenda", title_zh: "策划团队 offsite 议程",
     desc_en: null, desc_zh: null,
     quadrant: "unclassified", today: 0, due: null,
@@ -118,7 +118,7 @@ const tasks = [
     ai_suggest: "Q2", not_now_json: "[]",
   },
   {
-    id: "t8", assignee_id: null,
+    id: "t8", assignee_ids: JSON.stringify([]),
     title_en: "Read research on focus rhythms", title_zh: "读专注节奏相关的研究",
     desc_en: null, desc_zh: null,
     quadrant: "unclassified", today: 0, due: null,
@@ -127,7 +127,7 @@ const tasks = [
     ai_suggest: "Q4", not_now_json: "[]",
   },
   {
-    id: "t9", assignee_id: null,
+    id: "t9", assignee_ids: JSON.stringify([]),
     title_en: "Renew domain — lumo.app", title_zh: "续费域名 — lumo.app",
     desc_en: null, desc_zh: null,
     quadrant: "Q3", today: 0, due: null,
@@ -136,7 +136,7 @@ const tasks = [
     ai_suggest: null, not_now_json: "[]",
   },
   {
-    id: "t10", assignee_id: null,
+    id: "t10", assignee_ids: JSON.stringify([]),
     title_en: "Read Pieter's design crit notes", title_zh: "阅读 Pieter 的设计批注",
     desc_en: null, desc_zh: null,
     quadrant: "Q2", today: 0, due: null,
@@ -145,7 +145,7 @@ const tasks = [
     ai_suggest: null, not_now_json: "[]",
   },
   {
-    id: "t11", assignee_id: null,
+    id: "t11", assignee_ids: JSON.stringify([]),
     title_en: "Reorder office supplies", title_zh: "补购办公用品",
     desc_en: null, desc_zh: null,
     quadrant: "Q4", today: 0, due: null,
@@ -157,12 +157,12 @@ const tasks = [
 
 const insertTask = db.prepare(`
   INSERT OR IGNORE INTO tasks (
-    id, user_id, assignee_id, title_en, title_zh, desc_en, desc_zh,
+    id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
     quadrant, today, due, duration, pomos_done, pomos_total, conviction,
     next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
     created_at, updated_at
   ) VALUES (
-    :id, :user_id, :assignee_id, :title_en, :title_zh, :desc_en, :desc_zh,
+    :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
     :quadrant, :today, :due, :duration, :pomos_done, :pomos_total, :conviction,
     :next_step_en, :next_step_zh, :reason_en, :reason_zh, :ai_suggest, :not_now_json,
     :created_at, :updated_at

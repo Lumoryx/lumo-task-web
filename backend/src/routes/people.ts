@@ -83,8 +83,16 @@ app.delete("/:id", (c) => {
   const result = db.prepare("DELETE FROM people WHERE id = :id AND user_id = :uid").run({ id: personId, uid: userId });
   if ((result as any).changes === 0) return c.json({ error: "Not found" }, 404);
 
-  // Clear assignee_id on any tasks that referenced this person
-  db.prepare("UPDATE tasks SET assignee_id = NULL WHERE assignee_id = :pid AND user_id = :uid").run({ pid: personId, uid: userId });
+  // Remove this person from assignee_ids JSON array on all affected tasks
+  db.prepare(`
+    UPDATE tasks
+    SET assignee_ids = (
+      SELECT COALESCE(json_group_array(value), '[]')
+      FROM json_each(assignee_ids)
+      WHERE value != :pid
+    )
+    WHERE user_id = :uid AND assignee_ids LIKE :pattern
+  `).run({ pid: personId, uid: userId, pattern: `%${personId}%` });
 
   return c.json({ ok: true });
 });
