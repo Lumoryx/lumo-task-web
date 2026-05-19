@@ -34,6 +34,7 @@ async function callOpenAICompat(config: LLMConfig, messages: ChatMessage[]): Pro
     : defaults.url;
   const model = config.model?.trim() || defaults.model;
 
+  console.log(`[LLM] POST ${url} model=${model}`);
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -50,6 +51,7 @@ async function callOpenAICompat(config: LLMConfig, messages: ChatMessage[]): Pro
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
+    console.error(`[LLM] ${res.status} from ${url}: ${text}`);
     throw new Error(`LLM API error ${res.status} (${url}): ${text}`);
   }
 
