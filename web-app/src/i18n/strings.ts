@@ -222,6 +222,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "error.auth.register": "Registration failed",
     "error.auth.signout": "Sign out failed",
 
+    "error.ai.config.load": "Failed to load AI config",
+    "error.ai.config.save": "Failed to save AI config",
+    "error.ai.test": "Connection test failed",
+    "error.ai.chat": "AI chat error",
+
     "pet.hover": "Woof! I'm Lumo Dog 🐕",
     "pet.morning.1": "Good morning! Ready to crush the day? 🌱",
     "pet.morning.2": "Rise and shine — let's tackle those Q1s! ☀️",
@@ -474,6 +479,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "error.auth.signin": "登录失败",
     "error.auth.register": "注册失败",
     "error.auth.signout": "退出登录失败",
+
+    "error.ai.config.load": "AI 配置加载失败",
+    "error.ai.config.save": "AI 配置保存失败",
+    "error.ai.test": "连接测试失败",
+    "error.ai.chat": "AI 对话出错",
 
     "pet.hover": "汪！我是 Lumo 狗 🐕",
     "pet.morning.1": "早上好！今天也要加油哦 🌱",
