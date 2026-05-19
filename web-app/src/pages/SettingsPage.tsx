@@ -7,7 +7,6 @@ import { useAIStore } from "@/store/useAIStore";
 import { api } from "@/api/client";
 import { useT } from "@/i18n/useT";
 import { toast } from "@/store/useToastStore";
-import { t } from "@/i18n/useT";
 import type { Locale, Person } from "@/types/task";
 import { PERSON_COLORS } from "@/mocks/people";
 
