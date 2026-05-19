@@ -1,4 +1,20 @@
 import { db } from "./client.js";
+import bcrypt from "bcryptjs";
+
+export function ensureDefaultUser() {
+  const existing = db.prepare("SELECT id FROM users WHERE id = 'u1'").get();
+  if (existing) return;
+
+  const password_hash = bcrypt.hashSync("demo1234", 10);
+  const now = new Date().toISOString();
+
+  db.prepare(`
+    INSERT OR IGNORE INTO users (id, email, password_hash, name, initials, local, plan, renews_at, created_at)
+    VALUES ('u1', 'alex@stride.studio', :password_hash, 'Alex Stride', 'AS', 0, 'pro', '2026-08-12', :now)
+  `).run({ password_hash, now });
+
+  db.prepare("INSERT OR IGNORE INTO settings (user_id) VALUES ('u1')").run();
+}
 
 export function runMigrations() {
   db.exec(`
@@ -82,4 +98,5 @@ export function runMigrations() {
 
 // When run directly
 runMigrations();
+ensureDefaultUser();
 console.log("Migrations complete.");
