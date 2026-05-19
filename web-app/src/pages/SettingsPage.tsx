@@ -279,7 +279,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 const PROVIDER_DEFAULTS: Record<string, { model: string; baseUrl: string }> = {
   openai:   { model: "gpt-4o-mini",    baseUrl: "https://api.openai.com/v1" },
-  deepseek: { model: "deepseek-chat",  baseUrl: "https://api.deepseek.com/v1" },
+  deepseek: { model: "deepseek-chat",  baseUrl: "https://api.deepseek.com" },
   claude:   { model: "claude-3-5-haiku-20241022", baseUrl: "" },
   custom:   { model: "",               baseUrl: "" },
 };

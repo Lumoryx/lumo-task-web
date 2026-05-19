@@ -11,9 +11,9 @@ export interface LLMConfig {
 }
 
 const PROVIDER_DEFAULTS: Record<string, { url: string; model: string }> = {
-  openai:   { url: "https://api.openai.com/v1/chat/completions",   model: "gpt-4o-mini" },
-  deepseek: { url: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat" },
-  custom:   { url: "",                                              model: "gpt-4o-mini" },
+  openai:   { url: "https://api.openai.com/v1/chat/completions", model: "gpt-4o-mini" },
+  deepseek: { url: "https://api.deepseek.com/chat/completions",  model: "deepseek-chat" },
+  custom:   { url: "",                                            model: "gpt-4o-mini" },
 };
 
 export async function callLLM(config: LLMConfig, messages: ChatMessage[]): Promise<string> {
@@ -50,7 +50,7 @@ async function callOpenAICompat(config: LLMConfig, messages: ChatMessage[]): Pro
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    throw new Error(`LLM API error ${res.status}: ${text}`);
+    throw new Error(`LLM API error ${res.status} (${url}): ${text}`);
   }
 
   const data = await res.json() as any;
