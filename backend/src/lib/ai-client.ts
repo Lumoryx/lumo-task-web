@@ -28,7 +28,9 @@ async function callOpenAICompat(config: LLMConfig, messages: ChatMessage[]): Pro
   const rawBase = config.baseUrl?.trim() || null;
   // baseUrl is stored as a base path (e.g. "https://api.openai.com/v1"); append endpoint
   const url = rawBase
-    ? rawBase.replace(/\/+$/, "") + "/chat/completions"
+    ? rawBase.includes("/chat/completions")
+      ? rawBase
+      : rawBase.replace(/\/+$/, "") + "/chat/completions"
     : defaults.url;
   const model = config.model?.trim() || defaults.model;
 
