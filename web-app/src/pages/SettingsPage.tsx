@@ -288,7 +288,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   const { config, saveConfig } = useAIStore();
 
   const [provider, setProvider] = useState(config.provider);
-  const [apiKey, setApiKey]     = useState(config.apiKey ?? "");
+  const [apiKey, setApiKey]     = useState("");   // always empty — never pre-filled with real key
   const [model, setModel]       = useState(config.model ?? "");
   const [baseUrl, setBaseUrl]   = useState(config.baseUrl ?? "");
   const [showKey, setShowKey]   = useState(false);
@@ -297,11 +297,12 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
 
   const isCustom = provider === "custom";
   const isClaude = provider === "claude";
+  const hasKey   = config.apiKeySet || apiKey.trim().length > 0;
 
   async function handleSave() {
     await saveConfig({
       provider,
-      apiKey: apiKey.trim() || null,
+      ...(apiKey.trim() ? { newApiKey: apiKey.trim() } : {}),
       model: model.trim() || null,
       baseUrl: baseUrl.trim() || null,
     });
@@ -314,11 +315,10 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
     try {
       await api.patchSettings({
         ai_provider: provider,
-        ai_api_key: apiKey.trim() || null,
+        ...(apiKey.trim() ? { ai_api_key: apiKey.trim() } : {}),
         ai_model: model.trim() || null,
         ai_base_url: baseUrl.trim() || null,
       });
-      // Send a minimal chat to test connectivity
       const res = await api.petChat({
         messages: [{ role: "user", content: "ping" }],
         context: { locale, userName: "Test" },
@@ -369,22 +369,34 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
         {/* API Key row */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint"
           style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
-          <div className="text-[13px] font-medium text-text-primary">{t("ai.config.apiKey")}</div>
+          <div>
+            <div className="text-[13px] font-medium text-text-primary">{t("ai.config.apiKey")}</div>
+            {config.apiKeySet && !apiKey && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} />
+                <span className="text-[11px]" style={{ color: "var(--accent-primary)" }}>
+                  {locale === "zh" ? "已配置" : "Configured"}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <input
               type={showKey ? "text" : "password"}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={isClaude ? "sk-ant-..." : "sk-..."}
+              placeholder={config.apiKeySet ? (locale === "zh" ? "输入新 Key 以替换" : "Enter new key to replace") : (isClaude ? "sk-ant-..." : "sk-...")}
               className="input flex-1"
               style={{ height: 34, fontSize: 13 }}
             />
-            <button
-              onClick={() => setShowKey(!showKey)}
-              className="text-[11px] text-text-muted hover:text-text-primary transition-colors px-1.5"
-            >
-              {showKey ? "Hide" : "Show"}
-            </button>
+            {apiKey && (
+              <button
+                onClick={() => setShowKey(!showKey)}
+                className="text-[11px] text-text-muted hover:text-text-primary transition-colors px-1.5"
+              >
+                {showKey ? (locale === "zh" ? "隐藏" : "Hide") : (locale === "zh" ? "显示" : "Show")}
+              </button>
+            )}
           </div>
         </div>
 
@@ -425,7 +437,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
         <div className="flex items-center gap-3 px-5 py-4 border-t border-border-faint">
           <button
             onClick={handleTest}
-            disabled={!apiKey.trim() || testStatus === "loading"}
+            disabled={!hasKey || testStatus === "loading"}
             className="btn btn-secondary"
             style={{ height: 32, fontSize: 12 }}
           >

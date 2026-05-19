@@ -103,7 +103,7 @@ export function PetChat({ petPos }: Props) {
   const panelTop = Math.max(MARGIN, Math.min(rawTop, window.innerHeight - PANEL_H - MARGIN));
 
   const chips = locale === "zh" ? QUICK_CHIPS_ZH : QUICK_CHIPS_EN;
-  const hasConfig = !!config.apiKey;
+  const hasConfig = config.apiKeySet;
 
   if (!chatOpen) return null;
 

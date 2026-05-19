@@ -15,10 +15,13 @@ interface ActivityContext {
 
 interface AIConfig {
   provider: "openai" | "deepseek" | "claude" | "custom";
-  apiKey: string | null;
+  apiKeySet: boolean;
   baseUrl: string | null;
   model: string | null;
 }
+
+// newApiKey is write-only: only sent to backend when explicitly provided, never read back
+type SaveConfigInput = Partial<Omit<AIConfig, "apiKeySet">> & { newApiKey?: string | null };
 
 interface AIStore {
   // Config (from backend — not persisted locally)
@@ -30,7 +33,7 @@ interface AIStore {
   chatOpen: boolean;
   // Actions
   loadConfig: () => Promise<void>;
-  saveConfig: (cfg: Partial<AIConfig>) => Promise<void>;
+  saveConfig: (cfg: SaveConfigInput) => Promise<void>;
   sendMessage: (text: string, ctx: ActivityContext) => Promise<void>;
   clearHistory: () => void;
   openChat: () => void;
@@ -40,7 +43,7 @@ interface AIStore {
 
 const DEFAULT_CONFIG: AIConfig = {
   provider: "openai",
-  apiKey: null,
+  apiKeySet: false,
   baseUrl: null,
   model: null,
 };
@@ -60,7 +63,7 @@ export const useAIStore = create<AIStore>()(
           set({
             config: {
               provider: s.ai_provider ?? "openai",
-              apiKey: s.ai_api_key ?? null,
+              apiKeySet: s.ai_api_key_set ?? false,
               baseUrl: s.ai_base_url ?? null,
               model: s.ai_model ?? null,
             },
@@ -71,12 +74,13 @@ export const useAIStore = create<AIStore>()(
         }
       },
 
-      async saveConfig(cfg) {
+      async saveConfig({ newApiKey, ...cfg }) {
         const merged = { ...get().config, ...cfg };
+        if (newApiKey !== undefined) merged.apiKeySet = Boolean(newApiKey);
         set({ config: merged });
         await api.patchSettings({
           ai_provider: merged.provider,
-          ai_api_key: merged.apiKey,
+          ...(newApiKey !== undefined ? { ai_api_key: newApiKey || null } : {}),
           ai_base_url: merged.baseUrl,
           ai_model: merged.model,
         });
