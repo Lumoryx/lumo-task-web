@@ -1,0 +1,344 @@
+import { useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useT, useLocaleString } from "@/i18n/useT";
+import { useAppStore } from "@/store/useAppStore";
+import { useAIStore } from "@/store/useAIStore";
+import { useTasksStore } from "@/store/useTasksStore";
+import { useAuthStore } from "@/store/useAuthStore";
+
+interface Props {
+  petPos: { x: number; y: number };
+}
+
+const QUICK_CHIPS_EN = [
+  { key: "ai.chip.priority", text: "What's my priority?" },
+  { key: "ai.chip.plan",     text: "Plan my day" },
+  { key: "ai.chip.procrastinate", text: "I'm procrastinating" },
+  { key: "ai.chip.motivate", text: "Motivate me" },
+];
+
+const QUICK_CHIPS_ZH = [
+  { key: "ai.chip.priority", text: "今日优先级" },
+  { key: "ai.chip.plan",     text: "帮我规划" },
+  { key: "ai.chip.procrastinate", text: "我在拖延" },
+  { key: "ai.chip.motivate", text: "给我打个气" },
+];
+
+export function PetChat({ petPos }: Props) {
+  const t = useT();
+  const ls = useLocaleString();
+  const locale = useAppStore((s) => s.locale);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const { messages, loading, chatOpen, closeChat, sendMessage, clearHistory, config } = useAIStore();
+  const tasks = useTasksStore((s) => s.tasks);
+  const completed = useTasksStore((s) => s.completed);
+  const user = useAuthStore((s) => s.user);
+
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Build activity context for each message
+  const context = useMemo(() => {
+    const activeTasks = tasks.filter((tk) => !tk.completed);
+    return {
+      page: location.pathname,
+      todayTasks: activeTasks
+        .filter((tk) => tk.today)
+        .slice(0, 10)
+        .map((tk) => ({ id: tk.id, title: ls(tk.title), quadrant: tk.quadrant })),
+      q1Count: activeTasks.filter((tk) => tk.quadrant === "Q1").length,
+      recentCompleted: completed
+        .slice(0, 3)
+        .map((e) => ({ title: ls(e.title), completedAt: e.completedAt ?? "" })),
+      locale,
+      userName: user?.name ?? undefined,
+    };
+  }, [tasks, completed, location.pathname, locale, user]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  // Auto-focus input when chat opens
+  useEffect(() => {
+    if (chatOpen) setTimeout(() => inputRef.current?.focus(), 80);
+  }, [chatOpen]);
+
+  // Keyboard dismiss
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeChat(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [closeChat]);
+
+  const handleSend = () => {
+    const text = inputRef.current?.value.trim();
+    if (!text || loading) return;
+    if (inputRef.current) inputRef.current.value = "";
+    sendMessage(text, context);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleChip = (text: string) => {
+    sendMessage(text, context);
+  };
+
+  // Panel position: left of pet, clamped to viewport
+  const PANEL_W = 320;
+  const PANEL_H = 440;
+  const MARGIN = 12;
+  const rawLeft = petPos.x - PANEL_W - MARGIN;
+  const rawTop = petPos.y - PANEL_H + 60;
+  const panelLeft = Math.max(MARGIN, Math.min(rawLeft, window.innerWidth - PANEL_W - MARGIN));
+  const panelTop = Math.max(MARGIN, Math.min(rawTop, window.innerHeight - PANEL_H - MARGIN));
+
+  const chips = locale === "zh" ? QUICK_CHIPS_ZH : QUICK_CHIPS_EN;
+  const hasConfig = !!config.apiKey;
+
+  if (!chatOpen) return null;
+
+  return createPortal(
+    <div
+      className="fade-in"
+      style={{
+        position: "fixed",
+        left: panelLeft,
+        top: panelTop,
+        width: PANEL_W,
+        height: PANEL_H,
+        zIndex: 9997,
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: 14,
+        overflow: "hidden",
+        border: "1px solid var(--accent-edge)",
+        background: "var(--bg-elevated)",
+        boxShadow: "var(--shadow-lifted), 0 0 40px var(--accent-fog)",
+      }}
+    >
+      {/* Header */}
+      <header
+        className="flex items-center gap-2 flex-shrink-0"
+        style={{
+          padding: "10px 12px 10px 14px",
+          borderBottom: "1px solid var(--border-faint)",
+          background: "var(--bg-surface)",
+        }}
+      >
+        <span style={{ fontSize: 18, lineHeight: 1 }}>🐕</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-text-primary leading-none">
+            {t("ai.chat.title")}
+          </div>
+          <div className="text-[10px] text-text-faint mt-0.5">
+            {t("ai.chat.subtitle")}
+            {!hasConfig && (
+              <span style={{ color: "var(--accent-primary)" }}> · {locale === "zh" ? "基础模式" : "Basic mode"}</span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={clearHistory}
+          title={t("ai.chat.clear")}
+          className="text-[10px] text-text-faint hover:text-text-muted transition-colors px-1.5 py-0.5 rounded"
+        >
+          {t("ai.chat.clear")}
+        </button>
+        <button
+          onClick={closeChat}
+          className="flex items-center justify-center w-6 h-6 rounded-md text-text-muted hover:bg-subtle hover:text-text-primary transition-colors"
+          style={{ border: "1px solid var(--border-default)" }}
+          aria-label="Close"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </header>
+
+      {/* Setup banner when AI not configured */}
+      {!hasConfig && (
+        <button
+          onClick={() => { closeChat(); navigate("/settings"); }}
+          className="flex-shrink-0 text-[11px] font-medium text-center transition-colors"
+          style={{
+            padding: "6px 12px",
+            background: "var(--accent-fog)",
+            color: "var(--accent-primary)",
+            borderBottom: "1px solid var(--accent-edge)",
+          }}
+        >
+          {t("ai.setup.banner")}
+        </button>
+      )}
+
+      {/* Quick chips */}
+      <div
+        className="flex gap-1.5 flex-shrink-0 overflow-x-auto"
+        style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-faint)", scrollbarWidth: "none" }}
+      >
+        {chips.map((chip) => (
+          <button
+            key={chip.key}
+            onClick={() => handleChip(chip.text)}
+            disabled={loading}
+            className="flex-shrink-0 text-[11px] rounded-full transition-colors"
+            style={{
+              padding: "3px 10px",
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-surface)",
+              color: "var(--text-secondary)",
+              cursor: loading ? "default" : "pointer",
+              opacity: loading ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-edge)";
+                (e.currentTarget as HTMLElement).style.color = "var(--accent-primary)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+            }}
+          >
+            {chip.text}
+          </button>
+        ))}
+      </div>
+
+      {/* Messages */}
+      <div
+        className="flex-1 overflow-y-auto flex flex-col gap-2"
+        style={{ padding: "12px", scrollbarWidth: "thin" }}
+      >
+        {messages.length === 0 && (
+          <div className="text-[12px] text-text-faint italic text-center" style={{ marginTop: 20 }}>
+            {locale === "zh" ? "点击上方按钮或直接输入消息开始对话" : "Tap a chip above or type a message to start"}
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            className="flex"
+            style={{ justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}
+          >
+            <div
+              className="text-[12px] leading-relaxed"
+              style={{
+                maxWidth: "82%",
+                padding: "7px 10px",
+                borderRadius: msg.role === "user" ? "12px 12px 3px 12px" : "12px 12px 12px 3px",
+                background: msg.role === "user" ? "var(--accent-primary)" : "var(--bg-subtle)",
+                color: msg.role === "user" ? "#fff" : "var(--text-primary)",
+                border: msg.role === "user" ? "none" : "1px solid var(--border-faint)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex" style={{ justifyContent: "flex-start" }}>
+            <div
+              className="text-[12px]"
+              style={{
+                padding: "7px 12px",
+                borderRadius: "12px 12px 12px 3px",
+                background: "var(--bg-subtle)",
+                border: "1px solid var(--border-faint)",
+                color: "var(--text-faint)",
+              }}
+            >
+              <ThinkingDots />
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div
+        className="flex items-end gap-2 flex-shrink-0"
+        style={{
+          padding: "8px 10px",
+          borderTop: "1px solid var(--border-faint)",
+          background: "var(--bg-surface)",
+        }}
+      >
+        <textarea
+          ref={inputRef}
+          onKeyDown={handleKeyDown}
+          placeholder={t("ai.chat.placeholder")}
+          rows={1}
+          disabled={loading}
+          className="flex-1 resize-none text-[12px] text-text-primary bg-transparent outline-none"
+          style={{
+            border: "none",
+            lineHeight: 1.5,
+            maxHeight: 72,
+            overflowY: "auto",
+            scrollbarWidth: "none",
+            color: "var(--text-primary)",
+          }}
+          onInput={(e) => {
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 72) + "px";
+          }}
+        />
+        <button
+          onClick={handleSend}
+          disabled={loading}
+          className="flex-shrink-0 flex items-center justify-center rounded-lg transition-colors"
+          style={{
+            width: 30,
+            height: 30,
+            background: loading ? "var(--bg-subtle)" : "var(--accent-primary)",
+            color: loading ? "var(--text-faint)" : "#fff",
+            border: "none",
+            cursor: loading ? "default" : "pointer",
+          }}
+          aria-label={t("ai.chat.send")}
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M1 12L12 6.5L1 1v4.5l7.5 2L1 7.5V12z" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <span style={{ display: "inline-flex", gap: 3, alignItems: "center" }}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: "50%",
+            background: "var(--text-faint)",
+            display: "inline-block",
+            animation: `petBounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+          }}
+        />
+      ))}
+    </span>
+  );
+}

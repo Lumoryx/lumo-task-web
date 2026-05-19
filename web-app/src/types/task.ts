@@ -95,3 +95,28 @@ export interface PaginatedResponse<T> {
   items: T[];
   total: number;
 }
+
+export interface AppSettings {
+  locale: "en" | "zh";
+  accent: "green" | "cyan" | "amber" | "graphite";
+  density: "comfortable" | "compact";
+  reduced_motion: boolean;
+  ai_enabled: boolean;
+  pomodoro_duration: number;
+  short_break: number;
+  long_break: number;
+  long_break_interval: number;
+  auto_start_breaks: boolean;
+  notifications_enabled: boolean;
+  onboarding_complete: boolean;
+  ai_provider: "openai" | "deepseek" | "claude" | "custom";
+  ai_api_key: string | null;
+  ai_base_url: string | null;
+  ai_model: string | null;
+}
+
+export interface PetChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  ts: number;
+}

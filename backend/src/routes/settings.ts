@@ -21,6 +21,11 @@ const SettingsPatch = z.object({
   auto_start_breaks: z.boolean().optional(),
   notifications_enabled: z.boolean().optional(),
   onboarding_complete: z.boolean().optional(),
+  // AI config
+  ai_provider: z.enum(["openai", "deepseek", "claude", "custom"]).optional(),
+  ai_api_key: z.string().nullable().optional(),
+  ai_base_url: z.string().nullable().optional(),
+  ai_model: z.string().nullable().optional(),
 });
 
 function rowToSettings(row: any) {
@@ -37,6 +42,10 @@ function rowToSettings(row: any) {
     auto_start_breaks: Boolean(row.auto_start_breaks),
     notifications_enabled: Boolean(row.notifications_enabled),
     onboarding_complete: Boolean(row.onboarding_complete),
+    ai_provider: (row.ai_provider ?? "openai") as string,
+    ai_api_key: row.ai_api_key ?? null,
+    ai_base_url: row.ai_base_url ?? null,
+    ai_model: row.ai_model ?? null,
   };
 }
 

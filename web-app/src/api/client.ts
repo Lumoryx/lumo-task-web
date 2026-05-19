@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { CompletedEntry, Person, Task, User } from "@/types/task";
+import type { AppSettings, CompletedEntry, Person, PetChatMessage, Task, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -252,6 +252,28 @@ export const api = {
 
   async reset(): Promise<void> {
     // No-op in real API — data is persistent.
+  },
+
+  async getSettings(): Promise<AppSettings> {
+    return req<AppSettings>("GET", "/settings");
+  },
+
+  async patchSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+    return req<AppSettings>("PATCH", "/settings", patch);
+  },
+
+  async petChat(body: {
+    messages: Pick<PetChatMessage, "role" | "content">[];
+    context: {
+      page?: string;
+      todayTasks?: { id: string; title: string; quadrant: string }[];
+      q1Count?: number;
+      recentCompleted?: { title: string; completedAt: string }[];
+      locale?: string;
+      userName?: string;
+    };
+  }): Promise<{ reply: string; mood: "idle" | "happy" | "excited"; fallback: boolean }> {
+    return req("POST", "/ai/chat", body);
   },
 };
 
