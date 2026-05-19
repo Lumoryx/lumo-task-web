@@ -25,7 +25,11 @@ export async function callLLM(config: LLMConfig, messages: ChatMessage[]): Promi
 
 async function callOpenAICompat(config: LLMConfig, messages: ChatMessage[]): Promise<string> {
   const defaults = PROVIDER_DEFAULTS[config.provider] ?? PROVIDER_DEFAULTS.openai;
-  const url = config.baseUrl?.trim() || defaults.url;
+  const rawBase = config.baseUrl?.trim() || null;
+  // baseUrl is stored as a base path (e.g. "https://api.openai.com/v1"); append endpoint
+  const url = rawBase
+    ? rawBase.replace(/\/+$/, "") + "/chat/completions"
+    : defaults.url;
   const model = config.model?.trim() || defaults.model;
 
   const res = await fetch(url, {
