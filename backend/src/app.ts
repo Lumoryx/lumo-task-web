@@ -8,6 +8,7 @@ import completedRoutes from "./routes/completed.js";
 import focusRoutes from "./routes/focus.js";
 import settingsRoutes from "./routes/settings.js";
 import aiRoutes from "./routes/ai.js";
+import docsRoutes from "./routes/docs.js";
 
 const allowedOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
   .split(",")
@@ -45,5 +46,6 @@ v1.route("/settings", settingsRoutes);
 v1.route("/ai", aiRoutes);
 
 app.route("/v1", v1);
+app.route("/docs", docsRoutes);
 
 app.get("/health", (c) => c.json({ ok: true }));
