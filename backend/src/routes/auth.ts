@@ -108,6 +108,12 @@ app.post("/change-password", authMiddleware, zValidator("json", ChangePasswordBo
   return c.json({ ok: true });
 });
 
-app.post("/signout", (c) => c.json({ ok: true }));
+app.post("/signout", authMiddleware, (c) => {
+  const jti = c.get("jti") as string;
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  db.prepare("INSERT OR IGNORE INTO revoked_tokens (jti, expires_at) VALUES (:jti, :expires_at)")
+    .run({ jti, expires_at: expiresAt });
+  return c.json({ ok: true });
+});
 
 export default app;

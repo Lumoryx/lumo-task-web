@@ -12,6 +12,7 @@ import { api } from "@/api/client";
 import type { User } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
+import { useAIStore } from "@/store/useAIStore";
 
 const LOCAL_USER: User = {
   id: "local",
@@ -81,12 +82,18 @@ export const useAuthStore = create<AuthState>()(
       },
 
       async signOut() {
+        // Clear all user-specific client data BEFORE the network call so
+        // it cannot be read even if the request hangs or fails.
+        useAIStore.getState().closeChat();
+        useAIStore.getState().clearHistory();
+        useAIStore.persist.clearStorage(); // wipe lumo-ai from localStorage
+
         set({ loading: true, error: null });
         try {
           const user = await api.signOut();
           set({ user, loading: false });
         } catch (e) {
-          set({ loading: false });
+          set({ user: LOCAL_USER, loading: false });
           toast.error(t("error.auth.signout"), e instanceof Error ? e.message : String(e));
         }
       },

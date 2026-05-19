@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { randomUUID } from "crypto";
 
 const DEV_SECRET = "dev-secret-change-in-production";
 
@@ -16,12 +17,13 @@ export async function signToken(userId: string): Promise<string> {
   return new SignJWT({ sub: userId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("30d")
+    .setJti(randomUUID())
+    .setExpirationTime("7d")
     .sign(secret());
 }
 
-export async function verifyToken(token: string): Promise<string> {
+export async function verifyToken(token: string): Promise<{ userId: string; jti: string }> {
   const { payload } = await jwtVerify(token, secret());
-  if (!payload.sub) throw new Error("invalid token");
-  return payload.sub;
+  if (!payload.sub || !payload.jti) throw new Error("invalid token");
+  return { userId: payload.sub, jti: payload.jti };
 }
