@@ -114,6 +114,17 @@ export function runMigrations() {
     db.exec("ALTER TABLE settings ADD COLUMN ai_base_url TEXT");
     db.exec("ALTER TABLE settings ADD COLUMN ai_model TEXT");
   }
+
+  // Revoked tokens table for proper session invalidation on logout
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS revoked_tokens (
+      jti  TEXT PRIMARY KEY,
+      expires_at TEXT NOT NULL
+    );
+  `);
+
+  // Prune tokens whose JWT expiry has already passed — they're invalid regardless
+  db.exec("DELETE FROM revoked_tokens WHERE expires_at < datetime('now')");
 }
 
 // When run directly

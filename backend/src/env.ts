@@ -1,1 +1,1 @@
-export type Variables = { userId: string };
+export type Variables = { userId: string; jti: string };
