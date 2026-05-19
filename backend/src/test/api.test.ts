@@ -229,15 +229,22 @@ describe("POST /v1/auth/change-password", () => {
 });
 
 describe("POST /v1/auth/signout", () => {
-  test("200 → { ok: true } (stateless, always succeeds)", async () => {
-    const { status, body } = await req("POST", "/v1/auth/signout", { token: demoToken });
+  test("200 → { ok: true } with valid token", async () => {
+    // Sign in as the demo user to get a *fresh* throwaway token — we must NOT
+    // revoke demoToken here because it is reused by every subsequent test suite.
+    const { body: signinBody } = await req("POST", "/v1/auth/signin", {
+      body: { email: "alex@stride.studio", password: "demo1234" },
+    });
+    const throwawayToken = signinBody.token;
+    const { status, body } = await req("POST", "/v1/auth/signout", { token: throwawayToken });
     assert.equal(status, 200);
     assert.equal(body.ok, true);
   });
 
-  test("200 → signout without token also succeeds", async () => {
+  test("401 → signout without token is rejected", async () => {
+    // signout now requires authentication — unauthenticated calls must return 401
     const { status } = await req("POST", "/v1/auth/signout");
-    assert.equal(status, 200);
+    assert.equal(status, 401);
   });
 });
 
