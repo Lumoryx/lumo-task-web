@@ -100,6 +100,10 @@ const spec = {
           auto_start_breaks: { type: "boolean" },
           notifications_enabled: { type: "boolean" },
           onboarding_complete: { type: "boolean" },
+          ai_provider: { type: "string", enum: ["openai", "deepseek", "claude", "custom"] },
+          ai_api_key: { type: "string", nullable: true },
+          ai_base_url: { type: "string", nullable: true },
+          ai_model: { type: "string", nullable: true },
         },
       },
       CompletedEntry: {
@@ -610,6 +614,67 @@ const spec = {
             },
           },
           "401": { description: "Unauthorized" },
+        },
+      },
+    },
+    "/v1/ai/chat": {
+      post: {
+        tags: ["AI"],
+        summary: "Chat with Lumo pet AI (uses configured LLM or fallback canned replies)",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["messages"],
+                properties: {
+                  messages: {
+                    type: "array",
+                    maxItems: 20,
+                    items: {
+                      type: "object",
+                      required: ["role", "content"],
+                      properties: {
+                        role: { type: "string", enum: ["user", "assistant"] },
+                        content: { type: "string" },
+                      },
+                    },
+                  },
+                  context: {
+                    type: "object",
+                    properties: {
+                      page: { type: "string" },
+                      q1Count: { type: "integer" },
+                      locale: { type: "string", enum: ["en", "zh"] },
+                      userName: { type: "string" },
+                      todayTasks: { type: "array", items: { type: "object" } },
+                      recentCompleted: { type: "array", items: { type: "object" } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "AI reply + suggested pet mood",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    reply: { type: "string" },
+                    mood: { type: "string", enum: ["idle", "happy", "excited"] },
+                    fallback: { type: "boolean", description: "true when no LLM key configured" },
+                  },
+                },
+              },
+            },
+          },
+          "401": { description: "Unauthorized" },
+          "502": { description: "LLM API error" },
         },
       },
     },

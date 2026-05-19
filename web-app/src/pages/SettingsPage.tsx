@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
+import { useAIStore } from "@/store/useAIStore";
+import { api } from "@/api/client";
 import { useT } from "@/i18n/useT";
 import type { Locale, Person } from "@/types/task";
 import { PERSON_COLORS } from "@/mocks/people";
@@ -87,6 +89,8 @@ export function SettingsPage() {
         onRemove={removePerson}
         t={t}
       />
+
+      <AIConfigGroup t={t} locale={locale} />
 
       <Group title="Data">
         <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
@@ -260,6 +264,195 @@ function MembersGroup({
             />
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+/* ── AI Config section ────────────────────────────────────────────── */
+
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: "OpenAI",
+  deepseek: "DeepSeek",
+  claude: "Claude",
+  custom: "Custom",
+};
+const PROVIDER_DEFAULTS: Record<string, { model: string; baseUrl: string }> = {
+  openai:   { model: "gpt-4o-mini",    baseUrl: "https://api.openai.com/v1" },
+  deepseek: { model: "deepseek-chat",  baseUrl: "https://api.deepseek.com/v1" },
+  claude:   { model: "claude-3-5-haiku-20241022", baseUrl: "" },
+  custom:   { model: "",               baseUrl: "" },
+};
+
+function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+  const { config, saveConfig } = useAIStore();
+
+  const [provider, setProvider] = useState(config.provider);
+  const [apiKey, setApiKey]     = useState(config.apiKey ?? "");
+  const [model, setModel]       = useState(config.model ?? "");
+  const [baseUrl, setBaseUrl]   = useState(config.baseUrl ?? "");
+  const [showKey, setShowKey]   = useState(false);
+  const [testStatus, setTestStatus] = useState<"idle" | "ok" | "fail" | "loading">("idle");
+  const [saved, setSaved]       = useState(false);
+
+  const isCustom = provider === "custom";
+  const isClaude = provider === "claude";
+
+  async function handleSave() {
+    await saveConfig({
+      provider,
+      apiKey: apiKey.trim() || null,
+      model: model.trim() || null,
+      baseUrl: baseUrl.trim() || null,
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleTest() {
+    setTestStatus("loading");
+    try {
+      await api.patchSettings({
+        ai_provider: provider,
+        ai_api_key: apiKey.trim() || null,
+        ai_model: model.trim() || null,
+        ai_base_url: baseUrl.trim() || null,
+      });
+      // Send a minimal chat to test connectivity
+      const res = await api.petChat({
+        messages: [{ role: "user", content: "ping" }],
+        context: { locale, userName: "Test" },
+      });
+      setTestStatus(res.fallback ? "fail" : "ok");
+    } catch {
+      setTestStatus("fail");
+    }
+  }
+
+  const placeholderModel = PROVIDER_DEFAULTS[provider]?.model ?? "";
+  const placeholderUrl   = PROVIDER_DEFAULTS[provider]?.baseUrl ?? "";
+
+  return (
+    <section className="mb-7">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
+        {t("ai.config.title")}
+      </h3>
+      <div className="rounded-[10px] border bg-surface overflow-hidden flex flex-col" style={{ borderColor: "var(--border-default)" }}>
+
+        {/* Provider row */}
+        <div className="grid items-center px-5 py-4 border-t border-border-faint first:border-t-0"
+          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+          <div className="text-[13px] font-medium text-text-primary">{t("ai.config.provider")}</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {(["openai", "deepseek", "claude", "custom"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setProvider(p);
+                  setModel(PROVIDER_DEFAULTS[p]?.model ?? "");
+                  setBaseUrl(PROVIDER_DEFAULTS[p]?.baseUrl ?? "");
+                }}
+                className="px-3 h-[28px] text-[12px] rounded-md border transition-colors"
+                style={{
+                  background: provider === p ? "var(--accent-fog)" : "var(--bg-surface)",
+                  borderColor: provider === p ? "var(--accent-edge)" : "var(--border-default)",
+                  color: provider === p ? "var(--accent-primary)" : "var(--text-secondary)",
+                  fontWeight: provider === p ? 600 : 400,
+                }}
+              >
+                {PROVIDER_LABELS[p]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* API Key row */}
+        <div className="grid items-center px-5 py-4 border-t border-border-faint"
+          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+          <div className="text-[13px] font-medium text-text-primary">{t("ai.config.apiKey")}</div>
+          <div className="flex items-center gap-2">
+            <input
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={isClaude ? "sk-ant-..." : "sk-..."}
+              className="input flex-1"
+              style={{ height: 34, fontSize: 13 }}
+            />
+            <button
+              onClick={() => setShowKey(!showKey)}
+              className="text-[11px] text-text-muted hover:text-text-primary transition-colors px-1.5"
+            >
+              {showKey ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+
+        {/* Model row */}
+        <div className="grid items-center px-5 py-4 border-t border-border-faint"
+          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+          <div className="text-[13px] font-medium text-text-primary">{t("ai.config.model")}</div>
+          <input
+            type="text"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder={placeholderModel}
+            className="input"
+            style={{ height: 34, fontSize: 13 }}
+          />
+        </div>
+
+        {/* Base URL (custom + deepseek override) */}
+        {(isCustom || isClaude === false) && (
+          <div className="grid items-center px-5 py-4 border-t border-border-faint"
+            style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+            <div>
+              <div className="text-[13px] font-medium text-text-primary">{t("ai.config.baseUrl")}</div>
+              <div className="text-[11px] text-text-muted mt-0.5">{locale === "zh" ? "留空用默认地址" : "Leave blank for default"}</div>
+            </div>
+            <input
+              type="text"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder={placeholderUrl || "https://..."}
+              className="input"
+              style={{ height: 34, fontSize: 13 }}
+            />
+          </div>
+        )}
+
+        {/* Actions row */}
+        <div className="flex items-center gap-3 px-5 py-4 border-t border-border-faint">
+          <button
+            onClick={handleTest}
+            disabled={!apiKey.trim() || testStatus === "loading"}
+            className="btn btn-secondary"
+            style={{ height: 32, fontSize: 12 }}
+          >
+            {testStatus === "loading"
+              ? (locale === "zh" ? "测试中..." : "Testing...")
+              : t("ai.config.test")}
+          </button>
+          {testStatus === "ok" && (
+            <span className="text-[12px] font-medium" style={{ color: "var(--accent-primary)" }}>
+              ✓ {t("ai.config.test.ok")}
+            </span>
+          )}
+          {testStatus === "fail" && (
+            <span className="text-[12px] font-medium" style={{ color: "var(--status-urgent)" }}>
+              ✗ {t("ai.config.test.fail")}
+            </span>
+          )}
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={handleSave}
+            className="btn btn-primary"
+            style={{ height: 32, fontSize: 12 }}
+          >
+            {saved ? t("ai.config.saved") : t("ai.config.save")}
+          </button>
+        </div>
+
       </div>
     </section>
   );

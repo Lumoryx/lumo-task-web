@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { usePetStore } from "@/store/usePetStore";
+import { useAIStore } from "@/store/useAIStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
 import { useT } from "@/i18n/useT";
+import { PetChat } from "@/components/PetChat";
 
 // ── Message pool ──────────────────────────────────────────────────────────────
 
@@ -207,20 +209,29 @@ function SpeechBubble({ text }: { text: string }) {
 export function FloatingPet() {
   const t = useT();
   const { pos, visible, activeMsg, mood, setPos, setMsg, setMood } = usePetStore();
+  const { chatOpen, toggleChat, loadConfig, configLoaded } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
   const locale = useAppStore((s) => s.locale);
 
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Load AI config once on mount
+  useEffect(() => {
+    if (!configLoaded) loadConfig();
+  }, [configLoaded, loadConfig]);
   const dragOffset = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number>(0);
   const pendingPos = useRef(pos);
   const msgTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // ── Drag logic ──────────────────────────────────────────────────────────────
+  const dragMoved = useRef(false);
+
   function onMouseDown(e: React.MouseEvent) {
     if (e.button !== 0) return;
     e.preventDefault();
+    dragMoved.current = false;
     dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
     setIsDragging(true);
     setMood("excited");
@@ -230,6 +241,7 @@ export function FloatingPet() {
     if (!isDragging) return;
 
     function onMouseMove(e: MouseEvent) {
+      dragMoved.current = true;
       pendingPos.current = {
         x: Math.max(0, Math.min(window.innerWidth - 70, e.clientX - dragOffset.current.x)),
         y: Math.max(0, Math.min(window.innerHeight - 80, e.clientY - dragOffset.current.y)),
@@ -242,10 +254,16 @@ export function FloatingPet() {
 
     function onMouseUp() {
       setIsDragging(false);
-      setMood("happy");
       cancelAnimationFrame(rafRef.current);
-      // brief happy mood then back to idle
-      setTimeout(() => setMood("idle"), 1200);
+      if (!dragMoved.current) {
+        // Short click — toggle chat
+        toggleChat();
+        setMood("happy");
+        setTimeout(() => setMood("idle"), 1200);
+      } else {
+        setMood("happy");
+        setTimeout(() => setMood("idle"), 1200);
+      }
     }
 
     document.addEventListener("mousemove", onMouseMove);
@@ -300,23 +318,41 @@ export function FloatingPet() {
   if (!visible) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        left: pos.x,
-        top: pos.y,
-        zIndex: 9998,
-        cursor: isDragging ? "grabbing" : "grab",
-        userSelect: "none",
-        width: 64,
-        height: 72,
-      }}
-      onMouseDown={onMouseDown}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      {displayMsg && <SpeechBubble text={displayMsg} />}
-      <DogSvg mood={mood} />
-    </div>
+    <>
+      <div
+        style={{
+          position: "fixed",
+          left: pos.x,
+          top: pos.y,
+          zIndex: 9998,
+          cursor: isDragging ? "grabbing" : "grab",
+          userSelect: "none",
+          width: 64,
+          height: 72,
+        }}
+        onMouseDown={onMouseDown}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {!chatOpen && displayMsg && <SpeechBubble text={displayMsg} />}
+        <DogSvg mood={mood} />
+        {/* Chat open indicator dot */}
+        {chatOpen && (
+          <div
+            style={{
+              position: "absolute",
+              top: -3,
+              right: -3,
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: "var(--accent-primary)",
+              border: "2px solid var(--bg-elevated)",
+            }}
+          />
+        )}
+      </div>
+      <PetChat petPos={pos} />
+    </>
   );
 }

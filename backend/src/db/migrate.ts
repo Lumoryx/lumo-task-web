@@ -105,6 +105,15 @@ export function runMigrations() {
   } else if (!hasNewCol) {
     db.exec("ALTER TABLE tasks ADD COLUMN assignee_ids TEXT NOT NULL DEFAULT '[]'");
   }
+
+  // Migrate: add AI config columns to settings
+  const settingsCols = db.prepare("PRAGMA table_info(settings)").all() as any[];
+  if (!settingsCols.some((c: any) => c.name === "ai_provider")) {
+    db.exec("ALTER TABLE settings ADD COLUMN ai_provider TEXT NOT NULL DEFAULT 'openai'");
+    db.exec("ALTER TABLE settings ADD COLUMN ai_api_key TEXT");
+    db.exec("ALTER TABLE settings ADD COLUMN ai_base_url TEXT");
+    db.exec("ALTER TABLE settings ADD COLUMN ai_model TEXT");
+  }
 }
 
 // When run directly
