@@ -43,7 +43,7 @@ function rowToSettings(row: any) {
     notifications_enabled: Boolean(row.notifications_enabled),
     onboarding_complete: Boolean(row.onboarding_complete),
     ai_provider: (row.ai_provider ?? "openai") as string,
-    ai_api_key: row.ai_api_key ?? null,
+    ai_api_key_set: Boolean(row.ai_api_key),
     ai_base_url: row.ai_base_url ?? null,
     ai_model: row.ai_model ?? null,
   };
