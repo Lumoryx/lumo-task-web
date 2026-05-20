@@ -3,7 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { callLLM, type ChatMessage } from "../lib/ai-client.js";
+import { callLLMWithTools, appendToolResults, type ChatMessage, type LLMConfig } from "../lib/ai-client.js";
+import { TASK_TOOLS, executeTool } from "../lib/ai-tools.js";
 import type { Variables } from "../env.js";
 
 const app = new Hono<{ Variables: Variables }>();
@@ -191,6 +192,9 @@ app.post("/chat", zValidator("json", ChatBody), async (c) => {
   const userId = c.get("userId") as string;
   const { messages, context } = c.req.valid("json");
 
+  // Extract JWT for tool execution (reuse user's own auth token)
+  const jwt = (c.req.header("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+
   const settings = db.prepare("SELECT ai_provider, ai_configs FROM settings WHERE user_id = :uid")
     .get({ uid: userId }) as any;
 
@@ -200,7 +204,7 @@ app.post("/chat", zValidator("json", ChatBody), async (c) => {
   const providerCfg = configs[activeProvider] ?? {};
   const apiKey = providerCfg.key?.trim() || null;
 
-  // No LLM configured for this provider — return canned fallback
+  // No LLM configured — return canned fallback (no tool execution)
   if (!apiKey) {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
     const reply = fallbackReply({
@@ -209,27 +213,62 @@ app.post("/chat", zValidator("json", ChatBody), async (c) => {
       userName: context?.userName,
       userMessage: lastUserMsg,
     });
-    return c.json({ reply, mood: inferMood(reply, context?.q1Count ?? 0), fallback: true });
+    return c.json({ reply, mood: inferMood(reply, context?.q1Count ?? 0), fallback: true, toolsUsed: [] });
   }
 
-  // Build full message array with system prompt prepended
+  const llmConfig: LLMConfig = {
+    provider: activeProvider,
+    apiKey,
+    baseUrl: providerCfg.baseUrl ?? null,
+    model: providerCfg.model ?? null,
+  };
+
   const systemPrompt = buildSystemPrompt(context ?? {});
-  const fullMessages: ChatMessage[] = [
+  let currentMessages: unknown[] = [
     { role: "system", content: systemPrompt },
     ...messages,
   ];
 
+  const toolsUsed: string[] = [];
+  const locale = context?.locale ?? "en";
+  const MAX_STEPS = 6;
+
   try {
-    const reply = await callLLM(
-      {
-        provider: activeProvider,
-        apiKey,
-        baseUrl: providerCfg.baseUrl ?? null,
-        model: providerCfg.model ?? null,
-      },
-      fullMessages,
-    );
-    return c.json({ reply, mood: inferMood(reply, context?.q1Count ?? 0), fallback: false });
+    for (let step = 0; step < MAX_STEPS; step++) {
+      const result = await callLLMWithTools(llmConfig, currentMessages, TASK_TOOLS);
+
+      if (result.finish === "text") {
+        return c.json({
+          reply: result.text,
+          mood: inferMood(result.text, context?.q1Count ?? 0),
+          fallback: false,
+          toolsUsed,
+        });
+      }
+
+      // Execute all tool calls in this step
+      const toolResults: string[] = [];
+      for (const call of result.calls) {
+        toolsUsed.push(call.name);
+        try {
+          const res = await executeTool(call, jwt, locale);
+          toolResults.push(res);
+        } catch (err: any) {
+          toolResults.push(JSON.stringify({ error: err?.message ?? "Tool execution failed" }));
+        }
+      }
+
+      currentMessages = appendToolResults(currentMessages, result.assistantTurn, result.calls, toolResults, activeProvider);
+    }
+
+    return c.json({
+      reply: locale === "zh"
+        ? "我遇到了一些问题，请稍后再试。"
+        : "I ran into an issue completing that. Please try again.",
+      mood: "idle",
+      fallback: false,
+      toolsUsed,
+    });
   } catch (err: any) {
     return c.json({ error: err?.message ?? "LLM call failed" }, 502);
   }

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "@/api/client";
 import { usePetStore } from "@/store/usePetStore";
+import { useTasksStore } from "@/store/useTasksStore";
 import type { AppSettings, ProviderConfig, PetChatMessage } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
@@ -118,10 +119,18 @@ export const useAIStore = create<AIStore>()(
 
         try {
           const res = await api.petChat({ messages: history, context: ctx });
-          const assistantMsg: PetChatMessage = { role: "assistant", content: res.reply, ts: Date.now() };
+          const assistantMsg: PetChatMessage = {
+            role: "assistant",
+            content: res.reply,
+            ts: Date.now(),
+            ...(res.toolsUsed?.length ? { toolsUsed: res.toolsUsed } : {}),
+          };
           set((s) => ({ messages: [...s.messages, assistantMsg], loading: false }));
           usePetStore.getState().setMood(res.mood);
           setTimeout(() => usePetStore.getState().setMood("idle"), 8000);
+          if (res.toolsUsed?.length) {
+            useTasksStore.getState().load();
+          }
         } catch (err: unknown) {
           const detail = err instanceof Error ? err.message : String(err);
           set((s) => ({

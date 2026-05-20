@@ -123,4 +123,5 @@ export interface PetChatMessage {
   role: "user" | "assistant";
   content: string;
   ts: number;
+  toolsUsed?: string[];
 }
