@@ -59,6 +59,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.empty.sub": "Pick a task from Today or the Matrix to start a session.",
     "focus.empty.cta": "Go to Today",
     "focus.empty.matrix": "Open Matrix",
+    "focus.compact.enter": "Pet mode",
+    "focus.compact.restore": "Restore",
+    "focus.compact.done": "Done",
 
     "qc.title": "New task",
     "qc.placeholder": "What needs doing?",
@@ -317,6 +320,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.empty.sub": "前往今天或矩阵，选一项任务开始专注。",
     "focus.empty.cta": "前往今天",
     "focus.empty.matrix": "打开矩阵",
+    "focus.compact.enter": "宠物模式",
+    "focus.compact.restore": "恢复窗口",
+    "focus.compact.done": "完成",
 
     "qc.title": "新建任务",
     "qc.placeholder": "要做点什么?",
