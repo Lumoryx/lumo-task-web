@@ -96,6 +96,12 @@ export interface PaginatedResponse<T> {
   total: number;
 }
 
+export interface ProviderConfig {
+  hasKey: boolean;
+  model: string;
+  baseUrl: string;
+}
+
 export interface AppSettings {
   locale: "en" | "zh";
   accent: "green" | "cyan" | "amber" | "graphite";
@@ -110,13 +116,12 @@ export interface AppSettings {
   notifications_enabled: boolean;
   onboarding_complete: boolean;
   ai_provider: "openai" | "deepseek" | "claude" | "custom";
-  ai_api_key_set: boolean;
-  ai_base_url: string | null;
-  ai_model: string | null;
+  ai_provider_configs: Record<string, ProviderConfig>;
 }
 
 export interface PetChatMessage {
   role: "user" | "assistant";
   content: string;
   ts: number;
+  toolsUsed?: string[];
 }

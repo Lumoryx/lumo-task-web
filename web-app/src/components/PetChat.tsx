@@ -32,7 +32,7 @@ export function PetChat({ petPos }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { messages, loading, chatOpen, closeChat, sendMessage, clearHistory, config } = useAIStore();
+  const { messages, loading, chatOpen, closeChat, sendMessage, clearHistory, activeProvider, providerConfigs } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
   const completed = useTasksStore((s) => s.completed);
   const user = useAuthStore((s) => s.user);
@@ -103,7 +103,7 @@ export function PetChat({ petPos }: Props) {
   const panelTop = Math.max(MARGIN, Math.min(rawTop, window.innerHeight - PANEL_H - MARGIN));
 
   const chips = locale === "zh" ? QUICK_CHIPS_ZH : QUICK_CHIPS_EN;
-  const hasConfig = config.apiKeySet;
+  const hasConfig = providerConfigs[activeProvider]?.hasKey ?? false;
 
   if (!chatOpen) return null;
 
@@ -230,8 +230,8 @@ export function PetChat({ petPos }: Props) {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className="flex"
-            style={{ justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}
+            className="flex flex-col"
+            style={{ alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}
           >
             <div
               className="text-[12px] leading-relaxed"
@@ -248,6 +248,27 @@ export function PetChat({ petPos }: Props) {
             >
               {msg.content}
             </div>
+            {msg.toolsUsed && msg.toolsUsed.length > 0 && (
+              <div
+                className="flex flex-wrap gap-1 mt-1"
+                style={{ maxWidth: "82%" }}
+              >
+                {[...new Set(msg.toolsUsed)].map((tool) => (
+                  <span
+                    key={tool}
+                    className="text-[10px] rounded-full"
+                    style={{
+                      padding: "2px 7px",
+                      background: "var(--accent-fog)",
+                      color: "var(--accent-primary)",
+                      border: "1px solid var(--accent-edge)",
+                    }}
+                  >
+                    ⚙ {tool.replace(/_/g, " ")}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && (
