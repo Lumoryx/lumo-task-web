@@ -286,7 +286,7 @@ export const api = {
       locale?: string;
       userName?: string;
     };
-  }): Promise<{ reply: string; mood: "idle" | "happy" | "excited"; fallback: boolean }> {
+  }): Promise<{ reply: string; mood: "idle" | "happy" | "excited"; fallback: boolean; toolsUsed?: string[] }> {
     return req("POST", "/ai/chat", body);
   },
 };
