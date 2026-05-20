@@ -6,6 +6,7 @@ import { usePeopleStore } from "@/store/usePeopleStore";
 import { useAIStore } from "@/store/useAIStore";
 import { api } from "@/api/client";
 import { useT } from "@/i18n/useT";
+import { toast } from "@/store/useToastStore";
 import type { Locale, Person } from "@/types/task";
 import { PERSON_COLORS } from "@/mocks/people";
 
@@ -300,14 +301,18 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   const hasKey   = config.apiKeySet || apiKey.trim().length > 0;
 
   async function handleSave() {
-    await saveConfig({
-      provider,
-      ...(apiKey.trim() ? { newApiKey: apiKey.trim() } : {}),
-      model: model.trim() || null,
-      baseUrl: baseUrl.trim() || null,
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await saveConfig({
+        provider,
+        ...(apiKey.trim() ? { newApiKey: apiKey.trim() } : {}),
+        model: model.trim() || null,
+        baseUrl: baseUrl.trim() || null,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      // toast already fired by saveConfig in useAIStore
+    }
   }
 
   async function handleTest() {
@@ -323,9 +328,15 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
         messages: [{ role: "user", content: "ping" }],
         context: { locale, userName: "Test" },
       });
-      setTestStatus(res.fallback ? "fail" : "ok");
-    } catch {
+      if (res.fallback) {
+        setTestStatus("fail");
+        toast.error(t("error.ai.test"), t("ai.config.test.fail"));
+      } else {
+        setTestStatus("ok");
+      }
+    } catch (e) {
       setTestStatus("fail");
+      toast.error(t("error.ai.test"), e instanceof Error ? e.message : String(e));
     }
   }
 

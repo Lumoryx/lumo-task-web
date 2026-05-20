@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 import { api } from "@/api/client";
 import { usePetStore } from "@/store/usePetStore";
 import type { AppSettings, PetChatMessage } from "@/types/task";
+import { toast } from "@/store/useToastStore";
+import { t } from "@/i18n/useT";
 
 interface ActivityContext {
   page?: string;
@@ -69,8 +71,9 @@ export const useAIStore = create<AIStore>()(
             },
             configLoaded: true,
           });
-        } catch {
+        } catch (e) {
           set({ configLoaded: true });
+          toast.error(t("error.ai.config.load"), e instanceof Error ? e.message : String(e));
         }
       },
 
@@ -78,12 +81,17 @@ export const useAIStore = create<AIStore>()(
         const merged = { ...get().config, ...cfg };
         if (newApiKey !== undefined) merged.apiKeySet = Boolean(newApiKey);
         set({ config: merged });
-        await api.patchSettings({
-          ai_provider: merged.provider,
-          ...(newApiKey !== undefined ? { ai_api_key: newApiKey || null } : {}),
-          ai_base_url: merged.baseUrl,
-          ai_model: merged.model,
-        });
+        try {
+          await api.patchSettings({
+            ai_provider: merged.provider,
+            ...(newApiKey !== undefined ? { ai_api_key: newApiKey || null } : {}),
+            ai_base_url: merged.baseUrl,
+            ai_model: merged.model,
+          });
+        } catch (e) {
+          toast.error(t("error.ai.config.save"), e instanceof Error ? e.message : String(e));
+          throw e;
+        }
       },
 
       async sendMessage(text, ctx) {
@@ -99,13 +107,16 @@ export const useAIStore = create<AIStore>()(
           set((s) => ({ messages: [...s.messages, assistantMsg], loading: false }));
           usePetStore.getState().setMood(res.mood);
           setTimeout(() => usePetStore.getState().setMood("idle"), 8000);
-        } catch (err: any) {
-          const errMsg: PetChatMessage = {
-            role: "assistant",
-            content: `Sorry, something went wrong: ${err?.message ?? "unknown error"}`,
-            ts: Date.now(),
-          };
-          set((s) => ({ messages: [...s.messages, errMsg], loading: false }));
+        } catch (err: unknown) {
+          const detail = err instanceof Error ? err.message : String(err);
+          set((s) => ({
+            messages: [
+              ...s.messages,
+              { role: "assistant", content: `⚠ ${detail}`, ts: Date.now() },
+            ],
+            loading: false,
+          }));
+          toast.error(t("error.ai.chat"), detail);
         }
       },
 
