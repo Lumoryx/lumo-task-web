@@ -25,10 +25,12 @@ interface AuthResult {
 }
 
 async function authenticate(): Promise<AuthResult> {
-  const ctx = await request.newContext({ baseURL: config.apiBaseUrl });
+  // Use a context without baseURL — we build full URLs to avoid path-resolution
+  // issues (a leading "/" would strip the /v1 prefix from the apiBaseUrl).
+  const ctx = await request.newContext();
 
   // Try sign-in first (the backend seeds alex@stride.studio on every cold start)
-  const signinRes = await ctx.post("/auth/signin", {
+  const signinRes = await ctx.post(`${config.apiBaseUrl}/auth/signin`, {
     data: { email: config.testEmail, password: config.testPassword },
   });
 
@@ -40,7 +42,7 @@ async function authenticate(): Promise<AuthResult> {
 
   // Account not found → register it (only needed on a fresh, unseeded environment)
   console.log("[setup] Test account not found; registering…");
-  const registerRes = await ctx.post("/auth/register", {
+  const registerRes = await ctx.post(`${config.apiBaseUrl}/auth/register`, {
     data: {
       email: config.testEmail,
       password: config.testPassword,
@@ -66,11 +68,10 @@ async function authenticate(): Promise<AuthResult> {
 
 async function seedTasksIfNeeded(token: string): Promise<void> {
   const ctx = await request.newContext({
-    baseURL: config.apiBaseUrl,
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
 
-  const res = await ctx.get("/tasks");
+  const res = await ctx.get(`${config.apiBaseUrl}/tasks`);
   if (!res.ok()) {
     await ctx.dispose();
     console.warn("[setup] Could not fetch tasks — skipping seed.");
@@ -93,7 +94,7 @@ async function seedTasksIfNeeded(token: string): Promise<void> {
   );
 
   for (const task of SEED_TASKS) {
-    const r = await ctx.post("/tasks", { data: task });
+    const r = await ctx.post(`${config.apiBaseUrl}/tasks`, { data: task });
     if (!r.ok()) {
       console.warn("[setup] Failed to create task:", task.title.en);
     }
