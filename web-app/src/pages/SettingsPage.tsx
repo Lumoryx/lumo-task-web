@@ -279,50 +279,67 @@ const PROVIDER_LABELS: Record<string, string> = {
   custom: "Custom",
 };
 const PROVIDER_DEFAULTS: Record<string, { model: string; baseUrl: string }> = {
-  openai:   { model: "gpt-4o-mini",    baseUrl: "https://api.openai.com/v1" },
-  deepseek: { model: "deepseek-chat",  baseUrl: "https://api.deepseek.com" },
+  openai:   { model: "gpt-4o-mini",               baseUrl: "https://api.openai.com/v1" },
+  deepseek: { model: "deepseek-chat",             baseUrl: "https://api.deepseek.com" },
   claude:   { model: "claude-3-5-haiku-20241022", baseUrl: "" },
-  custom:   { model: "",               baseUrl: "" },
+  custom:   { model: "",                          baseUrl: "" },
 };
 
 function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
-  const { config, saveConfig } = useAIStore();
+  const { activeProvider, providerConfigs, saveConfig } = useAIStore();
 
-  const [provider, setProvider] = useState(config.provider);
-  const [apiKey, setApiKey]     = useState("");   // always empty — never pre-filled with real key
-  const [model, setModel]       = useState(config.model ?? "");
-  const [baseUrl, setBaseUrl]   = useState(config.baseUrl ?? "");
-  const [showKey, setShowKey]   = useState(false);
+  // Local UI state — scoped to the currently viewed provider tab
+  const [viewProvider, setViewProvider] = useState<"openai" | "deepseek" | "claude" | "custom">(activeProvider);
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel]   = useState(providerConfigs[activeProvider]?.model ?? "");
+  const [baseUrl, setBaseUrl] = useState(providerConfigs[activeProvider]?.baseUrl ?? "");
+  const [showKey, setShowKey] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "ok" | "fail" | "loading">("idle");
-  const [saved, setSaved]       = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const isCustom = provider === "custom";
-  const isClaude = provider === "claude";
-  const hasKey   = config.apiKeySet || apiKey.trim().length > 0;
+  const currentCfg = providerConfigs[viewProvider];
+  const hasKey = currentCfg?.hasKey || apiKey.trim().length > 0;
+  const isClaude = viewProvider === "claude";
+
+  // Switch provider tab — load saved model/baseUrl for that provider
+  function switchProvider(p: typeof viewProvider) {
+    setViewProvider(p);
+    setApiKey("");
+    setShowKey(false);
+    setTestStatus("idle");
+    setModel(providerConfigs[p]?.model ?? PROVIDER_DEFAULTS[p]?.model ?? "");
+    setBaseUrl(providerConfigs[p]?.baseUrl ?? PROVIDER_DEFAULTS[p]?.baseUrl ?? "");
+  }
 
   async function handleSave() {
     try {
       await saveConfig({
-        provider,
-        ...(apiKey.trim() ? { newApiKey: apiKey.trim() } : {}),
+        provider: viewProvider,
+        ...(apiKey.trim() ? { newKey: apiKey.trim() } : {}),
         model: model.trim() || null,
         baseUrl: baseUrl.trim() || null,
+        setActive: true,
       });
+      setApiKey("");
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      // toast already fired by saveConfig in useAIStore
+      // toast already fired inside saveConfig
     }
   }
 
   async function handleTest() {
     setTestStatus("loading");
     try {
+      // First save the current form values so the backend uses them
       await api.patchSettings({
-        ai_provider: provider,
-        ...(apiKey.trim() ? { ai_api_key: apiKey.trim() } : {}),
-        ai_model: model.trim() || null,
-        ai_base_url: baseUrl.trim() || null,
+        ai_provider: viewProvider,
+        ai_configs_update: {
+          provider: viewProvider,
+          ...(apiKey.trim() ? { key: apiKey.trim() } : {}),
+          model: model.trim() || null,
+          baseUrl: baseUrl.trim() || null,
+        },
       });
       const res = await api.petChat({
         messages: [{ role: "user", content: "ping" }],
@@ -340,8 +357,8 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
     }
   }
 
-  const placeholderModel = PROVIDER_DEFAULTS[provider]?.model ?? "";
-  const placeholderUrl   = PROVIDER_DEFAULTS[provider]?.baseUrl ?? "";
+  const placeholderModel = PROVIDER_DEFAULTS[viewProvider]?.model ?? "";
+  const placeholderUrl   = PROVIDER_DEFAULTS[viewProvider]?.baseUrl ?? "";
 
   return (
     <section className="mb-7">
@@ -350,53 +367,52 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
       </h3>
       <div className="rounded-[10px] border bg-surface overflow-hidden flex flex-col" style={{ borderColor: "var(--border-default)" }}>
 
-        {/* Provider row */}
+        {/* Provider tabs — "已配置" badge shown directly on configured tabs */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint first:border-t-0"
           style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
           <div className="text-[13px] font-medium text-text-primary">{t("ai.config.provider")}</div>
           <div className="flex gap-1.5 flex-wrap">
-            {(["openai", "deepseek", "claude", "custom"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => {
-                  setProvider(p);
-                  setModel(PROVIDER_DEFAULTS[p]?.model ?? "");
-                  setBaseUrl(PROVIDER_DEFAULTS[p]?.baseUrl ?? "");
-                }}
-                className="px-3 h-[28px] text-[12px] rounded-md border transition-colors"
-                style={{
-                  background: provider === p ? "var(--accent-fog)" : "var(--bg-surface)",
-                  borderColor: provider === p ? "var(--accent-edge)" : "var(--border-default)",
-                  color: provider === p ? "var(--accent-primary)" : "var(--text-secondary)",
-                  fontWeight: provider === p ? 600 : 400,
-                }}
-              >
-                {PROVIDER_LABELS[p]}
-              </button>
-            ))}
+            {(["openai", "deepseek", "claude", "custom"] as const).map((p) => {
+              const cfg = providerConfigs[p];
+              const active = viewProvider === p;
+              const configured = cfg?.hasKey ?? false;
+              return (
+                <button
+                  key={p}
+                  onClick={() => switchProvider(p)}
+                  className="relative flex items-center gap-1.5 px-3 h-[28px] text-[12px] rounded-md border transition-colors"
+                  style={{
+                    background: active ? "var(--accent-fog)" : "var(--bg-surface)",
+                    borderColor: active ? "var(--accent-edge)" : "var(--border-default)",
+                    color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+                    fontWeight: active ? 600 : 400,
+                  }}
+                >
+                  {configured && (
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: "var(--accent-primary)" }}
+                    />
+                  )}
+                  {PROVIDER_LABELS[p]}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* API Key row */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint"
           style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
-          <div>
-            <div className="text-[13px] font-medium text-text-primary">{t("ai.config.apiKey")}</div>
-            {config.apiKeySet && !apiKey && (
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent-primary)" }} />
-                <span className="text-[11px]" style={{ color: "var(--accent-primary)" }}>
-                  {locale === "zh" ? "已配置" : "Configured"}
-                </span>
-              </div>
-            )}
-          </div>
+          <div className="text-[13px] font-medium text-text-primary">{t("ai.config.apiKey")}</div>
           <div className="flex items-center gap-2">
             <input
               type={showKey ? "text" : "password"}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={config.apiKeySet ? (locale === "zh" ? "输入新 Key 以替换" : "Enter new key to replace") : (isClaude ? "sk-ant-..." : "sk-...")}
+              placeholder={currentCfg?.hasKey
+                ? (locale === "zh" ? "输入新 Key 以替换" : "Enter new key to replace")
+                : (isClaude ? "sk-ant-..." : "sk-...")}
               className="input flex-1"
               style={{ height: 34, fontSize: 13 }}
             />
@@ -425,8 +441,8 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           />
         </div>
 
-        {/* Base URL (custom + deepseek override) */}
-        {(isCustom || isClaude === false) && (
+        {/* Base URL — hidden for Claude (uses fixed Anthropic endpoint) */}
+        {!isClaude && (
           <div className="grid items-center px-5 py-4 border-t border-border-faint"
             style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
             <div>

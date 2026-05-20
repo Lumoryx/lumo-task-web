@@ -191,12 +191,16 @@ app.post("/chat", zValidator("json", ChatBody), async (c) => {
   const userId = c.get("userId") as string;
   const { messages, context } = c.req.valid("json");
 
-  const settings = db.prepare("SELECT ai_provider, ai_api_key, ai_base_url, ai_model FROM settings WHERE user_id = :uid")
+  const settings = db.prepare("SELECT ai_provider, ai_configs FROM settings WHERE user_id = :uid")
     .get({ uid: userId }) as any;
 
-  const apiKey = settings?.ai_api_key ?? null;
+  const activeProvider = (settings?.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom";
+  let configs: Record<string, { key?: string; model?: string; baseUrl?: string }> = {};
+  try { configs = JSON.parse(settings?.ai_configs ?? "{}"); } catch {}
+  const providerCfg = configs[activeProvider] ?? {};
+  const apiKey = providerCfg.key?.trim() || null;
 
-  // No LLM configured — return canned fallback
+  // No LLM configured for this provider — return canned fallback
   if (!apiKey) {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
     const reply = fallbackReply({
@@ -218,10 +222,10 @@ app.post("/chat", zValidator("json", ChatBody), async (c) => {
   try {
     const reply = await callLLM(
       {
-        provider: (settings.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom",
+        provider: activeProvider,
         apiKey,
-        baseUrl: settings.ai_base_url,
-        model: settings.ai_model,
+        baseUrl: providerCfg.baseUrl ?? null,
+        model: providerCfg.model ?? null,
       },
       fullMessages,
     );

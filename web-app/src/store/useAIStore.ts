@@ -2,9 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "@/api/client";
 import { usePetStore } from "@/store/usePetStore";
-import type { AppSettings, PetChatMessage } from "@/types/task";
+import type { AppSettings, ProviderConfig, PetChatMessage } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
+
+export type AIProvider = "openai" | "deepseek" | "claude" | "custom";
 
 interface ActivityContext {
   page?: string;
@@ -15,27 +17,23 @@ interface ActivityContext {
   userName?: string;
 }
 
-interface AIConfig {
-  provider: "openai" | "deepseek" | "claude" | "custom";
-  apiKeySet: boolean;
-  baseUrl: string | null;
-  model: string | null;
-}
-
-// newApiKey is write-only: only sent to backend when explicitly provided, never read back
-type SaveConfigInput = Partial<Omit<AIConfig, "apiKeySet">> & { newApiKey?: string | null };
-
 interface AIStore {
-  // Config (from backend — not persisted locally)
-  config: AIConfig;
+  activeProvider: AIProvider;
+  providerConfigs: Record<string, ProviderConfig>;
   configLoaded: boolean;
-  // Chat
   messages: PetChatMessage[];
   loading: boolean;
   chatOpen: boolean;
-  // Actions
+
   loadConfig: () => Promise<void>;
-  saveConfig: (cfg: SaveConfigInput) => Promise<void>;
+  /** Save config for one provider. Pass newKey only when the user entered a new key. */
+  saveConfig: (opts: {
+    provider: AIProvider;
+    newKey?: string | null;
+    model?: string | null;
+    baseUrl?: string | null;
+    setActive?: boolean;
+  }) => Promise<void>;
   sendMessage: (text: string, ctx: ActivityContext) => Promise<void>;
   clearHistory: () => void;
   openChat: () => void;
@@ -43,17 +41,18 @@ interface AIStore {
   toggleChat: () => void;
 }
 
-const DEFAULT_CONFIG: AIConfig = {
-  provider: "openai",
-  apiKeySet: false,
-  baseUrl: null,
-  model: null,
+const DEFAULT_PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
+  openai:   { hasKey: false, model: "gpt-4o-mini",               baseUrl: "https://api.openai.com/v1" },
+  deepseek: { hasKey: false, model: "deepseek-chat",             baseUrl: "https://api.deepseek.com" },
+  claude:   { hasKey: false, model: "claude-3-5-haiku-20241022", baseUrl: "" },
+  custom:   { hasKey: false, model: "",                          baseUrl: "" },
 };
 
 export const useAIStore = create<AIStore>()(
   persist(
     (set, get) => ({
-      config: DEFAULT_CONFIG,
+      activeProvider: "openai",
+      providerConfigs: { ...DEFAULT_PROVIDER_CONFIGS },
       configLoaded: false,
       messages: [],
       loading: false,
@@ -63,11 +62,10 @@ export const useAIStore = create<AIStore>()(
         try {
           const s: AppSettings = await api.getSettings();
           set({
-            config: {
-              provider: s.ai_provider ?? "openai",
-              apiKeySet: s.ai_api_key_set ?? false,
-              baseUrl: s.ai_base_url ?? null,
-              model: s.ai_model ?? null,
+            activeProvider: s.ai_provider ?? "openai",
+            providerConfigs: {
+              ...DEFAULT_PROVIDER_CONFIGS,
+              ...s.ai_provider_configs,
             },
             configLoaded: true,
           });
@@ -77,16 +75,34 @@ export const useAIStore = create<AIStore>()(
         }
       },
 
-      async saveConfig({ newApiKey, ...cfg }) {
-        const merged = { ...get().config, ...cfg };
-        if (newApiKey !== undefined) merged.apiKeySet = Boolean(newApiKey);
-        set({ config: merged });
+      async saveConfig({ provider, newKey, model, baseUrl, setActive }) {
+        // Optimistically update local state
+        set((s) => ({
+          activeProvider: setActive ? provider : s.activeProvider,
+          providerConfigs: {
+            ...s.providerConfigs,
+            [provider]: {
+              ...s.providerConfigs[provider],
+              hasKey: newKey != null && newKey.trim() !== "" ? true : (s.providerConfigs[provider]?.hasKey ?? false),
+              ...(model !== undefined && { model: model ?? "" }),
+              ...(baseUrl !== undefined && { baseUrl: baseUrl ?? "" }),
+            },
+          },
+        }));
         try {
-          await api.patchSettings({
-            ai_provider: merged.provider,
-            ...(newApiKey !== undefined ? { ai_api_key: newApiKey || null } : {}),
-            ai_base_url: merged.baseUrl,
-            ai_model: merged.model,
+          const result = await api.patchSettings({
+            ...(setActive ? { ai_provider: provider } : {}),
+            ai_configs_update: {
+              provider,
+              ...(newKey != null ? { key: newKey } : {}),
+              ...(model !== undefined ? { model } : {}),
+              ...(baseUrl !== undefined ? { baseUrl } : {}),
+            },
+          });
+          // Sync authoritative state from backend
+          set({
+            activeProvider: result.ai_provider ?? provider,
+            providerConfigs: { ...DEFAULT_PROVIDER_CONFIGS, ...result.ai_provider_configs },
           });
         } catch (e) {
           toast.error(t("error.ai.config.save"), e instanceof Error ? e.message : String(e));
@@ -98,7 +114,6 @@ export const useAIStore = create<AIStore>()(
         const userMsg: PetChatMessage = { role: "user", content: text, ts: Date.now() };
         set((s) => ({ messages: [...s.messages, userMsg], loading: true }));
 
-        // Keep last 20 turns for context window
         const history = get().messages.slice(-20).map(({ role, content }) => ({ role, content }));
 
         try {

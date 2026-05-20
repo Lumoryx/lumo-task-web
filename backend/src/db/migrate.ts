@@ -115,6 +115,24 @@ export function runMigrations() {
     db.exec("ALTER TABLE settings ADD COLUMN ai_model TEXT");
   }
 
+  // Migrate: per-provider AI configs (replaces single ai_api_key/ai_model/ai_base_url)
+  if (!settingsCols.some((c: any) => c.name === "ai_configs")) {
+    db.exec("ALTER TABLE settings ADD COLUMN ai_configs TEXT NOT NULL DEFAULT '{}'");
+    // Migrate existing single-provider key into the new JSON structure
+    const rows = db.prepare(
+      "SELECT user_id, ai_provider, ai_api_key, ai_model, ai_base_url FROM settings WHERE ai_api_key IS NOT NULL AND ai_api_key != ''"
+    ).all() as any[];
+    for (const row of rows) {
+      const provider = row.ai_provider ?? "openai";
+      const cfg: Record<string, unknown> = {};
+      cfg[provider] = { key: row.ai_api_key, model: row.ai_model ?? "", baseUrl: row.ai_base_url ?? "" };
+      db.prepare("UPDATE settings SET ai_configs = :cfg WHERE user_id = :uid").run({
+        cfg: JSON.stringify(cfg),
+        uid: row.user_id,
+      });
+    }
+  }
+
   // Revoked tokens table for proper session invalidation on logout
   db.exec(`
     CREATE TABLE IF NOT EXISTS revoked_tokens (
