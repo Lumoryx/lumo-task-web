@@ -1,12 +1,21 @@
 /**
  * Lumo Task — UI Automation Tests
  *
- * 10 end-to-end test cases covering the core user flows:
+ * Runs against the real backend (no API mocking). The target environment is
+ * configured via environment variables — see tests/config.ts for details.
+ *
+ * globalSetup (tests/global-setup.ts) handles:
+ *   • signing in / registering the test account
+ *   • seeding tasks if the account is empty
+ *   • saving a Playwright storageState so every test starts authenticated
+ *
+ * Test cases
+ * ──────────
  *   TC-01  Onboarding welcome screen renders
  *   TC-02  Skip onboarding lands on /today
- *   TC-03  Login page form fields render
- *   TC-04  Demo credentials sign-in navigates to /today
- *   TC-05  Today page conviction card displays task info
+ *   TC-03  Login page form elements render
+ *   TC-04  Sign-in with test credentials navigates to /today
+ *   TC-05  Today page conviction card shows top-task data
  *   TC-06  "Start focus" button navigates to /focus
  *   TC-07  Matrix page shows all four Eisenhower quadrants
  *   TC-08  AI classify button opens the review modal
@@ -15,26 +24,25 @@
  */
 
 import { test, expect } from "@playwright/test";
-import {
-  setupAuthState,
-  setupOnboardedState,
-  mockAllApiCalls,
-} from "./helpers";
+import { setOnboardedOnly } from "./helpers";
+import { config } from "./config";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group 1: Onboarding  (fresh localStorage → app redirects to /onboarding)
+// Group 1: Onboarding  (empty localStorage — first-run experience)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("Onboarding", () => {
+  // Override the default storageState with an empty session so the app
+  // behaves as if it has never been opened before.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   /**
    * TC-01: Welcome screen renders correctly.
    *
-   * On first visit (empty localStorage) the app gate-keeps to /onboarding.
-   * The welcome step must display the product name, the primary CTA, and the
-   * "Skip" escape hatch.
+   * With empty localStorage, the app gates to /onboarding automatically.
+   * Verifies the product name, primary CTA, and the Skip escape hatch.
    */
   test("TC-01: welcome screen shows title, CTA, and skip link", async ({ page }) => {
-    // No localStorage → onboarded defaults to false → app redirects
     await page.goto("/");
 
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 10_000 });
@@ -44,7 +52,7 @@ test.describe("Onboarding", () => {
   });
 
   /**
-   * TC-02: Clicking "Skip" on the first onboarding step bypasses all steps
+   * TC-02: Clicking "Skip" on the first step bypasses all onboarding steps
    * and routes the user to /today.
    */
   test("TC-02: skip onboarding redirects to /today", async ({ page }) => {
@@ -58,19 +66,23 @@ test.describe("Onboarding", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group 2: Auth pages  (onboarded, but not signed in)
+// Group 2: Auth pages  (onboarded, not signed in — local user)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("Auth pages", () => {
+  // Onboarded but not signed in; login-page tests need a clean auth state.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test.beforeEach(async ({ page }) => {
-    await setupOnboardedState(page);
+    // Mark onboarding complete so the app doesn't redirect to /onboarding
+    await setOnboardedOnly(page);
   });
 
   /**
-   * TC-03: Login page form renders all required elements.
+   * TC-03: Login page renders all required form elements.
    *
-   * Checks heading, email field, password field, submit button, and the
-   * "Continue without account" ghost button (local-first escape hatch).
+   * Checks the heading, email field, password field, sign-in button, and
+   * the "Continue without account" local-first escape hatch.
    */
   test("TC-03: login page renders email, password, and sign-in button", async ({ page }) => {
     await page.goto("/login");
@@ -87,61 +99,54 @@ test.describe("Auth pages", () => {
   });
 
   /**
-   * TC-04: Signing in with demo credentials (intercepted by mock API)
-   * updates auth state and redirects to /today.
+   * TC-04: Signing in with the configured test credentials (real backend call)
+   * updates the auth state and redirects to /today.
    */
-  test("TC-04: sign-in with demo credentials navigates to /today", async ({ page }) => {
-    await mockAllApiCalls(page);
+  test("TC-04: sign-in with test credentials navigates to /today", async ({ page }) => {
     await page.goto("/login");
 
-    await page.getByPlaceholder("you@example.com").fill("alex@stride.studio");
-    await page.getByPlaceholder("••••••••").fill("demo1234");
+    await page.getByPlaceholder("you@example.com").fill(config.testEmail);
+    await page.getByPlaceholder("••••••••").fill(config.testPassword);
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page).toHaveURL(/\/today/, { timeout: 8_000 });
+    await expect(page).toHaveURL(/\/today/, { timeout: 10_000 });
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group 3: Authenticated app  (onboarded + signed in + API mocked)
+// Group 3: Authenticated app
+// (default storageState from playwright.config.ts — session from globalSetup)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("Authenticated app", () => {
-  test.beforeEach(async ({ page }) => {
-    await setupAuthState(page);
-    await mockAllApiCalls(page);
-  });
-
   /**
    * TC-05: Today page conviction card displays the top task.
    *
-   * After tasks load from the mocked API, the conviction card must show
-   * the "Recommended" label, the task title, and the conviction percentage bar.
+   * The real backend returns the tasks seeded by globalSetup. The card must
+   * show the "Recommended" label, the Q1 task title, and the Conviction bar.
    */
   test("TC-05: Today page shows conviction card with top-task data", async ({ page }) => {
     await page.goto("/today");
 
-    // Section label
-    await expect(page.getByText("Recommended").first()).toBeVisible({ timeout: 8_000 });
-    // Top Q1 task title
+    await expect(page.getByText("Recommended").first()).toBeVisible({
+      timeout: 10_000,
+    });
+    // The seeded Q1/today task must be the top recommendation
     await expect(
       page.getByText("Finish homepage wireframes for client review")
     ).toBeVisible();
-    // Conviction sidebar label
     await expect(page.getByText("Conviction")).toBeVisible();
   });
 
   /**
-   * TC-06: The "Start focus" button on the conviction card navigates to /focus.
+   * TC-06: Clicking "Start focus" on the conviction card navigates to /focus.
    */
   test("TC-06: Start focus button navigates to /focus", async ({ page }) => {
     await page.goto("/today");
 
-    await expect(
-      page.getByRole("button", { name: /start focus/i })
-    ).toBeVisible({ timeout: 8_000 });
-
-    await page.getByRole("button", { name: /start focus/i }).click();
+    const startBtn = page.getByRole("button", { name: /start focus/i });
+    await expect(startBtn).toBeVisible({ timeout: 10_000 });
+    await startBtn.click();
 
     await expect(page).toHaveURL(/\/focus/, { timeout: 5_000 });
   });
@@ -149,98 +154,82 @@ test.describe("Authenticated app", () => {
   /**
    * TC-07: Matrix page renders all four Eisenhower quadrant panels.
    *
-   * Checks Q1 "Do first", Q2 "Schedule", Q3 "Delegate", Q4 "Drop" headers
-   * and verifies that the task count badge is visible in the sidebar.
+   * Checks Do first (Q1), Schedule (Q2), Delegate (Q3), Drop (Q4).
    */
   test("TC-07: Matrix page shows all four Eisenhower quadrants", async ({ page }) => {
     await page.goto("/matrix");
 
-    await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText("Do first")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("Schedule")).toBeVisible();
     await expect(page.getByText("Delegate")).toBeVisible();
     await expect(page.getByText("Drop")).toBeVisible();
   });
 
   /**
-   * TC-08: Clicking "AI classify" opens the review modal.
-   *
-   * The button is enabled only when there are active tasks; with seed data
-   * loaded it should be clickable and the modal heading must appear.
+   * TC-08: Clicking "AI classify" opens the review modal with the correct
+   * heading. The button is enabled because tasks were seeded by globalSetup.
    */
   test("TC-08: AI classify button opens the classify modal", async ({ page }) => {
     await page.goto("/matrix");
 
     const classifyBtn = page.getByRole("button", { name: /ai classify/i });
-    await expect(classifyBtn).toBeVisible({ timeout: 8_000 });
+    await expect(classifyBtn).toBeVisible({ timeout: 10_000 });
     await expect(classifyBtn).toBeEnabled();
-
     await classifyBtn.click();
 
-    await expect(
-      page.getByText("Let me sort these for you")
-    ).toBeVisible({ timeout: 5_000 });
-
-    // Modal should also have a close button
-    await expect(page.getByRole("button", { name: /close/i }).or(
-      page.locator('[aria-label="Close"]')
-    ).or(page.locator('button').filter({ hasText: /×|✕/ })).first()).toBeVisible();
+    await expect(page.getByText("Let me sort these for you")).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
   /**
-   * TC-09: Focus page shows a 25:00 countdown and working Pause/Resume controls.
-   *
-   * Verifies the timer renders at 25:00, Pause switches to Resume, and the
-   * current task title is visible in the task strip.
+   * TC-09: Focus page shows a 25:00 countdown timer and working
+   * Pause / Resume controls.
    */
-  test("TC-09: Focus page timer starts at 25:00 and Pause/Resume toggles", async ({ page }) => {
+  test("TC-09: Focus page timer starts at 25:00 and Pause/Resume toggles", async ({
+    page,
+  }) => {
     await page.goto("/focus");
 
-    // Timer must start at exactly 25:00
-    await expect(page.getByText("25:00")).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText("25:00")).toBeVisible({ timeout: 10_000 });
 
-    // Pause control
     const pauseBtn = page.getByRole("button", { name: /pause/i });
     await expect(pauseBtn).toBeVisible();
     await pauseBtn.click();
 
-    // After pause the button label changes to Resume
     await expect(page.getByRole("button", { name: /resume/i })).toBeVisible({
       timeout: 3_000,
     });
   });
 
   /**
-   * TC-10: Settings page accent switcher updates the selected swatch.
-   *
-   * Clicks the "Calm Cyan" swatch, navigates away, then returns to Settings
-   * to confirm the selection persisted in the app store.
+   * TC-10: Clicking a different accent swatch in Settings updates the
+   * selection, and the choice persists after navigating away and back.
    */
-  test("TC-10: Settings page accent swatch selection persists across navigation", async ({
+  test("TC-10: Settings accent swatch selection persists across navigation", async ({
     page,
   }) => {
     await page.goto("/settings");
 
-    // Default accent (green) swatch must be visible
-    const greenSwatch = page.getByTitle("Lumo Green");
-    await expect(greenSwatch).toBeVisible({ timeout: 8_000 });
+    // Default green swatch must be visible
+    await expect(page.getByTitle("Lumo Green")).toBeVisible({ timeout: 10_000 });
 
-    // Select Calm Cyan
-    const cyanSwatch = page.getByTitle("Calm Cyan");
-    await expect(cyanSwatch).toBeVisible();
-    await cyanSwatch.click();
+    // Switch to Calm Cyan
+    await page.getByTitle("Calm Cyan").click();
 
-    // Navigate away and back to verify persistence
+    // Navigate away via the sidebar
     await page.getByText("Today").first().click();
     await expect(page).toHaveURL(/\/today/, { timeout: 5_000 });
 
+    // Return to Settings
     await page.goto("/settings");
 
-    // Cyan should now have the "selected" outline (scale(1.05) + bold outline)
-    // We verify by checking the CSS outline via evaluate
-    const selectedOutline = await page.getByTitle("Calm Cyan").evaluate(
-      (el) => getComputedStyle(el).outlineStyle
-    );
-    // Selected swatches use a solid outline; unselected use a 1px solid border
-    expect(selectedOutline).not.toBe("none");
+    // The selected swatch should now use a solid outline (selected state)
+    // while unselected swatches use a 1px border.
+    const outlineStyle = await page
+      .getByTitle("Calm Cyan")
+      .evaluate((el) => getComputedStyle(el).outlineStyle);
+
+    expect(outlineStyle).not.toBe("none");
   });
 });

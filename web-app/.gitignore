@@ -8,3 +8,8 @@ dist-ssr
 .DS_Store
 .idea
 .vscode
+
+# Playwright
+tests/.auth/
+playwright-report/
+test-results/
