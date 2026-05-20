@@ -21,10 +21,14 @@ export function FocusPage() {
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
 
-  // Pick a Q1-today task as the active focus, fall back to the first today task.
+  // Priority: Q1-today → any-today → Q1-any → any incomplete
   const task =
     tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
-    tasks.find((x) => x.today && !x.completed);
+    tasks.find((x) => x.today && !x.completed) ??
+    tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
+    tasks.find((x) => !x.completed);
+
+  const isFallbackTask = !!task && !task.today;
 
   const [remaining, setRemaining] = useState(TOTAL);
   const [paused, setPaused] = useState(false);
@@ -341,7 +345,22 @@ export function FocusPage() {
       <header className="flex items-center gap-3.5 px-8 py-5 border-b border-border-faint">
         <span className="chip chip-q1">{task.quadrant !== "unclassified" ? task.quadrant : "—"}</span>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-text-primary leading-snug">{ls(task.title)}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-medium text-text-primary leading-snug">{ls(task.title)}</div>
+            {isFallbackTask && (
+              <span
+                className="text-[10px] rounded-full flex-shrink-0"
+                style={{
+                  padding: "1px 7px",
+                  background: "var(--bg-subtle)",
+                  color: "var(--text-faint)",
+                  border: "1px solid var(--border-faint)",
+                }}
+              >
+                {t("focus.fallback.badge")}
+              </span>
+            )}
+          </div>
           <div className="text-[11px] text-text-muted mt-0.5">
             {task.next_step ? ls(task.next_step) : t("focus.sub")}
           </div>
