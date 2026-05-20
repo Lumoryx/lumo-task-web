@@ -8,6 +8,9 @@ import type { Variables } from "../env.js";
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
 
+const PROVIDERS = ["openai", "deepseek", "claude", "custom"] as const;
+type Provider = typeof PROVIDERS[number];
+
 const SettingsPatch = z.object({
   locale: z.enum(["en", "zh"]).optional(),
   accent: z.enum(["green", "cyan", "amber", "graphite"]).optional(),
@@ -21,14 +24,43 @@ const SettingsPatch = z.object({
   auto_start_breaks: z.boolean().optional(),
   notifications_enabled: z.boolean().optional(),
   onboarding_complete: z.boolean().optional(),
-  // AI config
-  ai_provider: z.enum(["openai", "deepseek", "claude", "custom"]).optional(),
-  ai_api_key: z.string().nullable().optional(),
-  ai_base_url: z.string().nullable().optional(),
-  ai_model: z.string().nullable().optional(),
+  // Active provider selection
+  ai_provider: z.enum(PROVIDERS).optional(),
+  // Per-provider config update — key only written if non-empty
+  ai_configs_update: z.object({
+    provider: z.enum(PROVIDERS),
+    key: z.string().nullable().optional(),
+    model: z.string().nullable().optional(),
+    baseUrl: z.string().nullable().optional(),
+  }).optional(),
 });
 
+/** Parse ai_configs JSON, guaranteeing all 4 providers exist */
+function parseAiConfigs(raw: string | null): Record<Provider, { key: string; model: string; baseUrl: string }> {
+  let parsed: Record<string, any> = {};
+  try { parsed = JSON.parse(raw ?? "{}"); } catch {}
+  const defaults: Record<Provider, { key: string; model: string; baseUrl: string }> = {
+    openai:   { key: "", model: "gpt-4o-mini",               baseUrl: "https://api.openai.com/v1" },
+    deepseek: { key: "", model: "deepseek-chat",             baseUrl: "https://api.deepseek.com" },
+    claude:   { key: "", model: "claude-3-5-haiku-20241022", baseUrl: "" },
+    custom:   { key: "", model: "",                          baseUrl: "" },
+  };
+  for (const p of PROVIDERS) {
+    defaults[p] = { ...defaults[p], ...(parsed[p] ?? {}) };
+  }
+  return defaults;
+}
+
 function rowToSettings(row: any) {
+  const configs = parseAiConfigs(row.ai_configs);
+  const providerConfigs: Record<string, { hasKey: boolean; model: string; baseUrl: string }> = {};
+  for (const p of PROVIDERS) {
+    providerConfigs[p] = {
+      hasKey: Boolean(configs[p].key),
+      model: configs[p].model,
+      baseUrl: configs[p].baseUrl,
+    };
+  }
   return {
     locale: row.locale,
     accent: row.accent,
@@ -43,9 +75,7 @@ function rowToSettings(row: any) {
     notifications_enabled: Boolean(row.notifications_enabled),
     onboarding_complete: Boolean(row.onboarding_complete),
     ai_provider: (row.ai_provider ?? "openai") as string,
-    ai_api_key_set: Boolean(row.ai_api_key),
-    ai_base_url: row.ai_base_url ?? null,
-    ai_model: row.ai_model ?? null,
+    ai_provider_configs: providerConfigs,
   };
 }
 
@@ -65,14 +95,28 @@ app.patch("/", zValidator("json", SettingsPatch), (c) => {
   const existing = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId }) as any;
   if (!existing) return c.json({ error: "Not found" }, 404);
 
+  const { ai_configs_update, ...rest } = body;
+
+  // Update scalar fields
   const updates: string[] = [];
   const params: Record<string, string | number | null> = { uid: userId };
 
-  for (const [key, val] of Object.entries(body)) {
+  for (const [key, val] of Object.entries(rest)) {
     if (val === undefined) continue;
     const dbVal = typeof val === "boolean" ? (val ? 1 : 0) : (val as string | number | null);
     updates.push(`${key} = :${key}`);
     params[key] = dbVal;
+  }
+
+  // Merge per-provider config into ai_configs JSON
+  if (ai_configs_update) {
+    const { provider, key, model, baseUrl } = ai_configs_update;
+    const configs = parseAiConfigs(existing.ai_configs);
+    if (key != null && key.trim()) configs[provider].key = key.trim();
+    if (model !== undefined) configs[provider].model = model?.trim() ?? "";
+    if (baseUrl !== undefined) configs[provider].baseUrl = baseUrl?.trim() ?? "";
+    updates.push("ai_configs = :ai_configs");
+    params["ai_configs"] = JSON.stringify(configs);
   }
 
   if (updates.length > 0) {

@@ -258,7 +258,21 @@ export const api = {
     return req<AppSettings>("GET", "/settings");
   },
 
-  async patchSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+  async patchSettings(patch: {
+    locale?: string;
+    accent?: string;
+    density?: string;
+    reduced_motion?: boolean;
+    ai_enabled?: boolean;
+    onboarding_complete?: boolean;
+    ai_provider?: "openai" | "deepseek" | "claude" | "custom";
+    ai_configs_update?: {
+      provider: "openai" | "deepseek" | "claude" | "custom";
+      key?: string | null;
+      model?: string | null;
+      baseUrl?: string | null;
+    };
+  }): Promise<AppSettings> {
     return req<AppSettings>("PATCH", "/settings", patch);
   },
 

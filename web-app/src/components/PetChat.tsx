@@ -32,7 +32,7 @@ export function PetChat({ petPos }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { messages, loading, chatOpen, closeChat, sendMessage, clearHistory, config } = useAIStore();
+  const { messages, loading, chatOpen, closeChat, sendMessage, clearHistory, activeProvider, providerConfigs } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
   const completed = useTasksStore((s) => s.completed);
   const user = useAuthStore((s) => s.user);
@@ -103,7 +103,7 @@ export function PetChat({ petPos }: Props) {
   const panelTop = Math.max(MARGIN, Math.min(rawTop, window.innerHeight - PANEL_H - MARGIN));
 
   const chips = locale === "zh" ? QUICK_CHIPS_ZH : QUICK_CHIPS_EN;
-  const hasConfig = config.apiKeySet;
+  const hasConfig = providerConfigs[activeProvider]?.hasKey ?? false;
 
   if (!chatOpen) return null;
 
