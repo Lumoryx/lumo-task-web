@@ -5,6 +5,7 @@ import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
+import { DogSvg } from "@/components/DogSvg";
 
 const TOTAL = 25 * 60;
 
@@ -27,12 +28,24 @@ export function FocusPage() {
 
   const [remaining, setRemaining] = useState(TOTAL);
   const [paused, setPaused] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const isElectron = typeof window !== "undefined" && !!window.electronAPI;
 
   useEffect(() => {
     if (paused || remaining === 0) return;
     const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
     return () => clearInterval(id);
   }, [paused, remaining]);
+
+  function enterCompact() {
+    setCompact(true);
+    window.electronAPI?.enterFocusMode();
+  }
+
+  function exitCompact() {
+    setCompact(false);
+    window.electronAPI?.exitFocusMode();
+  }
 
   if (!task) {
     return (
@@ -142,8 +155,178 @@ export function FocusPage() {
   const turns = -90 + progress * 360;
 
   async function onComplete() {
+    if (compact) exitCompact();
     if (task) await complete(task.id);
     navigate("/today");
+  }
+
+  // ── Compact pet overlay (Electron only) ─────────────────────────────────────
+  if (compact) {
+    const petMood = paused ? "idle" : remaining < 60 ? "excited" : "happy";
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          background: "var(--bg-elevated)",
+          WebkitAppRegion: "drag",
+          userSelect: "none",
+          overflow: "hidden",
+        }}
+      >
+        {/* Drag handle strip */}
+        <div
+          style={{
+            width: "100%",
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 10px",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ width: 36, height: 3, borderRadius: 2, background: "var(--border-strong)", opacity: 0.5 }} />
+          <button
+            onClick={exitCompact}
+            style={{
+              WebkitAppRegion: "no-drag",
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-surface)",
+              color: "var(--text-muted)",
+              fontSize: 10,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1,
+            }}
+            title={t("focus.compact.restore")}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Pet */}
+        <div style={{ marginTop: 4, flexShrink: 0 }}>
+          <DogSvg mood={petMood} size={72} />
+        </div>
+
+        {/* Timer */}
+        <div
+          style={{
+            fontFamily: "monospace",
+            fontSize: 42,
+            fontWeight: 200,
+            letterSpacing: "-0.04em",
+            color: remaining < 60 ? "var(--accent-primary)" : "var(--text-primary)",
+            lineHeight: 1,
+            margin: "10px 0 4px",
+          }}
+        >
+          {fmtMMSS(remaining)}
+        </div>
+
+        {/* Task title */}
+        {task && (
+          <div
+            style={{
+              fontSize: 10,
+              color: "var(--text-muted)",
+              maxWidth: 190,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              textAlign: "center",
+              padding: "0 8px",
+            }}
+          >
+            {ls(task.title)}
+          </div>
+        )}
+
+        {/* Pause indicator */}
+        {paused && (
+          <div style={{ fontSize: 9, color: "var(--accent-primary)", marginTop: 3, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            {t("focus.pause")}d
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginTop: 12,
+            WebkitAppRegion: "no-drag",
+            flexShrink: 0,
+          }}
+        >
+          <button
+            onClick={() => setPaused((p) => !p)}
+            style={{
+              height: 28,
+              padding: "0 12px",
+              borderRadius: 14,
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-surface)",
+              color: "var(--text-secondary)",
+              fontSize: 11,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            {paused ? <IconPlay size={10} /> : <IconPause size={10} />}
+            {paused ? t("focus.resume") : t("focus.pause")}
+          </button>
+          <button
+            onClick={onComplete}
+            style={{
+              height: 28,
+              padding: "0 12px",
+              borderRadius: 14,
+              border: "none",
+              background: "var(--accent-primary)",
+              color: "var(--bg-base)",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <IconCheck size={10} />
+            {t("focus.compact.done")}
+          </button>
+        </div>
+
+        {/* Restore link */}
+        <button
+          onClick={exitCompact}
+          style={{
+            WebkitAppRegion: "no-drag",
+            marginTop: 8,
+            fontSize: 10,
+            color: "var(--text-faint)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            textDecoration: "underline",
+          }}
+        >
+          {t("focus.compact.restore")}
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -170,6 +353,16 @@ export function FocusPage() {
           />
           <span>{t("focus.dnd")}</span>
         </div>
+        {isElectron && (
+          <button
+            className="btn btn-ghost"
+            style={{ height: 30 }}
+            onClick={enterCompact}
+            title={t("focus.compact.enter")}
+          >
+            🐕 {t("focus.compact.enter")}
+          </button>
+        )}
         <button className="btn btn-ghost" style={{ height: 30 }} onClick={() => navigate("/today")}>
           <IconArrowLeft size={14} />
           {t("focus.exit")}

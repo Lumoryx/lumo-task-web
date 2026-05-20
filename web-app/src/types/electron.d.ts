@@ -8,6 +8,8 @@ declare global {
       close: () => void;
       isElectron: true;
       getApiPort: () => Promise<number>;
+      enterFocusMode: () => void;
+      exitFocusMode: () => void;
     };
   }
 }

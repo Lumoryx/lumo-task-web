@@ -6,4 +6,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   close: () => ipcRenderer.send("win:close"),
   isElectron: true,
   getApiPort: () => ipcRenderer.invoke("get-api-port"),
+  enterFocusMode: () => ipcRenderer.send("win:enter-focus"),
+  exitFocusMode: () => ipcRenderer.send("win:exit-focus"),
 });
