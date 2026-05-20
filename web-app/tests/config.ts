@@ -23,9 +23,11 @@ export const config = {
   /** Backend REST API base URL (without trailing slash). */
   apiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:47291/v1",
 
-  /** Credentials for the E2E test account. */
-  testEmail: process.env.TEST_EMAIL ?? "e2e@lumo.test",
-  testPassword: process.env.TEST_PASSWORD ?? "e2eTestPass2024!",
+  /** Credentials for the E2E test account.
+   *  Defaults to the user that the backend seeds on every cold start
+   *  (ensureDefaultUser in src/db/migrate.ts), so no registration is needed. */
+  testEmail: process.env.TEST_EMAIL ?? "alex@stride.studio",
+  testPassword: process.env.TEST_PASSWORD ?? "demo1234",
 
   /** Where globalSetup writes the browser storage state. */
   authFile: "tests/.auth/user.json",

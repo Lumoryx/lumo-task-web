@@ -3,12 +3,12 @@
  *
  * Steps
  * ─────
- * 1. Authenticate against the real backend (sign in or auto-register the
- *    test account if this is the first run against a fresh environment).
- * 2. Seed the test account with tasks if it has fewer than 5 active tasks.
- * 3. Open a headless browser, inject the auth state into localStorage, then
- *    capture a Playwright storageState snapshot so every test starts with
- *    a pre-authenticated session — no UI login required per test.
+ * 1. Authenticate against the real backend (sign in, or auto-register the
+ *    test account on a fresh environment that doesn't have the default seed).
+ * 2. Seed the account with tasks when it has fewer than 5 active tasks.
+ * 3. Open a headless browser, inject auth state into localStorage via
+ *    addInitScript (runs before React/Zustand read it), then capture a
+ *    Playwright storageState snapshot — every test re-uses this session.
  */
 
 import { chromium, request } from "@playwright/test";
@@ -27,7 +27,7 @@ interface AuthResult {
 async function authenticate(): Promise<AuthResult> {
   const ctx = await request.newContext({ baseURL: config.apiBaseUrl });
 
-  // Try sign-in first
+  // Try sign-in first (the backend seeds alex@stride.studio on every cold start)
   const signinRes = await ctx.post("/auth/signin", {
     data: { email: config.testEmail, password: config.testPassword },
   });
@@ -38,13 +38,13 @@ async function authenticate(): Promise<AuthResult> {
     return { token: body.token, user: body.user };
   }
 
-  // Account doesn't exist yet — register it
+  // Account not found → register it (only needed on a fresh, unseeded environment)
   console.log("[setup] Test account not found; registering…");
   const registerRes = await ctx.post("/auth/register", {
     data: {
       email: config.testEmail,
       password: config.testPassword,
-      confirm: config.testPassword,
+      // backend RegisterBody: { email, password, name } — no confirm field
       name: "E2E Test User",
     },
   });
@@ -73,7 +73,8 @@ async function seedTasksIfNeeded(token: string): Promise<void> {
   const res = await ctx.get("/tasks");
   if (!res.ok()) {
     await ctx.dispose();
-    return; // Non-fatal: tests will still run, some may skip
+    console.warn("[setup] Could not fetch tasks — skipping seed.");
+    return;
   }
 
   const tasks: unknown[] = await res.json();
@@ -88,7 +89,7 @@ async function seedTasksIfNeeded(token: string): Promise<void> {
   }
 
   console.log(
-    `[setup] Only ${activeTasks.length} active tasks; seeding ${SEED_TASKS.length} tasks…`
+    `[setup] ${activeTasks.length} active tasks; seeding ${SEED_TASKS.length} tasks…`
   );
 
   for (const task of SEED_TASKS) {
@@ -107,16 +108,16 @@ export default async function globalSetup() {
   console.log(`[setup] target → ${config.baseUrl}`);
   console.log(`[setup] api    → ${config.apiBaseUrl}`);
 
-  // 1. Authenticate
+  // 1. Authenticate against the real backend
   const { token, user } = await authenticate();
   console.log(`[setup] signed in as ${(user as any).email ?? config.testEmail}`);
 
-  // 2. Seed tasks
+  // 2. Ensure there are enough tasks for the matrix / today / focus tests
   await seedTasksIfNeeded(token);
 
   // 3. Capture browser storage state ─────────────────────────────────────────
-  //    addInitScript runs before the page's own JS, so localStorage is set
-  //    before React / Zustand read it. The app boots as onboarded + signed in.
+  //    addInitScript fires before the page's own JS, so localStorage is set
+  //    before React / Zustand initialise — the app boots as onboarded + signed in.
 
   const browser = await chromium.launch();
   const context = await browser.newContext();
@@ -148,13 +149,13 @@ export default async function globalSetup() {
   );
 
   await page.goto(config.baseUrl);
-  // Wait until the app has navigated past the auth/onboarding gates
+  // Wait until the app has navigated past the onboarding gate
   await page.waitForURL(
     (url) => !url.pathname.includes("/onboarding"),
     { timeout: 30_000 }
   );
 
-  // Persist storage state (cookies + localStorage) for all tests
+  // Save storage state (cookies + localStorage) for reuse across all tests
   const authDir = path.dirname(config.authFile);
   await fs.mkdir(authDir, { recursive: true });
   await context.storageState({ path: config.authFile });

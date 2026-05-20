@@ -2,17 +2,14 @@ name: UI Automation Tests
 
 # ── Triggers ──────────────────────────────────────────────────────────────────
 #
-# 1. Daily schedule — runs the full suite against the local dev stack at
-#    02:00 UTC every day.
-#
-# 2. Push — smoke-tests any push that touches web-app code or this workflow.
-#
-# 3. Manual (workflow_dispatch) — lets you point the suite at any deployed URL.
+# 1. Daily — runs the full suite against the local dev stack at 02:00 UTC.
+# 2. Push  — smoke-tests any push that touches web-app code or this workflow.
+# 3. Manual (workflow_dispatch) — point the suite at any deployed URL.
 #    Leave both URL inputs empty to fall back to the local dev stack.
 #
 on:
   schedule:
-    - cron: "0 2 * * *"   # 02:00 UTC daily
+    - cron: "0 2 * * *"
   push:
     branches: ["**"]
     paths:
@@ -35,11 +32,11 @@ on:
         required: false
         default: ""
       test_email:
-        description: "E2E test account email (default: e2e@lumo.test)"
+        description: "E2E test account email (default: alex@stride.studio)"
         required: false
         default: ""
       test_password:
-        description: "E2E test account password"
+        description: "E2E test account password (default: demo1234)"
         required: false
         default: ""
 
@@ -47,16 +44,11 @@ concurrency:
   group: ui-tests-${{ github.ref }}
   cancel-in-progress: true
 
-# ── Env resolution ─────────────────────────────────────────────────────────────
-#
-# Workflow_dispatch inputs take priority; CI secrets are the fallback for
-# credentials. When both are empty the test suite defaults to localhost.
-#
 env:
   BASE_URL:      ${{ github.event.inputs.base_url      || '' }}
   API_BASE_URL:  ${{ github.event.inputs.api_url       || '' }}
-  TEST_EMAIL:    ${{ github.event.inputs.test_email    || secrets.E2E_TEST_EMAIL    || 'e2e@lumo.test' }}
-  TEST_PASSWORD: ${{ github.event.inputs.test_password || secrets.E2E_TEST_PASSWORD || 'e2eTestPass2024!' }}
+  TEST_EMAIL:    ${{ github.event.inputs.test_email    || secrets.E2E_TEST_EMAIL    || '' }}
+  TEST_PASSWORD: ${{ github.event.inputs.test_password || secrets.E2E_TEST_PASSWORD || '' }}
 
 jobs:
   ui-test:
@@ -67,26 +59,30 @@ jobs:
       # ── 1. Checkout ──────────────────────────────────────────────────────
       - uses: actions/checkout@v4
 
-      # ── 2. Node ──────────────────────────────────────────────────────────
+      # ── 2. Node (22 required for backend node:sqlite) ─────────────────────
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"          # Node 22 required for node:sqlite (backend)
+          node-version: "22"
           cache: npm
           cache-dependency-path: |
             web-app/package-lock.json
             backend/package-lock.json
 
-      # ── 3. Install deps ───────────────────────────────────────────────────
+      # ── 3. Install frontend deps ──────────────────────────────────────────
+      #    ELECTRON_SKIP_BINARY_DOWNLOAD prevents the postinstall script from
+      #    downloading the Electron binary — we only need Playwright here.
       - name: Install frontend deps
         run: npm ci
         working-directory: web-app
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
+      # ── 4. Build and start local backend (skipped for remote targets) ─────
       - name: Install backend deps
         if: env.API_BASE_URL == ''
         run: npm ci --include=dev
         working-directory: backend
 
-      # ── 4. Build & start the backend (only when testing localhost) ────────
       - name: Build backend
         if: env.API_BASE_URL == ''
         run: npm run build
@@ -94,37 +90,55 @@ jobs:
 
       - name: Start backend
         if: env.API_BASE_URL == ''
-        run: node dist/bundle.cjs &
         working-directory: backend
+        run: node dist/bundle.cjs &
         env:
           NODE_ENV: test
-          PORT: 47291
-          LUMO_JWT_SECRET: ci-test-jwt-secret-key-32chars
-          LUMO_ALLOWED_ORIGINS: "http://localhost:5173"
+          LUMO_PORT: 47291
+          LUMO_JWT_SECRET: ci-test-jwt-secret-32chars-xxxx
+          # Use in-memory SQLite so tests are isolated and leave no files behind
+          LUMO_DB_PATH: ":memory:"
 
       - name: Wait for backend to be ready
         if: env.API_BASE_URL == ''
         run: |
           echo "Waiting for backend on :47291…"
+          READY=0
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:47291/health; then
-              echo "Backend ready."
+            if curl -sf http://localhost:47291/health > /dev/null; then
+              echo "Backend ready (attempt $i)."
+              READY=1
               break
             fi
-            echo "  attempt $i/30…"
+            echo "  attempt $i/30 — sleeping 2s"
             sleep 2
           done
-
-      # ── 5. Set effective API_BASE_URL (localhost fallback) ─────────────────
-      - name: Resolve API_BASE_URL
-        run: |
-          if [ -z "$API_BASE_URL" ]; then
-            echo "API_BASE_URL=http://localhost:47291/v1" >> "$GITHUB_ENV"
+          if [ "$READY" -eq 0 ]; then
+            echo "Backend did not become ready within 60 s."
+            exit 1
           fi
 
-      # ── 6. Install Playwright browsers ────────────────────────────────────
+      # ── 5. Resolve effective API_BASE_URL ─────────────────────────────────
+      - name: Set API_BASE_URL for local backend
+        if: env.API_BASE_URL == ''
+        run: echo "API_BASE_URL=http://localhost:47291/v1" >> "$GITHUB_ENV"
+
+      # ── 6. Install Playwright browsers (cached) ───────────────────────────
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web-app/package-lock.json') }}
+
       - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+        working-directory: web-app
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
         working-directory: web-app
 
       # ── 7. Run tests ──────────────────────────────────────────────────────
@@ -138,7 +152,7 @@ jobs:
           TEST_EMAIL:    ${{ env.TEST_EMAIL }}
           TEST_PASSWORD: ${{ env.TEST_PASSWORD }}
 
-      # ── 8. Upload Playwright HTML report (always) ─────────────────────────
+      # ── 8. Upload Playwright HTML report ──────────────────────────────────
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -147,7 +161,7 @@ jobs:
           path: web-app/playwright-report/
           retention-days: 14
 
-      # ── 9. Upload traces / screenshots / videos (failures only) ──────────
+      # ── 9. Upload traces / screenshots / videos ───────────────────────────
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
