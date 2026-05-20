@@ -118,7 +118,11 @@ jobs:
             exit 1
           fi
 
-      # ── 5. Resolve effective API_BASE_URL ─────────────────────────────────
+      # ── 5. Resolve effective BASE_URL and API_BASE_URL ───────────────────
+      - name: Set BASE_URL for local frontend
+        if: env.BASE_URL == ''
+        run: echo "BASE_URL=http://localhost:5173" >> "$GITHUB_ENV"
+
       - name: Set API_BASE_URL for local backend
         if: env.API_BASE_URL == ''
         run: echo "API_BASE_URL=http://localhost:47291/v1" >> "$GITHUB_ENV"

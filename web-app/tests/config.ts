@@ -17,17 +17,19 @@
  */
 
 export const config = {
-  /** Frontend origin to test against. */
-  baseUrl: process.env.BASE_URL ?? "http://localhost:5173",
+  /** Frontend origin to test against.
+   *  Use || (not ??) so that an empty-string env var also falls back to the
+   *  default — GitHub Actions sets env vars to '' when no value is supplied. */
+  baseUrl: process.env.BASE_URL || "http://localhost:5173",
 
   /** Backend REST API base URL (without trailing slash). */
-  apiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:47291/v1",
+  apiBaseUrl: process.env.API_BASE_URL || "http://localhost:47291/v1",
 
   /** Credentials for the E2E test account.
    *  Defaults to the user that the backend seeds on every cold start
    *  (ensureDefaultUser in src/db/migrate.ts), so no registration is needed. */
-  testEmail: process.env.TEST_EMAIL ?? "alex@stride.studio",
-  testPassword: process.env.TEST_PASSWORD ?? "demo1234",
+  testEmail: process.env.TEST_EMAIL || "alex@stride.studio",
+  testPassword: process.env.TEST_PASSWORD || "demo1234",
 
   /** Where globalSetup writes the browser storage state. */
   authFile: "tests/.auth/user.json",
