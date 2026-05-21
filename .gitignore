@@ -5,3 +5,7 @@
 
 # Electron packaged output
 web-app/dist-electron/
+
+# Playwright test artifacts
+web-app/playwright-report/
+web-app/test-results/
