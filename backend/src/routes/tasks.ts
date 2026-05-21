@@ -178,17 +178,23 @@ app.post("/:id/complete", (c) => {
   const now = new Date().toISOString();
   const entryId = "c_" + nanoid(10);
 
-  db.prepare(`
-    INSERT INTO completed_entries (id, user_id, task_id, title_en, title_zh, duration, quadrant, started_at, completed_at)
-    VALUES (:id, :user_id, :task_id, :title_en, :title_zh, :duration, :quadrant, :started_at, :completed_at)
-  `).run({
-    id: entryId, user_id: userId, task_id: taskId,
-    title_en: task.title_en, title_zh: task.title_zh,
-    duration: task.duration, quadrant: task.quadrant,
-    started_at: null, completed_at: now,
-  });
-
-  db.prepare("UPDATE tasks SET completed = 1, updated_at = :now WHERE id = :id").run({ id: taskId, now });
+  db.exec("BEGIN");
+  try {
+    db.prepare(`
+      INSERT INTO completed_entries (id, user_id, task_id, title_en, title_zh, duration, quadrant, started_at, completed_at)
+      VALUES (:id, :user_id, :task_id, :title_en, :title_zh, :duration, :quadrant, :started_at, :completed_at)
+    `).run({
+      id: entryId, user_id: userId, task_id: taskId,
+      title_en: task.title_en, title_zh: task.title_zh,
+      duration: task.duration, quadrant: task.quadrant,
+      started_at: null, completed_at: now,
+    });
+    db.prepare("UPDATE tasks SET completed = 1, updated_at = :now WHERE id = :id").run({ id: taskId, now });
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 
   return c.json({ ok: true, entry_id: entryId });
 });
@@ -202,8 +208,15 @@ app.post("/:id/uncomplete", (c) => {
   if (!task) return c.json({ error: "Not found" }, 404);
 
   const now = new Date().toISOString();
-  db.prepare("UPDATE tasks SET completed = 0, updated_at = :now WHERE id = :id").run({ id: taskId, now });
-  db.prepare("DELETE FROM completed_entries WHERE task_id = :task_id AND user_id = :uid").run({ task_id: taskId, uid: userId });
+  db.exec("BEGIN");
+  try {
+    db.prepare("UPDATE tasks SET completed = 0, updated_at = :now WHERE id = :id").run({ id: taskId, now });
+    db.prepare("DELETE FROM completed_entries WHERE task_id = :task_id AND user_id = :uid").run({ task_id: taskId, uid: userId });
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 
   const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ id: taskId });
   return c.json(rowToTask(row as any));
