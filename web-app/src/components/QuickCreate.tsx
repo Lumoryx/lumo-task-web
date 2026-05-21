@@ -36,6 +36,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   const todayISO = new Date().toISOString().split("T")[0];
 
   const [title, setTitle] = useState("");
+  const [busy, setBusy] = useState(false);
   const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
   const [duration, setDuration] = useState(30);
   const [durationRaw, setDurationRaw] = useState("30");
@@ -62,18 +63,23 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   }, []);
 
   async function submit() {
-    if (!title.trim()) return;
-    await create({
-      title: { en: title.trim(), zh: title.trim() },
-      quadrant,
-      today: dueDate === todayISO,
-      due: dueDate || null,
-      duration,
-      pomos_done: 0,
-      pomos_total: Math.max(1, Math.ceil(duration / 25)),
-      assignee_ids: assigneeIds,
-    });
-    onCreated?.();
+    if (!title.trim() || busy) return;
+    setBusy(true);
+    try {
+      await create({
+        title: { en: title.trim(), zh: title.trim() },
+        quadrant,
+        today: dueDate === todayISO,
+        due: dueDate || null,
+        duration,
+        pomos_done: 0,
+        pomos_total: Math.max(1, Math.ceil(duration / 25)),
+        assignee_ids: assigneeIds,
+      });
+      onCreated?.();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -288,7 +294,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
         {/* Footer */}
         <footer className="flex items-center justify-end gap-2 px-[18px] py-3 border-t border-border-faint">
           <button className="btn btn-ghost" onClick={onClose}>{t("qc.cancel")}</button>
-          <button className="btn btn-primary" disabled={!title.trim()} onClick={submit}>
+          <button className="btn btn-primary" disabled={!title.trim() || busy} onClick={submit}>
             {t("qc.create")}
           </button>
         </footer>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
+import { createRateLimiter } from "../lib/rateLimit.js";
 import { callLLMWithTools, appendToolResults, type ChatMessage, type LLMConfig } from "../lib/ai-client.js";
 import { TASK_TOOLS, executeTool } from "../lib/ai-tools.js";
 import type { Variables } from "../env.js";
@@ -11,8 +12,12 @@ import type { Variables } from "../env.js";
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
 
+// AI rate limits — keyed by authenticated userId (post-auth middleware)
+const chatRateLimit     = createRateLimiter<{ Variables: Variables }>(10, 60_000, (c) => c.get("userId") as string);
+const classifyRateLimit = createRateLimiter<{ Variables: Variables }>(20, 60_000, (c) => c.get("userId") as string);
+
 // POST /ai/classify — heuristic quadrant assignment
-app.post("/classify", (c) => {
+app.post("/classify", classifyRateLimit, (c) => {
   const userId = c.get("userId") as string;
   const today = new Date().toISOString().slice(0, 10);
 
@@ -44,7 +49,7 @@ app.post("/classify", (c) => {
 });
 
 // POST /ai/recommend — return highest-priority Q1 today task
-app.post("/recommend", (c) => {
+app.post("/recommend", classifyRateLimit, (c) => {
   const userId = c.get("userId") as string;
 
   const task = db.prepare(`
@@ -189,7 +194,7 @@ ${langInstruction}`;
 }
 
 // POST /ai/chat
-app.post("/chat", zValidator("json", ChatBody), async (c) => {
+app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
   const userId = c.get("userId") as string;
   const { messages, context } = c.req.valid("json");
 

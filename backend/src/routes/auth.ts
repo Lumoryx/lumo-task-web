@@ -7,37 +7,19 @@ import { signToken } from "../lib/jwt.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
+import { createRateLimiter } from "../lib/rateLimit.js";
 import type { Variables } from "../env.js";
 
 const app = new Hono<{ Variables: Variables }>();
 
-// ── Simple in-memory rate limiter for auth endpoints ─────────────────────────
-const authHits = new Map<string, { count: number; resetAt: number }>();
-const AUTH_LIMIT = 10;
-const AUTH_WINDOW = 60_000; // 10 attempts per minute per IP
-
-function checkAuthRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = authHits.get(ip);
-  if (!entry || now > entry.resetAt) {
-    authHits.set(ip, { count: 1, resetAt: now + AUTH_WINDOW });
-    return true;
-  }
-  entry.count++;
-  return entry.count <= AUTH_LIMIT;
-}
-
-async function authRateLimit(c: any, next: () => Promise<void>) {
-  if (process.env.NODE_ENV === "test") return next();
-  const ip =
+// 10 auth attempts per IP per minute
+const authRateLimit = createRateLimiter<{ Variables: Variables }>(10, 60_000, (c) => {
+  return (
     c.req.header("x-forwarded-for")?.split(",")[0].trim() ??
     c.req.header("x-real-ip") ??
-    "unknown";
-  if (!checkAuthRateLimit(ip)) {
-    return httpError(c, 429, "RATE_LIMITED", "Too many attempts. Try again later.");
-  }
-  return next();
-}
+    "unknown"
+  );
+});
 
 const RegisterBody = z.object({
   email: z.string().email(),

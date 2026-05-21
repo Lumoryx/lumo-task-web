@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { IconArrowRight, IconCheck } from "@/components/icons";
@@ -20,6 +20,7 @@ export function TaskActionPopover({ task, anchor, onClose, onEdit }: Props) {
   const t = useT();
   const complete = useTasksStore((s) => s.complete);
   const update = useTasksStore((s) => s.update);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -37,13 +38,25 @@ export function TaskActionPopover({ task, anchor, onClose, onEdit }: Props) {
     : { top: anchor.bottom + gap };
 
   async function handleToggleToday() {
-    await update(task.id, { today: !task.today });
-    onClose();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await update(task.id, { today: !task.today });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleComplete() {
-    await complete(task.id);
-    onClose();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await complete(task.id);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return createPortal(
@@ -74,6 +87,7 @@ export function TaskActionPopover({ task, anchor, onClose, onEdit }: Props) {
         <ActionBtn
           icon={<IconCheck size={13} />}
           label={t("focus.complete")}
+          disabled={busy}
           onClick={handleComplete}
         />
         <Divider />
@@ -85,6 +99,7 @@ export function TaskActionPopover({ task, anchor, onClose, onEdit }: Props) {
         <ActionBtn
           icon={<TodayIcon active={task.today} />}
           label={task.today ? t("popover.today.remove") : t("popover.today.add")}
+          disabled={busy}
           onClick={handleToggleToday}
         />
       </div>
@@ -101,18 +116,26 @@ function ActionBtn({
   icon,
   label,
   accent,
+  disabled,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   accent?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium transition-colors text-left"
-      style={{ color: accent ? "var(--accent-primary)" : "var(--text-secondary)", background: "transparent" }}
+      style={{
+        color: accent ? "var(--accent-primary)" : "var(--text-secondary)",
+        background: "transparent",
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.background = accent
           ? "var(--accent-fog)"
