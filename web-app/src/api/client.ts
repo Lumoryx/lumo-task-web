@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, CompletedEntry, Person, PetChatMessage, Task, User } from "@/types/task";
+import type { AppSettings, CompletedEntry, CountdownEvent, Person, PetChatMessage, Task, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,12 @@ async function req<T>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as any).error ?? `HTTP ${res.status}`);
+    const errBody = (err as any).error;
+    const errMsg =
+      typeof errBody === "string"
+        ? errBody
+        : errBody?.message ?? `HTTP ${res.status}`;
+    throw new Error(errMsg);
   }
 
   if (res.status === 204) return undefined as T;
@@ -288,6 +293,58 @@ export const api = {
     };
   }): Promise<{ reply: string; mood: "idle" | "happy" | "excited"; fallback: boolean; toolsUsed?: string[] }> {
     return req("POST", "/ai/chat", body);
+  },
+};
+
+// ── Countdown localStorage API ────────────────────────────────────────────────
+
+function cdKey(userId: string) {
+  return `lumo.countdowns.v1.${userId}`;
+}
+
+function cdLoad(userId: string): CountdownEvent[] {
+  if (userId === "local") return [];
+  const raw = localStorage.getItem(cdKey(userId));
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as CountdownEvent[];
+  } catch {
+    return [];
+  }
+}
+
+function cdSave(userId: string, items: CountdownEvent[]) {
+  localStorage.setItem(cdKey(userId), JSON.stringify(items));
+}
+
+export const countdownApi = {
+  list(userId: string): CountdownEvent[] {
+    return cdLoad(userId);
+  },
+
+  create(userId: string, input: Omit<CountdownEvent, "id" | "createdAt">): CountdownEvent {
+    const items = cdLoad(userId);
+    const event: CountdownEvent = {
+      ...input,
+      id: `cd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: new Date().toISOString(),
+    };
+    cdSave(userId, [...items, event]);
+    return event;
+  },
+
+  update(userId: string, id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>): CountdownEvent {
+    const items = cdLoad(userId);
+    const idx = items.findIndex((e) => e.id === id);
+    if (idx < 0) throw new Error("Countdown not found");
+    const updated = { ...items[idx], ...patch };
+    items[idx] = updated;
+    cdSave(userId, items);
+    return updated;
+  },
+
+  delete(userId: string, id: string): void {
+    cdSave(userId, cdLoad(userId).filter((e) => e.id !== id));
   },
 };
 

@@ -14,7 +14,8 @@
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/db/seed.ts",
     "start": "node dist/index.js",
-    "test": "node --env-file src/test/.env.test --import tsx/esm --test src/test/api.test.ts"
+    "test": "node --env-file src/test/.env.test --import tsx/esm --test src/test/api.test.ts",
+    "test:coverage": "node --env-file src/test/.env.test --import tsx/esm --test --experimental-test-coverage src/test/api.test.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

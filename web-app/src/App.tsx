@@ -10,9 +10,11 @@ import { LoginPage } from "@/pages/LoginPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { AccountPage } from "@/pages/AccountPage";
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
+import { CountdownPage } from "@/pages/CountdownPage";
 import { applyAccentTheme, useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
+import { useCountdownStore } from "@/store/useCountdownStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { ToastStack } from "@/components/ToastStack";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -31,7 +33,10 @@ export default function App() {
   const clearTasks = useTasksStore((s) => s.clear);
   const loadPeople = usePeopleStore((s) => s.load);
   const clearPeople = usePeopleStore((s) => s.clear);
+  const loadCountdowns = useCountdownStore((s) => s.load);
+  const clearCountdowns = useCountdownStore((s) => s.clear);
   const isSignedIn = useAuthStore(selectIsSignedIn);
+  const userId = useAuthStore((s) => s.user.id);
   const location = useLocation();
 
   useEffect(() => {
@@ -42,11 +47,13 @@ export default function App() {
     if (isSignedIn) {
       loadTasks();
       loadPeople();
+      loadCountdowns(userId);
     } else {
       clearTasks();
       clearPeople();
+      clearCountdowns();
     }
-  }, [isSignedIn, loadTasks, loadPeople, clearTasks, clearPeople]);
+  }, [isSignedIn, userId, loadTasks, loadPeople, loadCountdowns, clearTasks, clearPeople, clearCountdowns]);
 
   // First-run gate — redirect to onboarding unless already there.
   if (!onboarded && location.pathname !== "/onboarding") {
@@ -68,6 +75,7 @@ export default function App() {
         <Route path="/today" element={<TodayPage />} />
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/focus" element={<FocusPage />} />
+        <Route path="/countdown" element={<CountdownPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/account/change-password" element={<ChangePasswordPage />} />

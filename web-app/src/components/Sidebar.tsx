@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { IconMatrix, IconSettings, IconToday, LumoGlyph } from "@/components/icons";
+import { IconCountdown, IconMatrix, IconSettings, IconToday, LumoGlyph } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useTasksStore } from "@/store/useTasksStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
@@ -21,9 +21,10 @@ export function Sidebar() {
   const isSignedIn = useAuthStore(selectIsSignedIn);
 
   const items = [
-    { to: "/today", label: t("nav.today"), icon: <IconToday />, badge: todayCount },
-    { to: "/matrix", label: t("nav.matrix"), icon: <IconMatrix />, badge: tasks.length },
-    { to: "/settings", label: t("nav.settings"), icon: <IconSettings /> },
+    { to: "/today",     label: t("nav.today"),     icon: <IconToday />,     badge: todayCount },
+    { to: "/matrix",    label: t("nav.matrix"),    icon: <IconMatrix />,    badge: tasks.length },
+    { to: "/countdown", label: t("nav.countdown"), icon: <IconCountdown /> },
+    { to: "/settings",  label: t("nav.settings"),  icon: <IconSettings /> },
   ];
 
   return (

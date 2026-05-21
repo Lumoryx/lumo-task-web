@@ -125,3 +125,17 @@ export interface PetChatMessage {
   ts: number;
   toolsUsed?: string[];
 }
+
+export type CountdownColor = "green" | "cyan" | "amber" | "red";
+export type CountdownRepeat = "none" | "yearly";
+
+export interface CountdownEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  emoji?: string;
+  color: CountdownColor;
+  repeat: CountdownRepeat;
+  note?: string;
+  createdAt: string;
+}

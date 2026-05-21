@@ -103,11 +103,14 @@ describe("POST /v1/auth/register", () => {
     assert.ok(body.user.initials, "initials missing");
   });
 
-  test("409 → duplicate email", async () => {
-    const { status } = await req("POST", "/v1/auth/register", {
+  test("409 → duplicate email — error body has { code, message }", async () => {
+    const { status, body } = await req("POST", "/v1/auth/register", {
       body: { email: "newuser@example.com", password: "password123", name: "New User" },
     });
     assert.equal(status, 409);
+    assert.equal(typeof body.error, "object", "error should be an object");
+    assert.ok(body.error.code, "error.code missing");
+    assert.ok(body.error.message, "error.message missing");
   });
 
   test("400 → invalid email format", async () => {
@@ -115,6 +118,8 @@ describe("POST /v1/auth/register", () => {
       body: { email: "not-an-email", password: "password123", name: "User" },
     });
     assert.equal(status, 400);
+    // Note: Zod validator returns its own format; httpError format applies to
+    // business-logic errors (409, 401) not to schema validation failures.
   });
 
   test("400 → password shorter than 8 characters", async () => {
@@ -143,11 +148,14 @@ describe("POST /v1/auth/signin", () => {
     assert.ok("stats" in body.user, "stats missing");
   });
 
-  test("401 → wrong password", async () => {
-    const { status } = await req("POST", "/v1/auth/signin", {
+  test("401 → wrong password — error body has { code, message }", async () => {
+    const { status, body } = await req("POST", "/v1/auth/signin", {
       body: { email: "alex@stride.studio", password: "wrongpassword" },
     });
     assert.equal(status, 401);
+    assert.equal(typeof body.error, "object");
+    assert.ok(body.error.code);
+    assert.ok(body.error.message);
   });
 
   test("401 → unknown email", async () => {
