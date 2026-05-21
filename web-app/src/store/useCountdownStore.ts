@@ -6,8 +6,9 @@ import { t } from "@/i18n/useT";
 
 interface CountdownState {
   events: CountdownEvent[];
-  load: () => void;
-  create: (input: {
+  load: (userId: string) => void;
+  clear: () => void;
+  create: (userId: string, input: {
     title: string;
     date: string;
     emoji?: string;
@@ -15,24 +16,28 @@ interface CountdownState {
     repeat: CountdownRepeat;
     note?: string;
   }) => CountdownEvent;
-  update: (id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>) => void;
-  remove: (id: string) => void;
+  update: (userId: string, id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>) => void;
+  remove: (userId: string, id: string) => void;
 }
 
 export const useCountdownStore = create<CountdownState>((set) => ({
   events: [],
 
-  load() {
+  load(userId) {
     try {
-      set({ events: countdownApi.list() });
+      set({ events: countdownApi.list(userId) });
     } catch (e) {
       toast.error(t("countdown.error.load"), e instanceof Error ? e.message : String(e));
     }
   },
 
-  create(input) {
+  clear() {
+    set({ events: [] });
+  },
+
+  create(userId, input) {
     try {
-      const event = countdownApi.create(input);
+      const event = countdownApi.create(userId, input);
       set((s) => ({ events: [...s.events, event] }));
       return event;
     } catch (e) {
@@ -41,18 +46,18 @@ export const useCountdownStore = create<CountdownState>((set) => ({
     }
   },
 
-  update(id, patch) {
+  update(userId, id, patch) {
     try {
-      const updated = countdownApi.update(id, patch);
+      const updated = countdownApi.update(userId, id, patch);
       set((s) => ({ events: s.events.map((e) => (e.id === id ? updated : e)) }));
     } catch (e) {
       toast.error(t("countdown.error.update"), e instanceof Error ? e.message : String(e));
     }
   },
 
-  remove(id) {
+  remove(userId, id) {
     try {
-      countdownApi.delete(id);
+      countdownApi.delete(userId, id);
       set((s) => ({ events: s.events.filter((e) => e.id !== id) }));
       toast.success(t("countdown.deleted"));
     } catch (e) {

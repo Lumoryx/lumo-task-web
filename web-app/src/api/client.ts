@@ -299,49 +299,52 @@ export const api = {
 
 // ── Countdown localStorage API ────────────────────────────────────────────────
 
-const CD_KEY = "lumo.countdowns.v1";
+function cdKey(userId: string) {
+  return `lumo.countdowns.v1.${userId}`;
+}
 
-function cdLoad(): CountdownEvent[] {
+function cdLoad(userId: string): CountdownEvent[] {
+  const key = cdKey(userId);
   try {
-    const raw = localStorage.getItem(CD_KEY);
+    const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw) as CountdownEvent[];
   } catch { /* ignore */ }
-  localStorage.setItem(CD_KEY, JSON.stringify(SEED_COUNTDOWNS));
+  localStorage.setItem(key, JSON.stringify(SEED_COUNTDOWNS));
   return SEED_COUNTDOWNS;
 }
 
-function cdSave(items: CountdownEvent[]) {
-  localStorage.setItem(CD_KEY, JSON.stringify(items));
+function cdSave(userId: string, items: CountdownEvent[]) {
+  localStorage.setItem(cdKey(userId), JSON.stringify(items));
 }
 
 export const countdownApi = {
-  list(): CountdownEvent[] {
-    return cdLoad();
+  list(userId: string): CountdownEvent[] {
+    return cdLoad(userId);
   },
 
-  create(input: Omit<CountdownEvent, "id" | "createdAt">): CountdownEvent {
-    const items = cdLoad();
+  create(userId: string, input: Omit<CountdownEvent, "id" | "createdAt">): CountdownEvent {
+    const items = cdLoad(userId);
     const event: CountdownEvent = {
       ...input,
       id: `cd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       createdAt: new Date().toISOString(),
     };
-    cdSave([...items, event]);
+    cdSave(userId, [...items, event]);
     return event;
   },
 
-  update(id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>): CountdownEvent {
-    const items = cdLoad();
+  update(userId: string, id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>): CountdownEvent {
+    const items = cdLoad(userId);
     const idx = items.findIndex((e) => e.id === id);
     if (idx < 0) throw new Error("Countdown not found");
     const updated = { ...items[idx], ...patch };
     items[idx] = updated;
-    cdSave(items);
+    cdSave(userId, items);
     return updated;
   },
 
-  delete(id: string): void {
-    cdSave(cdLoad().filter((e) => e.id !== id));
+  delete(userId: string, id: string): void {
+    cdSave(userId, cdLoad(userId).filter((e) => e.id !== id));
   },
 };
 

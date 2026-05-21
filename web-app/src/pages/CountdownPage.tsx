@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CountdownCard } from "@/components/CountdownCard";
 import { CountdownFormModal } from "@/components/CountdownFormModal";
 import { IconCountdown, IconPlus } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
+import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { useCountdownStore } from "@/store/useCountdownStore";
 import type { CountdownEvent } from "@/types/task";
 
@@ -26,13 +28,56 @@ function daysUntilRaw(dateStr: string, repeat: CountdownEvent["repeat"]): number
 
 export function CountdownPage() {
   const t = useT();
+  const navigate = useNavigate();
   const locale = useAppStore((s) => s.locale);
-  const { events, load, create, update, remove } = useCountdownStore();
+  const isSignedIn = useAuthStore(selectIsSignedIn);
+  const userId = useAuthStore((s) => s.user.id);
+  const { events, create, update, remove } = useCountdownStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CountdownEvent | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  useEffect(() => { load(); }, [load]);
+  // Auth gate — countdown data is per-user, not available in local mode
+  if (!isSignedIn) {
+    return (
+      <div style={{
+        height: "100%", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        gap: 16, textAlign: "center", padding: "32px",
+      }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: "50%",
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-default)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "var(--text-faint)",
+        }}>
+          <IconCountdown size={28} />
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>
+            {t("auth.required.title")}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 280 }}>
+            {t("auth.required.countdown")}
+          </div>
+        </div>
+        <button
+          onClick={() => navigate("/login")}
+          style={{
+            marginTop: 8, padding: "9px 24px",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--accent-edge)",
+            background: "var(--accent-fog)",
+            color: "var(--accent-primary)",
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}
+        >
+          {t("auth.login.btn")}
+        </button>
+      </div>
+    );
+  }
 
   // Sort: today → upcoming by days asc → past by days desc
   const sorted = [...events].sort((a, b) => {
@@ -58,9 +103,9 @@ export function CountdownPage() {
 
   function handleSave(values: Omit<CountdownEvent, "id" | "createdAt">) {
     if (editTarget) {
-      update(editTarget.id, values);
+      update(userId, editTarget.id, values);
     } else {
-      create(values);
+      create(userId, values);
     }
   }
 
@@ -69,7 +114,7 @@ export function CountdownPage() {
   }
 
   function confirmDelete() {
-    if (deleteId) remove(deleteId);
+    if (deleteId) remove(userId, deleteId);
     setDeleteId(null);
   }
 

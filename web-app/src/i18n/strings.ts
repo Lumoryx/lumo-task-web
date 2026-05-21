@@ -274,6 +274,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "ai.chat.basicMode": "Basic mode",
     "pet.chat.empty": "Click a chip above or type a message to start.",
 
+    "auth.required.title": "Sign in required",
+    "auth.required.countdown": "Countdown events are tied to your account. Sign in to create and track your personal milestones.",
     "nav.countdown": "Countdown",
     "countdown.title": "Countdown",
     "countdown.sub": "Your personal milestones, counting down.",
@@ -572,6 +574,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "ai.chat.basicMode": "基础模式",
     "pet.chat.empty": "点击上方按钮或直接输入消息开始对话",
 
+    "auth.required.title": "需要登录",
+    "auth.required.countdown": "倒数纪念日与你的账号绑定，登录后才能创建和查看个人时刻。",
     "nav.countdown": "倒数日",
     "countdown.title": "倒数日",
     "countdown.sub": "记录你的重要时刻，一天一天数。",
