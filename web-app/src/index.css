@@ -119,6 +119,24 @@ body {
   50% { opacity: 1; transform: scale(1); }
 }
 
+/* ── Countdown card animations ──────────────────────────────────────── */
+@keyframes cdShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes cdPulseRing {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.015); }
+}
+@keyframes cdToday {
+  0%, 100% { box-shadow: 0 0 0 0 var(--cd-glow); }
+  50%       { box-shadow: 0 0 0 8px transparent; }
+}
+@keyframes cdFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+
 /* ── Lumo Pulse — ambient top bar ──────────────────────────────────── */
 .lumo-pulse {
   position: absolute; left: 0; right: 0; top: 0;

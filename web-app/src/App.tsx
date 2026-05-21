@@ -10,6 +10,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { AccountPage } from "@/pages/AccountPage";
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
+import { CountdownPage } from "@/pages/CountdownPage";
 import { applyAccentTheme, useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/today" element={<TodayPage />} />
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/focus" element={<FocusPage />} />
+        <Route path="/countdown" element={<CountdownPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/account/change-password" element={<ChangePasswordPage />} />

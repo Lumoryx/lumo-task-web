@@ -8,7 +8,8 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, CompletedEntry, Person, PetChatMessage, Task, User } from "@/types/task";
+import type { AppSettings, CompletedEntry, CountdownEvent, Person, PetChatMessage, Task, User } from "@/types/task";
+import { SEED_COUNTDOWNS } from "@/mocks/countdowns";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -293,6 +294,54 @@ export const api = {
     };
   }): Promise<{ reply: string; mood: "idle" | "happy" | "excited"; fallback: boolean; toolsUsed?: string[] }> {
     return req("POST", "/ai/chat", body);
+  },
+};
+
+// ── Countdown localStorage API ────────────────────────────────────────────────
+
+const CD_KEY = "lumo.countdowns.v1";
+
+function cdLoad(): CountdownEvent[] {
+  try {
+    const raw = localStorage.getItem(CD_KEY);
+    if (raw) return JSON.parse(raw) as CountdownEvent[];
+  } catch { /* ignore */ }
+  localStorage.setItem(CD_KEY, JSON.stringify(SEED_COUNTDOWNS));
+  return SEED_COUNTDOWNS;
+}
+
+function cdSave(items: CountdownEvent[]) {
+  localStorage.setItem(CD_KEY, JSON.stringify(items));
+}
+
+export const countdownApi = {
+  list(): CountdownEvent[] {
+    return cdLoad();
+  },
+
+  create(input: Omit<CountdownEvent, "id" | "createdAt">): CountdownEvent {
+    const items = cdLoad();
+    const event: CountdownEvent = {
+      ...input,
+      id: `cd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: new Date().toISOString(),
+    };
+    cdSave([...items, event]);
+    return event;
+  },
+
+  update(id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>): CountdownEvent {
+    const items = cdLoad();
+    const idx = items.findIndex((e) => e.id === id);
+    if (idx < 0) throw new Error("Countdown not found");
+    const updated = { ...items[idx], ...patch };
+    items[idx] = updated;
+    cdSave(items);
+    return updated;
+  },
+
+  delete(id: string): void {
+    cdSave(cdLoad().filter((e) => e.id !== id));
   },
 };
 
