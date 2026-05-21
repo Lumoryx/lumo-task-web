@@ -94,7 +94,7 @@ app.delete("/:id", (c) => {
     WHERE user_id = :uid AND assignee_ids LIKE :pattern
   `).run({ pid: personId, uid: userId, pattern: `%${personId}%` });
 
-  return c.json({ ok: true });
+  return new Response(null, { status: 204 });
 });
 
 export default app;

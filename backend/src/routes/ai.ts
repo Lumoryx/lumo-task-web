@@ -270,7 +270,8 @@ app.post("/chat", zValidator("json", ChatBody), async (c) => {
       toolsUsed,
     });
   } catch (err: any) {
-    return c.json({ error: err?.message ?? "LLM call failed" }, 502);
+    console.error("[ai/chat] LLM error:", err?.message ?? err);
+    return c.json({ error: "AI service unavailable. Please try again." }, 502);
   }
 });
 

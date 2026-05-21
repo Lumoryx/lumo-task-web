@@ -24,7 +24,9 @@ app.use(
   "/*",
   cors({
     origin: (origin) => {
-      if (!origin || origin === "null") return "*";
+      // No Origin header → server-to-server / Electron IPC (safe, no ACAO header added)
+      // "null" Origin → Electron file:// renderer; return "null" not wildcard "*"
+      if (!origin || origin === "null") return origin || null;
       if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return origin;
       if (exactOrigins.includes(origin)) return origin;
       if (suffixPatterns.some((p) => origin.endsWith(p))) return origin;

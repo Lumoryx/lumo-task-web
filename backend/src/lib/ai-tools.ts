@@ -73,17 +73,6 @@ export const TASK_TOOLS: ToolDefinition[] = [
     },
   },
   {
-    name: "delete_task",
-    description: "Permanently delete a task. Use only when the user explicitly asks to delete or remove a task.",
-    parameters: {
-      type: "object",
-      properties: {
-        id: { type: "string", description: "Task ID to delete (from list_tasks)" },
-      },
-      required: ["id"],
-    },
-  },
-  {
     name: "list_people",
     description: "List team members who can be assigned to tasks.",
     parameters: { type: "object", properties: {} },
@@ -165,11 +154,6 @@ export async function executeTool(
     case "complete_task": {
       await api("POST", `/tasks/${a.id}/complete`, {});
       return JSON.stringify({ completed: true, id: a.id });
-    }
-
-    case "delete_task": {
-      await api("DELETE", `/tasks/${a.id}`);
-      return JSON.stringify({ deleted: true, id: a.id });
     }
 
     case "list_people": {

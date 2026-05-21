@@ -14,8 +14,8 @@ export function LoginPage() {
   const t = useT();
   const navigate = useNavigate();
   const { signIn, loading } = useAuthStore();
-  const [email, setEmail] = useState("alex@stride.studio");
-  const [password, setPassword] = useState("demo1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
