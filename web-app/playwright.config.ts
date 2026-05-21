@@ -1,0 +1,38 @@
+import { defineConfig, devices } from "@playwright/test";
+
+// Set browsers path to use pre-installed Playwright browsers
+process.env.PLAYWRIGHT_BROWSERS_PATH = "/opt/pw-browsers";
+
+export default defineConfig({
+  testDir: "./e2e",
+  fullyParallel: false,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  workers: 1,
+  reporter: [
+    ["list"],
+    ["html", { outputFolder: "playwright-report", open: "never" }],
+  ],
+  use: {
+    baseURL: "http://localhost:5173",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+    // Allow requests to the backend; ignore backend connection errors in UI tests
+    ignoreHTTPSErrors: true,
+  },
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+  ],
+  webServer: {
+    command: "npm run dev",
+    url: "http://localhost:5173",
+    reuseExistingServer: !process.env.CI,
+    timeout: 60_000,
+    // Suppress "open: true" from vite.config.js
+    env: { BROWSER: "none" },
+  },
+});
