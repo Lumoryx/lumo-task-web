@@ -55,9 +55,9 @@ export function OnboardingPage() {
   const current = steps[step];
   const isLast = step === steps.length - 1;
 
-  function finish(target: "matrix" | "today") {
+  function finish() {
     setOnboarded(true);
-    navigate(target === "matrix" ? "/matrix" : "/today");
+    navigate("/login");
   }
 
   return (
@@ -105,7 +105,7 @@ export function OnboardingPage() {
           </div>
           <button
             className="text-[11px] text-text-muted hover:text-text-primary transition-colors"
-            onClick={() => finish("today")}
+            onClick={() => finish()}
           >
             {t("onb.skip")}
           </button>
@@ -134,7 +134,7 @@ export function OnboardingPage() {
             {t("onb.back")}
           </button>
           {isLast ? (
-            <button className="btn btn-primary btn-lg" onClick={() => finish("matrix")}>
+            <button className="btn btn-primary btn-lg" onClick={() => finish()}>
               <IconCheck size={14} />
               {t("onb.ready.cta")}
             </button>
