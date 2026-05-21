@@ -157,6 +157,14 @@ export const IconCountdown = (p: IconProps) => (
   </svg>
 );
 
+export const IconStats = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="12" width="4" height="9" rx="1" />
+    <rect x="10" y="7" width="4" height="14" rx="1" />
+    <rect x="17" y="3" width="4" height="18" rx="1" />
+  </svg>
+);
+
 export const IconHabit = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M12 2c0 3-2 5-2 8a4 4 0 0 0 8 0c0-1.7-.7-3.2-1.6-4.6" />

@@ -12,6 +12,7 @@ import { AccountPage } from "@/pages/AccountPage";
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { CountdownPage } from "@/pages/CountdownPage";
 import { HabitsPage } from "@/pages/HabitsPage";
+import { StatsPage } from "@/pages/StatsPage";
 import { applyAccentTheme, useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/focus" element={<FocusPage />} />
         <Route path="/habits" element={<HabitsPage />} />
+        <Route path="/stats" element={<StatsPage />} />
         <Route path="/countdown" element={<CountdownPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/account" element={<AccountPage />} />

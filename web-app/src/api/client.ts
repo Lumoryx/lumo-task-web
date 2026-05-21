@@ -93,6 +93,7 @@ function adaptTask(raw: any): Task {
     ai_suggest: raw.ai_suggest ?? undefined,
     completed: raw.completed,
     not_now: raw.not_now ?? [],
+    recurrence: raw.recurrence ?? "none",
   };
 }
 
@@ -186,6 +187,21 @@ export const api = {
     return rows.map(adaptEntry);
   },
 
+  async listAllCompleted(): Promise<CompletedEntry[]> {
+    const rows = await req<any[]>("GET", "/completed");
+    return rows.map(adaptEntry);
+  },
+
+  async parseTask(text: string, locale?: string): Promise<{
+    title: string;
+    quadrant: string;
+    due: string | null;
+    duration: number | null;
+    confidence: number;
+  }> {
+    return req("POST", "/ai/parse", { text, locale });
+  },
+
   async createTask(input: Omit<Task, "id">): Promise<Task> {
     const raw = await req<any>("POST", "/tasks", {
       title: input.title,
@@ -201,6 +217,7 @@ export const api = {
       reason: input.reason ?? null,
       ai_suggest: input.ai_suggest ?? null,
       not_now: input.not_now ?? [],
+      recurrence: input.recurrence ?? "none",
     });
     return adaptTask(raw);
   },
@@ -220,6 +237,7 @@ export const api = {
       ...(patch.reason !== undefined && { reason: patch.reason }),
       ...(patch.ai_suggest !== undefined && { ai_suggest: patch.ai_suggest }),
       ...(patch.not_now !== undefined && { not_now: patch.not_now }),
+      ...(patch.recurrence !== undefined && { recurrence: patch.recurrence }),
     });
     return adaptTask(raw);
   },

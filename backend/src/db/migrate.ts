@@ -143,6 +143,12 @@ export function runMigrations() {
 
   // Prune tokens whose JWT expiry has already passed — they're invalid regardless
   db.exec("DELETE FROM revoked_tokens WHERE expires_at < datetime('now')");
+
+  // Migrate: add recurrence column to tasks
+  const taskCols = db.prepare("PRAGMA table_info(tasks)").all() as any[];
+  if (!taskCols.some((c: any) => c.name === "recurrence")) {
+    db.exec("ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
+  }
 }
 
 // When run directly

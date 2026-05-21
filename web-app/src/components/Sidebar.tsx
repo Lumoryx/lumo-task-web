@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { IconCountdown, IconHabit, IconMatrix, IconSettings, IconToday, LumoGlyph } from "@/components/icons";
+import { IconCountdown, IconHabit, IconMatrix, IconSettings, IconStats, IconToday, LumoGlyph } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useTasksStore } from "@/store/useTasksStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
@@ -24,6 +24,7 @@ export function Sidebar() {
     { to: "/today",     label: t("nav.today"),     icon: <IconToday />,     badge: todayCount },
     { to: "/matrix",    label: t("nav.matrix"),    icon: <IconMatrix />,    badge: tasks.length },
     { to: "/habits",    label: t("nav.habits"),    icon: <IconHabit /> },
+    { to: "/stats",     label: t("nav.stats"),     icon: <IconStats /> },
     { to: "/countdown", label: t("nav.countdown"), icon: <IconCountdown /> },
     { to: "/settings",  label: t("nav.settings"),  icon: <IconSettings /> },
   ];

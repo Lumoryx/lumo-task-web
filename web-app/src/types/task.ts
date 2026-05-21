@@ -27,6 +27,8 @@ export interface Person {
   email?: string;
 }
 
+export type TaskRecurrence = "none" | "daily" | "weekdays" | "weekly" | "monthly";
+
 export interface Task {
   id: string;
   /** Person IDs — references People in the people list. Multiple allowed. */
@@ -54,6 +56,8 @@ export interface Task {
   completed?: boolean;
   /** Counter-recommendations to be transparent about what's NOT being shown. */
   not_now?: Array<{ id: string; reason: LocalizedString }>;
+  /** Recurrence rule — when task is completed, a copy is spawned for the next occurrence. */
+  recurrence?: TaskRecurrence;
 }
 
 export interface CompletedEntry {

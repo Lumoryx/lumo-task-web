@@ -10,6 +10,24 @@ import type { Variables } from "../env.js";
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
 
+function calcNextDue(currentDue: string | null, recurrence: string): string | null {
+  const base = currentDue ? new Date(currentDue) : new Date();
+  const d = new Date(base);
+  if (recurrence === "daily") {
+    d.setDate(d.getDate() + 1);
+  } else if (recurrence === "weekdays") {
+    d.setDate(d.getDate() + 1);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+  } else if (recurrence === "weekly") {
+    d.setDate(d.getDate() + 7);
+  } else if (recurrence === "monthly") {
+    d.setMonth(d.getMonth() + 1);
+  } else {
+    return null;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
 const LocalizedString = z.object({
   en: z.string(),
   zh: z.string().optional(),
@@ -26,6 +44,7 @@ const TaskCreateBody = z.object({
   assignee_ids: z.array(z.string()).default([]),
   conviction: z.number().nullable().optional(),
   next_step: LocalizedString.optional().nullable(),
+  recurrence: z.enum(["none", "daily", "weekdays", "weekly", "monthly"]).default("none"),
   reason: LocalizedString.optional().nullable(),
   ai_suggest: z.string().nullable().optional(),
   not_now: z.array(z.object({
@@ -54,6 +73,7 @@ function rowToTask(row: any) {
     ai_suggest: row.ai_suggest ?? null,
     completed: Boolean(row.completed),
     not_now: JSON.parse(row.not_now_json ?? "[]"),
+    recurrence: row.recurrence ?? "none",
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -78,12 +98,12 @@ app.post("/", zValidator("json", TaskCreateBody), (c) => {
       id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
       quadrant, today, due, duration, pomos_done, pomos_total, conviction,
       next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
-      created_at, updated_at
+      recurrence, created_at, updated_at
     ) VALUES (
       :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
       :quadrant, :today, :due, :duration, 0, :pomos_total, :conviction,
       :next_step_en, :next_step_zh, :reason_en, :reason_zh, :ai_suggest, :not_now_json,
-      :now, :now
+      :recurrence, :now, :now
     )
   `).run({
     id, user_id: userId,
@@ -98,6 +118,7 @@ app.post("/", zValidator("json", TaskCreateBody), (c) => {
     conviction: body.conviction ?? null,
     next_step_en: body.next_step?.en ?? null, next_step_zh: body.next_step?.zh ?? null,
     reason_en: body.reason?.en ?? null, reason_zh: body.reason?.zh ?? null,
+    recurrence: body.recurrence ?? "none",
     ai_suggest: body.ai_suggest ?? null,
     not_now_json: JSON.stringify(body.not_now ?? []),
     now,
@@ -143,6 +164,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
     reason_zh: "reason" in body ? (body.reason?.zh ?? null) : existing.reason_zh,
     ai_suggest: "ai_suggest" in body ? (body.ai_suggest ?? null) : existing.ai_suggest,
     not_now_json: "not_now" in body ? JSON.stringify(body.not_now) : existing.not_now_json,
+    recurrence: body.recurrence ?? existing.recurrence ?? "none",
   };
 
   db.prepare(`
@@ -152,7 +174,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
       today = :today, due = :due, duration = :duration, pomos_total = :pomos_total,
       conviction = :conviction, next_step_en = :next_step_en, next_step_zh = :next_step_zh,
       reason_en = :reason_en, reason_zh = :reason_zh, ai_suggest = :ai_suggest,
-      not_now_json = :not_now_json, updated_at = :now
+      not_now_json = :not_now_json, recurrence = :recurrence, updated_at = :now
     WHERE id = :id AND user_id = :uid
   `).run({ ...merged, id: taskId, uid: userId, now });
 
@@ -191,6 +213,37 @@ app.post("/:id/complete", (c) => {
       started_at: null, completed_at: now,
     });
     db.prepare("UPDATE tasks SET completed = 1, updated_at = :now WHERE id = :id").run({ id: taskId, now });
+
+    // Auto-spawn next recurrence
+    const recurrence = task.recurrence ?? "none";
+    if (recurrence !== "none") {
+      const nextDue = calcNextDue(task.due, recurrence);
+      const nextId = "t_" + nanoid(10);
+      db.prepare(`
+        INSERT INTO tasks (
+          id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
+          quadrant, today, due, duration, pomos_done, pomos_total, conviction,
+          next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
+          recurrence, created_at, updated_at
+        ) VALUES (
+          :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
+          :quadrant, 0, :due, :duration, 0, :pomos_total, NULL,
+          NULL, NULL, NULL, NULL, NULL, '[]',
+          :recurrence, :now, :now
+        )
+      `).run({
+        id: nextId, user_id: userId,
+        assignee_ids: task.assignee_ids ?? "[]",
+        title_en: task.title_en, title_zh: task.title_zh ?? null,
+        desc_en: task.desc_en ?? null, desc_zh: task.desc_zh ?? null,
+        quadrant: task.quadrant,
+        due: nextDue,
+        duration: task.duration, pomos_total: task.pomos_total,
+        recurrence,
+        now,
+      });
+    }
+
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
