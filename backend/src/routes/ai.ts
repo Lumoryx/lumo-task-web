@@ -257,6 +257,109 @@ ${recentList}
 ${langInstruction}`;
 }
 
+// ── Simple intent parser (works without LLM key) ─────────────────────────────
+//
+// Handles unambiguous operational commands so the pet is useful even in basic mode.
+
+type IntentResult = { reply: string; toolsUsed: string[] };
+
+async function tryParseIntent(
+  text: string,
+  locale: string,
+  jwt: string,
+): Promise<IntentResult | null> {
+  const zh = locale === "zh";
+  const t = text.trim();
+
+  // ── Create task ──────────────────────────────────────────────────────────
+  // Patterns: "创建任务 XXX", "新建任务XXX", "添加任务：XXX", "帮我创建XXX任务"
+  //           "create task XXX", "add task XXX", "new task XXX"
+  const createRe = [
+    /^(?:帮(?:我|我来)?)?(?:创建|新建|添加)(?:一个)?(?:任务)?[：:\s]+(.+)/,
+    /^(?:帮(?:我|我来)?)?(?:给我)?(?:记录|记下|记一下)(?:一个)?(?:任务)?[：:\s]+(.+)/,
+    /^(?:任务)[：:\s]+(.+)/,
+    /^(?:create|add|new)\s+(?:a\s+)?task[：:\s:]+(.+)/i,
+    /^(?:help\s+me\s+)?(?:create|add)\s+(.+?)\s+(?:task|to[\s-]?do)/i,
+  ];
+
+  // Looser: "帮我创建一个叫做XXX的任务" / "创建一个XXX"
+  const createLooseRe = [
+    /(?:创建|新建|添加)(?:一个)?(?:叫(?:做)?|名(?:为)?|题目(?:为)?)?[「"']?([^」"']+)[」"']?(?:的任务)?/,
+    /(?:create|add|new)\s+(?:a\s+)?(?:task\s+(?:called?|named?)\s+)?[「"']?([^」"']+)[」"']/i,
+  ];
+
+  for (const re of createRe) {
+    const m = t.match(re);
+    if (m?.[1]) {
+      return executeCreateTask(m[1].trim(), locale, jwt);
+    }
+  }
+  for (const re of createLooseRe) {
+    const m = t.match(re);
+    if (m?.[1] && m[1].length >= 2) {
+      return executeCreateTask(m[1].trim(), locale, jwt);
+    }
+  }
+
+  // ── List tasks ───────────────────────────────────────────────────────────
+  if (/^(?:我的任务|今天的任务|查看任务|所有任务|任务列表|show\s+(?:my\s+)?tasks?|list\s+(?:my\s+)?tasks?|what(?:'s|\s+are)\s+my\s+tasks?)$/i.test(t)) {
+    return executeListTasks(locale, jwt, false);
+  }
+  if (/^(?:今天的任务|今日任务|today'?s?\s+tasks?|today'?s?\s+plan)$/i.test(t)) {
+    return executeListTasks(locale, jwt, true);
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────────────
+  if (/^(?:今天完成了什么|今日进度|我的统计|show\s+stats?|my\s+progress|today'?s?\s+stats?)$/i.test(t)) {
+    return executeGetStats(locale, jwt);
+  }
+
+  return null;
+}
+
+async function executeCreateTask(title: string, locale: string, jwt: string): Promise<IntentResult> {
+  const result = await executeTool(
+    { id: "intent-1", name: "create_task", args: { title, quadrant: "Q2" } },
+    jwt,
+    locale,
+  );
+  const data = JSON.parse(result) as any;
+  if (data.error) throw new Error(data.error);
+  const reply = locale === "zh"
+    ? `✓ 已创建任务「${data.title}」。需要调整优先级或截止日期，告诉我就好！`
+    : `✓ Created task "${data.title}". Let me know if you'd like to set a due date or priority!`;
+  return { reply, toolsUsed: ["create_task"] };
+}
+
+async function executeListTasks(locale: string, jwt: string, todayOnly: boolean): Promise<IntentResult> {
+  const result = await executeTool(
+    { id: "intent-2", name: "list_tasks", args: { today_only: todayOnly ? "true" : "false" } },
+    jwt,
+    locale,
+  );
+  const tasks = JSON.parse(result) as any[];
+  if (tasks.length === 0) {
+    return {
+      reply: locale === "zh" ? "现在没有待办任务，去创建一个吧 🌱" : "No active tasks right now. Create one to get started! 🌱",
+      toolsUsed: ["list_tasks"],
+    };
+  }
+  const lines = tasks.slice(0, 8).map((t) => `• [${t.quadrant}] ${t.title}${t.today ? " ★" : ""}`);
+  const header = locale === "zh"
+    ? `共 ${tasks.length} 个任务：\n`
+    : `${tasks.length} task${tasks.length !== 1 ? "s" : ""}:\n`;
+  return { reply: header + lines.join("\n"), toolsUsed: ["list_tasks"] };
+}
+
+async function executeGetStats(locale: string, jwt: string): Promise<IntentResult> {
+  const result = await executeTool({ id: "intent-3", name: "get_focus_stats", args: {} }, jwt, locale);
+  const s = JSON.parse(result) as any;
+  const reply = locale === "zh"
+    ? `今日完成 ${s.today_completed} 个任务，本周完成 ${s.week_completed} 个，专注 ${Math.round(s.week_focus_minutes / 60 * 10) / 10}h。当前待办 ${s.active_tasks} 个（Q1 紧急：${s.q1_active}）`
+    : `Today: ${s.today_completed} done. This week: ${s.week_completed} done, ${Math.round(s.week_focus_minutes / 60 * 10) / 10}h focused. Active tasks: ${s.active_tasks} (${s.q1_active} Q1 urgent)`;
+  return { reply, toolsUsed: ["get_focus_stats"] };
+}
+
 // POST /ai/chat
 app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
   const userId = c.get("userId") as string;
@@ -274,15 +377,20 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
   const providerCfg = configs[activeProvider] ?? {};
   const apiKey = providerCfg.key?.trim() || null;
 
-  // No LLM configured — return canned fallback (no tool execution)
+  const locale = context?.locale ?? "en";
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+
+  // No LLM — try intent parser first, fall back to canned response
   if (!apiKey) {
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
-    const reply = fallbackReply({
-      q1Count: context?.q1Count,
-      locale: context?.locale,
-      userName: context?.userName,
-      userMessage: lastUserMsg,
-    });
+    try {
+      const intent = await tryParseIntent(lastUserMsg, locale, jwt);
+      if (intent) {
+        return c.json({ reply: intent.reply, mood: "happy", fallback: false, toolsUsed: intent.toolsUsed });
+      }
+    } catch (err: any) {
+      console.error("[intent] error:", err?.message);
+    }
+    const reply = fallbackReply({ q1Count: context?.q1Count, locale, userName: context?.userName, userMessage: lastUserMsg });
     return c.json({ reply, mood: inferMood(reply, context?.q1Count ?? 0), fallback: true, toolsUsed: [] });
   }
 
@@ -300,7 +408,6 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
   ];
 
   const toolsUsed: string[] = [];
-  const locale = context?.locale ?? "en";
   const MAX_STEPS = 6;
 
   try {
@@ -308,6 +415,16 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
       const result = await callLLMWithTools(llmConfig, currentMessages, TASK_TOOLS);
 
       if (result.finish === "text") {
+        // If LLM replied without tools but message looks operational, run intent parser as fallback
+        if (step === 0 && toolsUsed.length === 0) {
+          try {
+            const intent = await tryParseIntent(lastUserMsg, locale, jwt);
+            if (intent) {
+              const combined = intent.reply + "\n\n" + result.text;
+              return c.json({ reply: combined, mood: "happy", fallback: false, toolsUsed: intent.toolsUsed });
+            }
+          } catch {}
+        }
         return c.json({
           reply: result.text,
           mood: inferMood(result.text, context?.q1Count ?? 0),
