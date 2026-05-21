@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconCheck, IconMore } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import type { Habit, HabitLog } from "@/types/task";
-import { currentStreak, isCompletedToday, longestStreak, toDateStr } from "@/utils/habits";
+import { currentStreak, isCompletedToday, longestStreak } from "@/utils/habits";
 
 const COLOR_MAP: Record<string, string> = {
   green:  "var(--status-success)",
@@ -25,7 +25,6 @@ export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete }:
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const today = toDateStr(new Date());
   const done = isCompletedToday(habit, logs);
   const streak = currentStreak(habit, logs);
   const best = longestStreak(habit, logs);
