@@ -18,11 +18,22 @@ export function createRateLimiter<E extends Env>(
 ) {
   const hits = new Map<string, RateLimitEntry>();
 
+  // Prune expired entries to prevent unbounded Map growth
+  function prune(now: number) {
+    for (const [k, v] of hits) {
+      if (now > v.resetAt) hits.delete(k);
+    }
+  }
+
   return async (c: Context<E>, next: Next) => {
     if (process.env.NODE_ENV === "test") return next();
 
     const key = getKey(c);
     const now = Date.now();
+
+    // Prune on every 100th request to amortize cost
+    if (hits.size % 100 === 0) prune(now);
+
     const entry = hits.get(key);
 
     if (!entry || now > entry.resetAt) {

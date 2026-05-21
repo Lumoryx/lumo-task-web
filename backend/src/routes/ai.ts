@@ -114,11 +114,13 @@ Input: "${text}"`;
       try {
         const m = result.text.match(/\{[\s\S]*\}/);
         const parsed = JSON.parse(m ? m[0] : result.text);
+        const dueRaw = typeof parsed.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.due) ? parsed.due : null;
+        const durationRaw = typeof parsed.duration === "number" && parsed.duration >= 0 && parsed.duration <= 1440 ? Math.round(parsed.duration) : null;
         return c.json({
-          title: parsed.title ?? text.trim(),
+          title: typeof parsed.title === "string" ? parsed.title.trim() || text.trim() : text.trim(),
           quadrant: ["Q1","Q2","Q3","Q4","unclassified"].includes(parsed.quadrant) ? parsed.quadrant : "unclassified",
-          due: parsed.due ?? null,
-          duration: typeof parsed.duration === "number" ? parsed.duration : null,
+          due: dueRaw,
+          duration: durationRaw,
           confidence: typeof parsed.confidence === "number" ? Math.min(1, Math.max(0, parsed.confidence)) : 0.7,
         });
       } catch {

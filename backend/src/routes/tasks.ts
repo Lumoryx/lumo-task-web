@@ -38,8 +38,8 @@ const TaskCreateBody = z.object({
   desc: LocalizedString.optional().nullable(),
   quadrant: z.enum(["Q1", "Q2", "Q3", "Q4", "unclassified"]).default("unclassified"),
   today: z.boolean().default(false),
-  due: z.string().nullable().optional(),
-  duration: z.number().int().default(0),
+  due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  duration: z.number().int().min(0).max(1440).default(0),
   pomos_total: z.number().int().default(0),
   assignee_ids: z.array(z.string()).default([]),
   conviction: z.number().nullable().optional(),
@@ -55,10 +55,14 @@ const TaskCreateBody = z.object({
 
 const TaskUpdateBody = TaskCreateBody.partial();
 
+function safeParse<T>(raw: string | null | undefined, fallback: T): T {
+  try { return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
+}
+
 function rowToTask(row: any) {
   return {
     id: row.id,
-    assignee_ids: JSON.parse(row.assignee_ids ?? "[]"),
+    assignee_ids: safeParse<string[]>(row.assignee_ids, []),
     title: { en: row.title_en, ...(row.title_zh ? { zh: row.title_zh } : {}) },
     desc: row.desc_en ? { en: row.desc_en, ...(row.desc_zh ? { zh: row.desc_zh } : {}) } : null,
     quadrant: row.quadrant,
@@ -72,7 +76,7 @@ function rowToTask(row: any) {
     reason: row.reason_en ? { en: row.reason_en, ...(row.reason_zh ? { zh: row.reason_zh } : {}) } : null,
     ai_suggest: row.ai_suggest ?? null,
     completed: Boolean(row.completed),
-    not_now: JSON.parse(row.not_now_json ?? "[]"),
+    not_now: safeParse<any[]>(row.not_now_json, []),
     recurrence: row.recurrence ?? "none",
     created_at: row.created_at,
     updated_at: row.updated_at,
