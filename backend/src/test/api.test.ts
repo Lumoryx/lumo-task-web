@@ -563,14 +563,14 @@ describe("POST /v1/tasks/:id/uncomplete", () => {
 });
 
 describe("DELETE /v1/tasks/:id", () => {
-  test("200 → deletes task", async () => {
+  test("204 → deletes task", async () => {
     // Create a fresh task to delete
     const { body: created } = await req("POST", "/v1/tasks", {
       token: demoToken,
       body: { title: { en: "To be deleted" } },
     });
     const { status } = await req("DELETE", `/v1/tasks/${created.id}`, { token: demoToken });
-    assert.equal(status, 200);
+    assert.equal(status, 204);
 
     const { status: s } = await req("GET", `/v1/tasks/${created.id}`, { token: demoToken });
     assert.equal(s, 404, "deleted task should not be found");
@@ -689,7 +689,7 @@ describe("PATCH /v1/people/:id", () => {
 });
 
 describe("DELETE /v1/people/:id", () => {
-  test("200 → deletes person and removes them from assignee_ids on tasks", async () => {
+  test("204 → deletes person and removes them from assignee_ids on tasks", async () => {
     // Create a task assigned to personId
     const { body: task } = await req("POST", "/v1/tasks", {
       token: demoToken,
@@ -699,7 +699,7 @@ describe("DELETE /v1/people/:id", () => {
 
     // Delete the person
     const { status } = await req("DELETE", `/v1/people/${personId}`, { token: demoToken });
-    assert.equal(status, 200);
+    assert.equal(status, 204);
 
     // Task should now have empty assignee_ids
     const { body: updatedTask } = await req("GET", `/v1/tasks/${task.id}`, { token: demoToken });

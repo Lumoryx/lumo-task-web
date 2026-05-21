@@ -164,7 +164,7 @@ app.delete("/:id", (c) => {
   const userId = c.get("userId") as string;
   const result = db.prepare("DELETE FROM tasks WHERE id = :id AND user_id = :uid").run({ id: c.req.param("id"), uid: userId });
   if ((result as any).changes === 0) return c.json({ error: "Not found" }, 404);
-  return c.json({ ok: true });
+  return new Response(null, { status: 204 });
 });
 
 // POST /tasks/:id/complete

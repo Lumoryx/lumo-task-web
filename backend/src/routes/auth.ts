@@ -10,6 +10,34 @@ import type { Variables } from "../env.js";
 
 const app = new Hono<{ Variables: Variables }>();
 
+// ── Simple in-memory rate limiter for auth endpoints ─────────────────────────
+const authHits = new Map<string, { count: number; resetAt: number }>();
+const AUTH_LIMIT = 10;
+const AUTH_WINDOW = 60_000; // 10 attempts per minute per IP
+
+function checkAuthRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = authHits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    authHits.set(ip, { count: 1, resetAt: now + AUTH_WINDOW });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= AUTH_LIMIT;
+}
+
+async function authRateLimit(c: any, next: () => Promise<void>) {
+  if (process.env.NODE_ENV === "test") return next();
+  const ip =
+    c.req.header("x-forwarded-for")?.split(",")[0].trim() ??
+    c.req.header("x-real-ip") ??
+    "unknown";
+  if (!checkAuthRateLimit(ip)) {
+    return c.json({ error: "Too many attempts. Try again later." }, 429);
+  }
+  return next();
+}
+
 const RegisterBody = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -34,7 +62,7 @@ function makeInitials(name: string) {
     .join("");
 }
 
-app.post("/register", zValidator("json", RegisterBody), async (c) => {
+app.post("/register", authRateLimit, zValidator("json", RegisterBody), async (c) => {
   const { email, password, name } = c.req.valid("json");
 
   const existing = db.prepare("SELECT id FROM users WHERE email = :email").get({ email });
@@ -63,7 +91,7 @@ app.post("/register", zValidator("json", RegisterBody), async (c) => {
   }, 201);
 });
 
-app.post("/signin", zValidator("json", SigninBody), async (c) => {
+app.post("/signin", authRateLimit, zValidator("json", SigninBody), async (c) => {
   const { email, password } = c.req.valid("json");
 
   const user = db.prepare("SELECT * FROM users WHERE email = :email").get({ email }) as any;
@@ -92,7 +120,7 @@ app.post("/signin", zValidator("json", SigninBody), async (c) => {
   });
 });
 
-app.post("/change-password", authMiddleware, zValidator("json", ChangePasswordBody), async (c) => {
+app.post("/change-password", authRateLimit, authMiddleware, zValidator("json", ChangePasswordBody), async (c) => {
   const userId = c.get("userId") as string;
   const { current_password, new_password } = c.req.valid("json");
 

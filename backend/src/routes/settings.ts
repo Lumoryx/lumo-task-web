@@ -29,9 +29,10 @@ const SettingsPatch = z.object({
   // Per-provider config update — key only written if non-empty
   ai_configs_update: z.object({
     provider: z.enum(PROVIDERS),
-    key: z.string().nullable().optional(),
-    model: z.string().nullable().optional(),
-    baseUrl: z.string().nullable().optional(),
+    key: z.string().max(500).nullable().optional(),
+    model: z.string().max(100).nullable().optional(),
+    // baseUrl must be a valid URL or empty/null (Claude provider has no custom URL)
+    baseUrl: z.union([z.string().url().max(500), z.literal(""), z.null()]).optional(),
   }).optional(),
 });
 
