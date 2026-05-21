@@ -7,8 +7,8 @@
           {
             "type": "command",
             "timeout": 120,
-            "statusMessage": "Running tests for changed file...",
-            "command": "f=$(jq -r '.tool_input.file_path // .tool_response.filePath'); echo \"$f\" | grep -qE '\\.(ts|tsx)$' || exit 0; if echo \"$f\" | grep -q '/web-app/'; then cd /home/user/lumo-task-web/web-app && npm test -- --run 2>/dev/null || true; elif echo \"$f\" | grep -q '/backend/'; then cd /home/user/lumo-task-web/backend && npm test 2>/dev/null || true; fi"
+            "statusMessage": "Running ECC tests...",
+            "command": "f=$(jq -r '.tool_input.file_path // .tool_response.filePath'); echo \"$f\" | grep -qE '\\.(ts|tsx)$' || exit 0; if echo \"$f\" | grep -q '/web-app/'; then cd /home/user/lumo-task-web/web-app && npm test 2>&1 | tail -20; elif echo \"$f\" | grep -q '/backend/'; then cd /home/user/lumo-task-web/backend && npm test 2>&1 | tail -20; fi"
           }
         ]
       }
@@ -16,11 +16,10 @@
   },
   "permissions": {
     "allow": [
-      "Bash(git *)",
-      "Bash(npm test*)",
-      "Bash(npm run typecheck*)",
-      "Bash(cd backend && npm*)",
-      "Bash(cd web-app && npm*)"
+      "Bash(cd /home/user/lumo-task-web/web-app && npm test*)",
+      "Bash(cd /home/user/lumo-task-web/backend && npm test*)",
+      "Bash(cd /home/user/lumo-task-web/web-app && npm run typecheck*)",
+      "Bash(cd /home/user/lumo-task-web/backend && npm run typecheck*)"
     ]
   }
 }
