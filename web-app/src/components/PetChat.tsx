@@ -143,7 +143,7 @@ export function PetChat({ petPos }: Props) {
           <div className="text-[10px] text-text-faint mt-0.5">
             {t("ai.chat.subtitle")}
             {!hasConfig && (
-              <span style={{ color: "var(--accent-primary)" }}> · {locale === "zh" ? "基础模式" : "Basic mode"}</span>
+              <span style={{ color: "var(--accent-primary)" }}> · {t("ai.chat.basicMode")}</span>
             )}
           </div>
         </div>
@@ -224,7 +224,7 @@ export function PetChat({ petPos }: Props) {
       >
         {messages.length === 0 && (
           <div className="text-[12px] text-text-faint italic text-center" style={{ marginTop: 20 }}>
-            {locale === "zh" ? "点击上方按钮或直接输入消息开始对话" : "Tap a chip above or type a message to start"}
+            {t("pet.chat.empty")}
           </div>
         )}
         {messages.map((msg, i) => (

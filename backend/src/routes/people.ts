@@ -4,6 +4,7 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
 
 const app = new Hono<{ Variables: Variables }>();
@@ -57,7 +58,7 @@ app.patch("/:id", zValidator("json", PersonBody.partial()), (c) => {
   const body = c.req.valid("json");
 
   const existing = db.prepare("SELECT * FROM people WHERE id = :id AND user_id = :uid").get({ id: personId, uid: userId }) as any;
-  if (!existing) return c.json({ error: "Not found" }, 404);
+  if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   db.prepare(`
     UPDATE people SET
@@ -81,7 +82,7 @@ app.delete("/:id", (c) => {
   const personId = c.req.param("id");
 
   const result = db.prepare("DELETE FROM people WHERE id = :id AND user_id = :uid").run({ id: personId, uid: userId });
-  if ((result as any).changes === 0) return c.json({ error: "Not found" }, 404);
+  if ((result as any).changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   // Remove this person from assignee_ids JSON array on all affected tasks
   db.prepare(`

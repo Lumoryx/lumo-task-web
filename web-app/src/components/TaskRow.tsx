@@ -28,6 +28,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
 
   const [hovered, setHovered] = useState(false);
   const [circleHover, setCircleHover] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [moreAnchor, setMoreAnchor] = useState<DOMRect | null>(null);
@@ -54,7 +55,13 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
         <button
           onMouseEnter={() => setCircleHover(true)}
           onMouseLeave={() => setCircleHover(false)}
-          onClick={(e) => { e.stopPropagation(); complete(task.id); }}
+          onClick={async (e) => {
+            e.stopPropagation();
+            if (busy) return;
+            setBusy(true);
+            try { await complete(task.id); } finally { setBusy(false); }
+          }}
+          disabled={busy}
           aria-label={t("row.complete")}
           className="flex-shrink-0 flex items-center justify-center w-[18px] h-[18px] rounded-full border-[1.5px] transition-all"
           style={{

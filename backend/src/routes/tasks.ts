@@ -4,6 +4,7 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
 
 const app = new Hono<{ Variables: Variables }>();
@@ -110,7 +111,7 @@ app.post("/", zValidator("json", TaskCreateBody), (c) => {
 app.get("/:id", (c) => {
   const userId = c.get("userId") as string;
   const row = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: c.req.param("id"), uid: userId });
-  if (!row) return c.json({ error: "Not found" }, 404);
+  if (!row) return httpError(c, 404, "NOT_FOUND", "Not found");
   return c.json(rowToTask(row as any));
 });
 
@@ -122,7 +123,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
   const now = new Date().toISOString();
 
   const existing = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as any;
-  if (!existing) return c.json({ error: "Not found" }, 404);
+  if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const merged = {
     assignee_ids: "assignee_ids" in body ? JSON.stringify(body.assignee_ids ?? []) : existing.assignee_ids,
@@ -163,7 +164,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
 app.delete("/:id", (c) => {
   const userId = c.get("userId") as string;
   const result = db.prepare("DELETE FROM tasks WHERE id = :id AND user_id = :uid").run({ id: c.req.param("id"), uid: userId });
-  if ((result as any).changes === 0) return c.json({ error: "Not found" }, 404);
+  if ((result as any).changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
   return new Response(null, { status: 204 });
 });
 
@@ -173,7 +174,7 @@ app.post("/:id/complete", (c) => {
   const taskId = c.req.param("id");
 
   const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as any;
-  if (!task) return c.json({ error: "Not found" }, 404);
+  if (!task) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const now = new Date().toISOString();
   const entryId = "c_" + nanoid(10);
@@ -205,7 +206,7 @@ app.post("/:id/uncomplete", (c) => {
   const taskId = c.req.param("id");
 
   const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid AND completed = 1").get({ id: taskId, uid: userId });
-  if (!task) return c.json({ error: "Not found" }, 404);
+  if (!task) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const now = new Date().toISOString();
   db.exec("BEGIN");
