@@ -75,19 +75,63 @@ app.post("/recommend", classifyRateLimit, (c) => {
   });
 });
 
-// POST /ai/parse — stub: return empty task scaffold
-app.post("/parse", (c) => {
-  return c.json({
-    task: {
-      title: { en: "" },
-      quadrant: "unclassified",
-      today: false,
-      due: null,
-      duration: 0,
-      pomos_total: 0,
-    },
-    confidence: 0,
-  });
+// POST /ai/parse — natural language task parser
+const ParseBody = z.object({
+  text: z.string().min(1).max(500),
+  locale: z.enum(["en", "zh"]).optional(),
+});
+
+app.post("/parse", classifyRateLimit, zValidator("json", ParseBody), async (c) => {
+  const userId = c.get("userId") as string;
+  const { text, locale } = c.req.valid("json");
+
+  const settings = db.prepare("SELECT ai_provider, ai_configs FROM settings WHERE user_id = :uid")
+    .get({ uid: userId }) as any;
+  const activeProvider = (settings?.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom";
+  let configs: Record<string, { key?: string; model?: string; baseUrl?: string }> = {};
+  try { configs = JSON.parse(settings?.ai_configs ?? "{}"); } catch {}
+  const providerCfg = configs[activeProvider] ?? {};
+  const apiKey = providerCfg.key?.trim() || null;
+
+  // No LLM key — return best-effort heuristic
+  if (!apiKey) {
+    return c.json({ title: text.trim(), quadrant: "unclassified", due: null, duration: null, confidence: 0 });
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const llmConfig: LLMConfig = { provider: activeProvider, apiKey, baseUrl: providerCfg.baseUrl ?? null, model: providerCfg.model ?? null };
+  const langNote = locale === "zh" ? "The user may write in Chinese." : "";
+
+  const prompt = `You are a task parser. Today is ${today}. ${langNote}
+Extract task details from the user's input. Return ONLY valid JSON (no markdown):
+{"title":"string","quadrant":"Q1"|"Q2"|"Q3"|"Q4"|"unclassified","due":"YYYY-MM-DD or null","duration":minutes_or_null,"confidence":0.0_to_1.0}
+Quadrants: Q1=urgent+important, Q2=important not urgent, Q3=urgent not important, Q4=neither.
+Input: "${text}"`;
+
+  try {
+    const result = await callLLMWithTools(llmConfig, [{ role: "user", content: prompt }], []);
+    if (result.finish === "text") {
+      try {
+        const m = result.text.match(/\{[\s\S]*\}/);
+        const parsed = JSON.parse(m ? m[0] : result.text);
+        const dueRaw = typeof parsed.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.due) ? parsed.due : null;
+        const durationRaw = typeof parsed.duration === "number" && parsed.duration >= 0 && parsed.duration <= 1440 ? Math.round(parsed.duration) : null;
+        return c.json({
+          title: typeof parsed.title === "string" ? parsed.title.trim() || text.trim() : text.trim(),
+          quadrant: ["Q1","Q2","Q3","Q4","unclassified"].includes(parsed.quadrant) ? parsed.quadrant : "unclassified",
+          due: dueRaw,
+          duration: durationRaw,
+          confidence: typeof parsed.confidence === "number" ? Math.min(1, Math.max(0, parsed.confidence)) : 0.7,
+        });
+      } catch {
+        return c.json({ title: text.trim(), quadrant: "unclassified", due: null, duration: null, confidence: 0 });
+      }
+    }
+    return c.json({ title: text.trim(), quadrant: "unclassified", due: null, duration: null, confidence: 0 });
+  } catch (err: any) {
+    console.error("[ai/parse] error:", err?.message);
+    return c.json({ title: text.trim(), quadrant: "unclassified", due: null, duration: null, confidence: 0 });
+  }
 });
 
 // ── Chat ──────────────────────────────────────────────────────────────────────

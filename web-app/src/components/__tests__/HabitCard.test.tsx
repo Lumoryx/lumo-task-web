@@ -1,0 +1,168 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { HabitCard } from "../HabitCard";
+import type { Habit, HabitLog } from "@/types/task";
+
+vi.mock("@/i18n/useT", () => ({
+  useT: () => (key: string) => key,
+}));
+
+const HABIT: Habit = {
+  id: "h1",
+  title: "Morning run",
+  color: "green",
+  frequency: "daily",
+  createdAt: "2024-01-01T00:00:00.000Z",
+};
+
+const HABIT_WITH_EMOJI: Habit = {
+  ...HABIT,
+  emoji: "🏃",
+};
+
+const TODAY = "2026-05-19";
+const FIXED_NOW = new Date(`${TODAY}T10:00:00.000Z`);
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(FIXED_NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function log(habitId: string, date: string): HabitLog {
+  return { habitId, date, completedAt: `${date}T08:00:00.000Z` };
+}
+
+describe("HabitCard", () => {
+  it("renders the habit title", () => {
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={[]}
+        onComplete={vi.fn()}
+        onUndo={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Morning run")).toBeInTheDocument();
+  });
+
+  it("renders emoji when present", () => {
+    render(
+      <HabitCard
+        habit={HABIT_WITH_EMOJI}
+        logs={[]}
+        onComplete={vi.fn()}
+        onUndo={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    expect(screen.getByText("🏃")).toBeInTheDocument();
+  });
+
+  it("shows streak when habits completed yesterday", () => {
+    const logs = [log("h1", "2026-05-18")];
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={logs}
+        onComplete={vi.fn()}
+        onUndo={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    // Streak should be 1 (yesterday done, today not yet)
+    expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("calls onComplete when check button is clicked and not done", () => {
+    const onComplete = vi.fn();
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={[]}
+        onComplete={onComplete}
+        onUndo={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("habit.done"));
+    expect(onComplete).toHaveBeenCalledOnce();
+  });
+
+  it("calls onUndo when check button is clicked and already done today", () => {
+    const onUndo = vi.fn();
+    const logs = [log("h1", TODAY)];
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={logs}
+        onComplete={vi.fn()}
+        onUndo={onUndo}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("habit.undo"));
+    expect(onUndo).toHaveBeenCalledOnce();
+  });
+
+  it("calls onEdit when Edit menu item is clicked", () => {
+    const onEdit = vi.fn();
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={[]}
+        onComplete={vi.fn()}
+        onUndo={vi.fn()}
+        onEdit={onEdit}
+        onDelete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("open menu"));
+    fireEvent.click(screen.getByText("habit.menu.edit"));
+    expect(onEdit).toHaveBeenCalledOnce();
+  });
+
+  it("calls onDelete when Delete menu item is clicked", () => {
+    const onDelete = vi.fn();
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={[]}
+        onComplete={vi.fn()}
+        onUndo={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={onDelete}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("open menu"));
+    fireEvent.click(screen.getByText("habit.menu.delete"));
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it("closes menu when clicking outside", () => {
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={[]}
+        onComplete={vi.fn()}
+        onUndo={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("open menu"));
+    expect(screen.getByText("habit.menu.edit")).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText("habit.menu.edit")).not.toBeInTheDocument();
+  });
+});

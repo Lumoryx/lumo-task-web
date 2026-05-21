@@ -942,12 +942,11 @@ describe("POST /v1/ai/recommend", () => {
 
 describe("POST /v1/ai/parse", () => {
   test("200 → returns task scaffold with confidence score", async () => {
-    const { status, body } = await req("POST", "/v1/ai/parse", { token: demoToken });
+    const { status, body } = await req("POST", "/v1/ai/parse", { token: demoToken, body: { text: "Write report" } });
     assert.equal(status, 200);
-    assert.ok("task" in body, "task missing");
+    assert.ok("title" in body, "title missing");
+    assert.ok("quadrant" in body, "quadrant missing");
     assert.ok("confidence" in body, "confidence missing");
-    assert.ok("title" in body.task, "title missing in task scaffold");
-    assert.ok("quadrant" in body.task, "quadrant missing in task scaffold");
   });
 
   test("401 → no token", async () => {

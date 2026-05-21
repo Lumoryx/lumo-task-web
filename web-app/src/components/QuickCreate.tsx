@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { IconClose } from "@/components/icons";
+import { IconClose, IconSparkle } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
-import type { Quadrant } from "@/types/task";
+import { api } from "@/api/client";
+import type { Quadrant, TaskRecurrence } from "@/types/task";
 
 interface QuickCreateProps {
   initialQuadrant?: Quadrant;
@@ -42,6 +43,10 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
   const [durationRaw, setDurationRaw] = useState("30");
   const [dueDate, setDueDate] = useState<string>(todayISO);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [recurrence, setRecurrence] = useState<TaskRecurrence>("none");
+  const [aiMode, setAiMode] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [aiParsing, setAiParsing] = useState(false);
   function toggleAssignee(id: string) {
     setAssigneeIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
@@ -62,6 +67,30 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  async function handleAiParse() {
+    if (!aiText.trim() || aiParsing) return;
+    setAiParsing(true);
+    try {
+      const result = await api.parseTask(aiText.trim(), locale);
+      setTitle(result.title);
+      if (result.quadrant && result.quadrant !== "unclassified") {
+        setQuadrant(result.quadrant as Quadrant);
+      }
+      if (result.due) {
+        setDueDate(result.due);
+      }
+      if (result.duration) {
+        setDuration(result.duration);
+        setDurationRaw(String(result.duration));
+      }
+      setAiMode(false);
+    } catch {
+      // Silently fall back — don't block the user
+    } finally {
+      setAiParsing(false);
+    }
+  }
+
   async function submit() {
     if (!title.trim() || busy) return;
     setBusy(true);
@@ -75,6 +104,7 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
         pomos_done: 0,
         pomos_total: Math.max(1, Math.ceil(duration / 25)),
         assignee_ids: assigneeIds,
+        recurrence,
       });
       onCreated?.();
     } finally {
@@ -113,6 +143,19 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
             </div>
           </div>
           <button
+            onClick={() => setAiMode((v) => !v)}
+            title={t("qc.ai")}
+            className="flex-shrink-0 flex items-center gap-1 px-2 h-6 rounded-md text-[10px] font-semibold transition-colors"
+            style={{
+              background: aiMode ? "var(--accent-fog)" : "transparent",
+              border: `1px solid ${aiMode ? "var(--accent-edge)" : "var(--border-default)"}`,
+              color: aiMode ? "var(--accent-primary)" : "var(--text-muted)",
+            }}
+          >
+            <IconSparkle size={10} />
+            {t("qc.ai")}
+          </button>
+          <button
             onClick={onClose}
             aria-label={t("qc.close")}
             title={t("qc.close")}
@@ -124,13 +167,42 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
 
         {/* Body */}
         <div className="px-[18px] py-4 flex flex-col gap-4">
+          {/* AI Parse input */}
+          {aiMode && (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: "var(--accent-primary)" }}>
+                {t("qc.ai")}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={aiText}
+                  onChange={(e) => setAiText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleAiParse(); }}
+                  placeholder={t("qc.ai.placeholder")}
+                  className="input flex-1"
+                  style={{ height: 40, fontSize: 13 }}
+                />
+                <button
+                  onClick={handleAiParse}
+                  disabled={!aiText.trim() || aiParsing}
+                  className="flex-shrink-0 px-3 rounded-md text-[12px] font-semibold text-text-inverse disabled:opacity-50 transition-opacity"
+                  style={{ background: "var(--accent-primary)" }}
+                >
+                  {aiParsing ? t("qc.ai.parsing") : t("qc.ai.parse")}
+                </button>
+              </div>
+              <div className="mt-1 text-[10px] text-text-faint">{t("qc.ai.hint")}</div>
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
               {locale === "zh" ? "任务" : "Task"}
             </div>
             <input
-              autoFocus
+              autoFocus={!aiMode}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("qc.placeholder")}
@@ -245,6 +317,30 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
                   +
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Recurrence */}
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+              {t("task.recurrence")}
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {(["none", "daily", "weekdays", "weekly", "monthly"] as TaskRecurrence[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRecurrence(r)}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors"
+                  style={{
+                    background: recurrence === r ? "var(--accent-fog)" : "var(--bg-surface)",
+                    border: `1px solid ${recurrence === r ? "var(--accent-edge)" : "var(--border-default)"}`,
+                    color: recurrence === r ? "var(--accent-primary)" : "var(--text-secondary)",
+                  }}
+                >
+                  {t(`task.recurrence.${r}`)}
+                </button>
+              ))}
             </div>
           </div>
 

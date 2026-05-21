@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, CompletedEntry, CountdownEvent, Person, PetChatMessage, Task, User } from "@/types/task";
+import type { AppSettings, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +93,7 @@ function adaptTask(raw: any): Task {
     ai_suggest: raw.ai_suggest ?? undefined,
     completed: raw.completed,
     not_now: raw.not_now ?? [],
+    recurrence: raw.recurrence ?? "none",
   };
 }
 
@@ -186,6 +187,21 @@ export const api = {
     return rows.map(adaptEntry);
   },
 
+  async listAllCompleted(): Promise<CompletedEntry[]> {
+    const rows = await req<any[]>("GET", "/completed");
+    return rows.map(adaptEntry);
+  },
+
+  async parseTask(text: string, locale?: string): Promise<{
+    title: string;
+    quadrant: string;
+    due: string | null;
+    duration: number | null;
+    confidence: number;
+  }> {
+    return req("POST", "/ai/parse", { text, locale });
+  },
+
   async createTask(input: Omit<Task, "id">): Promise<Task> {
     const raw = await req<any>("POST", "/tasks", {
       title: input.title,
@@ -201,6 +217,7 @@ export const api = {
       reason: input.reason ?? null,
       ai_suggest: input.ai_suggest ?? null,
       not_now: input.not_now ?? [],
+      recurrence: input.recurrence ?? "none",
     });
     return adaptTask(raw);
   },
@@ -220,6 +237,7 @@ export const api = {
       ...(patch.reason !== undefined && { reason: patch.reason }),
       ...(patch.ai_suggest !== undefined && { ai_suggest: patch.ai_suggest }),
       ...(patch.not_now !== undefined && { not_now: patch.not_now }),
+      ...(patch.recurrence !== undefined && { recurrence: patch.recurrence }),
     });
     return adaptTask(raw);
   },
@@ -349,3 +367,85 @@ export const countdownApi = {
 };
 
 export type ApiClient = typeof api;
+
+// ── Habits localStorage API ───────────────────────────────────────────────────
+
+function habitsKey(userId: string) {
+  return `lumo.habits.v1.${userId}`;
+}
+
+function logsKey(userId: string) {
+  return `lumo.habit-logs.v1.${userId}`;
+}
+
+function habitsLoad(userId: string): Habit[] {
+  if (userId === "local") return [];
+  const raw = localStorage.getItem(habitsKey(userId));
+  if (!raw) return [];
+  try { return JSON.parse(raw) as Habit[]; } catch { return []; }
+}
+
+function logsLoad(userId: string): HabitLog[] {
+  if (userId === "local") return [];
+  const raw = localStorage.getItem(logsKey(userId));
+  if (!raw) return [];
+  try { return JSON.parse(raw) as HabitLog[]; } catch { return []; }
+}
+
+function habitsSave(userId: string, items: Habit[]) {
+  localStorage.setItem(habitsKey(userId), JSON.stringify(items));
+}
+
+function logsSave(userId: string, items: HabitLog[]) {
+  localStorage.setItem(logsKey(userId), JSON.stringify(items));
+}
+
+export const habitApi = {
+  listHabits(userId: string): Habit[] {
+    return habitsLoad(userId);
+  },
+
+  listLogs(userId: string): HabitLog[] {
+    return logsLoad(userId);
+  },
+
+  createHabit(userId: string, input: Omit<Habit, "id" | "createdAt">): Habit {
+    const habits = habitsLoad(userId);
+    const habit: Habit = {
+      ...input,
+      id: `habit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: new Date().toISOString(),
+    };
+    habitsSave(userId, [...habits, habit]);
+    return habit;
+  },
+
+  updateHabit(userId: string, id: string, patch: Partial<Omit<Habit, "id" | "createdAt">>): Habit {
+    const habits = habitsLoad(userId);
+    const idx = habits.findIndex((h) => h.id === id);
+    if (idx < 0) throw new Error("Habit not found");
+    const updated = { ...habits[idx], ...patch };
+    habits[idx] = updated;
+    habitsSave(userId, habits);
+    return updated;
+  },
+
+  deleteHabit(userId: string, id: string): void {
+    habitsSave(userId, habitsLoad(userId).filter((h) => h.id !== id));
+    // Also remove all logs for this habit
+    logsSave(userId, logsLoad(userId).filter((l) => l.habitId !== id));
+  },
+
+  logHabit(userId: string, habitId: string, date: string): HabitLog {
+    const logs = logsLoad(userId);
+    const existing = logs.find((l) => l.habitId === habitId && l.date === date);
+    if (existing) return existing;
+    const log: HabitLog = { habitId, date, completedAt: new Date().toISOString() };
+    logsSave(userId, [...logs, log]);
+    return log;
+  },
+
+  unlogHabit(userId: string, habitId: string, date: string): void {
+    logsSave(userId, logsLoad(userId).filter((l) => !(l.habitId === habitId && l.date === date)));
+  },
+};

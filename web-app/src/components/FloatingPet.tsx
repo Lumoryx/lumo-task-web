@@ -3,6 +3,7 @@ import { usePetStore } from "@/store/usePetStore";
 import { useAIStore } from "@/store/useAIStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
+import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { useT } from "@/i18n/useT";
 import { PetChat } from "@/components/PetChat";
 import { DogSvg } from "@/components/DogSvg";
@@ -101,12 +102,19 @@ function SpeechBubble({ text }: { text: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+function getMorningBriefKey(userId: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  return `lumo.morning-brief.${userId}.${today}`;
+}
+
 export function FloatingPet() {
   const t = useT();
   const { pos, visible, activeMsg, mood, setPos, setMsg, setMood } = usePetStore();
   const { chatOpen, toggleChat, loadConfig, configLoaded } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
   const locale = useAppStore((s) => s.locale);
+  const isSignedIn = useAuthStore(selectIsSignedIn);
+  const userId = useAuthStore((s) => s.user.id);
 
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -115,6 +123,27 @@ export function FloatingPet() {
   useEffect(() => {
     if (!configLoaded) loadConfig();
   }, [configLoaded, loadConfig]);
+
+  // Morning brief — show once per day on first load when user has tasks
+  useEffect(() => {
+    if (!isSignedIn || !visible) return;
+    const key = getMorningBriefKey(userId);
+    if (localStorage.getItem(key)) return;
+    const h = new Date().getHours();
+    if (h < 5 || h >= 12) return; // Only in morning
+    const q1Count = tasks.filter((tk) => tk.quadrant === "Q1" && !tk.completed).length;
+    const todayCount = tasks.filter((tk) => tk.today && !tk.completed).length;
+    if (todayCount === 0) return;
+    localStorage.setItem(key, "1");
+    const msg = locale === "zh"
+      ? `早上好！今天有 ${todayCount} 个任务${q1Count > 0 ? `，其中 ${q1Count} 个 Q1 紧急` : ""}。加油！🌱`
+      : `Good morning! You have ${todayCount} task${todayCount !== 1 ? "s" : ""} today${q1Count > 0 ? `, ${q1Count} urgent Q1` : ""}. Let's go! 🌱`;
+    setTimeout(() => {
+      setMsg(msg as string);
+      setMood("happy");
+    }, 2000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, userId, visible]);
   const dragOffset = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number>(0);
   const pendingPos = useRef(pos);

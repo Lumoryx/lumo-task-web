@@ -27,6 +27,8 @@ export interface Person {
   email?: string;
 }
 
+export type TaskRecurrence = "none" | "daily" | "weekdays" | "weekly" | "monthly";
+
 export interface Task {
   id: string;
   /** Person IDs — references People in the people list. Multiple allowed. */
@@ -54,6 +56,8 @@ export interface Task {
   completed?: boolean;
   /** Counter-recommendations to be transparent about what's NOT being shown. */
   not_now?: Array<{ id: string; reason: LocalizedString }>;
+  /** Recurrence rule — when task is completed, a copy is spawned for the next occurrence. */
+  recurrence?: TaskRecurrence;
 }
 
 export interface CompletedEntry {
@@ -138,4 +142,23 @@ export interface CountdownEvent {
   repeat: CountdownRepeat;
   note?: string;
   createdAt: string;
+}
+
+export type HabitFrequency = "daily" | "weekdays" | "weekly";
+export type HabitColor = "green" | "cyan" | "amber" | "red" | "purple";
+
+export interface Habit {
+  id: string;
+  title: string;
+  emoji?: string;
+  color: HabitColor;
+  frequency: HabitFrequency;
+  note?: string;
+  createdAt: string;
+}
+
+export interface HabitLog {
+  habitId: string;
+  date: string; // YYYY-MM-DD
+  completedAt: string;
 }
