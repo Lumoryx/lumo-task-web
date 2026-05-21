@@ -21,6 +21,21 @@ export function CountdownPage() {
   const [editTarget, setEditTarget] = useState<CountdownEvent | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Sort: today → upcoming by days asc → past by days desc
+  const [upcoming, past] = useMemo(() => {
+    const sorted = [...events].sort((a, b) => {
+      const da = daysUntil(a.date, a.repeat);
+      const db = daysUntil(b.date, b.repeat);
+      if (da >= 0 && db >= 0) return da - db;
+      if (da < 0  && db < 0)  return db - da;
+      return da >= 0 ? -1 : 1;
+    });
+    return [
+      sorted.filter((e) => daysUntil(e.date, e.repeat) >= 0),
+      sorted.filter((e) => daysUntil(e.date, e.repeat) <  0),
+    ];
+  }, [events]);
+
   // Auth gate — countdown data is per-user, not available in local mode
   if (!isSignedIn) {
     return (
@@ -62,21 +77,6 @@ export function CountdownPage() {
       </div>
     );
   }
-
-  // Sort: today → upcoming by days asc → past by days desc
-  const [upcoming, past] = useMemo(() => {
-    const sorted = [...events].sort((a, b) => {
-      const da = daysUntil(a.date, a.repeat);
-      const db = daysUntil(b.date, b.repeat);
-      if (da >= 0 && db >= 0) return da - db;
-      if (da < 0  && db < 0)  return db - da;
-      return da >= 0 ? -1 : 1;
-    });
-    return [
-      sorted.filter((e) => daysUntil(e.date, e.repeat) >= 0),
-      sorted.filter((e) => daysUntil(e.date, e.repeat) <  0),
-    ];
-  }, [events]);
 
   function openCreate() {
     setEditTarget(null);
