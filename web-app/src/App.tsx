@@ -62,9 +62,17 @@ export default function App() {
     }
   }, [isSignedIn, userId, loadTasks, loadPeople, loadCountdowns, loadHabits, clearTasks, clearPeople, clearCountdowns, clearHabits]);
 
-  // First-run gate — redirect to onboarding unless already there.
+  const authPaths = ["/login", "/register", "/onboarding"];
+  const isAuthPath = authPaths.includes(location.pathname);
+
+  // First-run gate: new users must complete onboarding first.
   if (!onboarded && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // Auth gate: onboarded users must be signed in to reach the shell.
+  if (onboarded && !isSignedIn && !isAuthPath) {
+    return <Navigate to="/login" replace />;
   }
 
   return (

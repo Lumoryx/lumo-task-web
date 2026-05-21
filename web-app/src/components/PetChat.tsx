@@ -12,17 +12,17 @@ interface Props {
 }
 
 const QUICK_CHIPS_EN = [
+  { key: "ai.chip.tasks",    text: "list tasks" },
+  { key: "ai.chip.today",    text: "today's tasks" },
   { key: "ai.chip.priority", text: "What's my priority?" },
-  { key: "ai.chip.plan",     text: "Plan my day" },
-  { key: "ai.chip.procrastinate", text: "I'm procrastinating" },
-  { key: "ai.chip.motivate", text: "Motivate me" },
+  { key: "ai.chip.stats",    text: "today's stats" },
 ];
 
 const QUICK_CHIPS_ZH = [
+  { key: "ai.chip.tasks",    text: "我的任务" },
+  { key: "ai.chip.today",    text: "今天的任务" },
   { key: "ai.chip.priority", text: "今日优先级" },
-  { key: "ai.chip.plan",     text: "帮我规划" },
-  { key: "ai.chip.procrastinate", text: "我在拖延" },
-  { key: "ai.chip.motivate", text: "给我打个气" },
+  { key: "ai.chip.stats",    text: "今日进度" },
 ];
 
 export function PetChat({ petPos }: Props) {

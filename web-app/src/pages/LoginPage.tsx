@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthShell } from "@/components/AuthShell";
 import { OAuthButton } from "@/components/OAuthButton";
-import { IconArrowRight } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -90,16 +89,6 @@ export function LoginPage() {
           </button>
         </div>
 
-        <div className="mt-[18px] pt-4 border-t border-border-faint text-center">
-          <button
-            type="button"
-            className="btn btn-ghost w-full justify-center"
-            onClick={() => navigate("/today")}
-          >
-            {t("auth.localonly")}
-            <IconArrowRight size={14} />
-          </button>
-        </div>
       </form>
     </AuthShell>
   );
