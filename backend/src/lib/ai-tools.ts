@@ -1,80 +1,189 @@
 import type { ToolDefinition, ToolCall } from "./ai-client.js";
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
+//
+// RULE: never expose auth, delete-account, or change-password operations.
+// All other app APIs are fair game so the pet can fully control the app.
 
 export const TASK_TOOLS: ToolDefinition[] = [
+  // ── Tasks ────────────────────────────────────────────────────────────────
+
   {
     name: "list_tasks",
-    description: "List the user's active tasks. Call this first before update/complete/delete to find the correct task ID.",
+    description: "List the user's active (incomplete) tasks. ALWAYS call this before update/complete/delete to get the correct task ID. Never guess an ID.",
     parameters: {
       type: "object",
       properties: {
         quadrant: {
           type: "string",
-          description: "Filter by quadrant",
+          description: "Filter by Eisenhower quadrant",
           enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"],
         },
         today_only: {
           type: "string",
-          description: "Pass 'true' to return only tasks in today's plan",
+          description: "'true' to return only tasks in today's plan",
           enum: ["true", "false"],
         },
       },
     },
   },
+
   {
     name: "create_task",
-    description: "Create a new task for the user. Infer the quadrant from context: Q1=urgent+important, Q2=not urgent+important, Q3=urgent+not important, Q4=not urgent+not important.",
+    description: "Create a new task. When the user asks to add/create/记录 a task, call this immediately. Infer quadrant: Q1=urgent+important, Q2=important not urgent, Q3=urgent not important, Q4=neither. Default to Q2 if unclear.",
     parameters: {
       type: "object",
       properties: {
-        title: { type: "string", description: "Task title (in the user's language)" },
-        quadrant: {
+        title:    { type: "string", description: "Task title in the user's language" },
+        quadrant: { type: "string", description: "Eisenhower quadrant", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
+        today:    { type: "string", description: "'true' to add to today's focus plan", enum: ["true", "false"] },
+        due:      { type: "string", description: "Due date YYYY-MM-DD (optional)" },
+        duration: { type: "string", description: "Estimated minutes as a number string (optional)" },
+        recurrence: {
           type: "string",
-          description: "Eisenhower quadrant",
-          enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"],
+          description: "Repeat schedule (optional)",
+          enum: ["none", "daily", "weekdays", "weekly", "monthly"],
         },
-        today: {
-          type: "string",
-          description: "Pass 'true' to add to today's plan",
-          enum: ["true", "false"],
-        },
-        due: { type: "string", description: "Due date in YYYY-MM-DD format (optional)" },
-        duration: { type: "string", description: "Estimated duration in minutes as a number string (optional)" },
       },
       required: ["title"],
     },
   },
+
   {
     name: "update_task",
-    description: "Update fields of an existing task. Use list_tasks first to find the task ID.",
+    description: "Update one or more fields of an existing task. Use list_tasks first to find the ID. Can change title, quadrant, today flag, due date, duration, or recurrence.",
     parameters: {
       type: "object",
       properties: {
-        id:       { type: "string", description: "Task ID (from list_tasks)" },
-        title:    { type: "string", description: "New title" },
-        quadrant: { type: "string", description: "New quadrant", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
-        today:    { type: "string", description: "'true' to add to today, 'false' to remove", enum: ["true", "false"] },
-        due:      { type: "string", description: "New due date YYYY-MM-DD, or empty to clear" },
-        duration: { type: "string", description: "New estimated duration in minutes as a number string" },
+        id:         { type: "string", description: "Task ID from list_tasks" },
+        title:      { type: "string", description: "New title" },
+        quadrant:   { type: "string", description: "New Eisenhower quadrant", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
+        today:      { type: "string", description: "'true' = add to today, 'false' = remove", enum: ["true", "false"] },
+        due:        { type: "string", description: "New due date YYYY-MM-DD, or empty string to clear" },
+        duration:   { type: "string", description: "New estimated minutes as a number string" },
+        recurrence: { type: "string", description: "Repeat schedule", enum: ["none", "daily", "weekdays", "weekly", "monthly"] },
       },
       required: ["id"],
     },
   },
+
   {
     name: "complete_task",
-    description: "Mark a task as completed and record it in the completion history.",
+    description: "Mark a task as done. Records it in the completion history and triggers recurrence spawn if set.",
     parameters: {
       type: "object",
       properties: {
-        id: { type: "string", description: "Task ID to complete (from list_tasks)" },
+        id: { type: "string", description: "Task ID from list_tasks" },
       },
       required: ["id"],
     },
   },
+
+  {
+    name: "delete_task",
+    description: "Permanently delete a task. Only call this when the user explicitly says to delete/remove/删除 a task — not just complete it.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Task ID from list_tasks" },
+      },
+      required: ["id"],
+    },
+  },
+
+  {
+    name: "list_completed",
+    description: "List recently completed tasks with timestamps. Use to review what the user has accomplished.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "string", description: "Max number of entries to return (default 10, max 50)" },
+      },
+    },
+  },
+
+  {
+    name: "uncomplete_task",
+    description: "Reopen a recently completed task (undo completion). Use list_completed first to get the log ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        log_id: { type: "string", description: "Completion log ID (from list_completed)" },
+      },
+      required: ["log_id"],
+    },
+  },
+
+  // ── People / Team ─────────────────────────────────────────────────────────
+
   {
     name: "list_people",
     description: "List team members who can be assigned to tasks.",
+    parameters: { type: "object", properties: {} },
+  },
+
+  {
+    name: "create_person",
+    description: "Add a new team member. Call when the user asks to add a colleague, teammate, or contact.",
+    parameters: {
+      type: "object",
+      properties: {
+        name:     { type: "string", description: "Full name" },
+        initials: { type: "string", description: "2-3 character initials (e.g. 'JD')" },
+        color:    { type: "string", description: "Hex color for avatar background (e.g. '#6366f1')" },
+        email:    { type: "string", description: "Email address (optional)" },
+      },
+      required: ["name", "initials"],
+    },
+  },
+
+  {
+    name: "update_person",
+    description: "Update a team member's details. Use list_people first to get the ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        id:       { type: "string", description: "Person ID from list_people" },
+        name:     { type: "string", description: "Full name" },
+        initials: { type: "string", description: "2-3 character initials" },
+        color:    { type: "string", description: "Hex color for avatar" },
+        email:    { type: "string", description: "Email address" },
+      },
+      required: ["id"],
+    },
+  },
+
+  {
+    name: "delete_person",
+    description: "Remove a team member. Only call when the user explicitly requests deletion.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Person ID from list_people" },
+      },
+      required: ["id"],
+    },
+  },
+
+  // ── Stats / Productivity ──────────────────────────────────────────────────
+
+  {
+    name: "get_focus_stats",
+    description: "Get the user's productivity statistics: tasks completed today, this week, focus minutes, and current streak.",
+    parameters: { type: "object", properties: {} },
+  },
+
+  // ── AI helpers ────────────────────────────────────────────────────────────
+
+  {
+    name: "classify_tasks",
+    description: "Auto-classify any unclassified tasks into Eisenhower quadrants using AI heuristics.",
+    parameters: { type: "object", properties: {} },
+  },
+
+  {
+    name: "get_recommended_task",
+    description: "Get the AI-recommended highest-priority Q1 task to work on right now.",
     parameters: { type: "object", properties: {} },
   },
 ];
@@ -100,55 +209,62 @@ export async function executeTool(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
+    if (res.status === 204) return null;
     let data: unknown;
     try { data = await res.json(); } catch { data = null; }
     if (!res.ok) throw new Error(`API ${method} ${path} → ${res.status}: ${JSON.stringify(data)}`);
     return data;
   }
 
+  function taskTitle(t: any): string {
+    return t.title?.[locale] ?? t.title?.en ?? (typeof t.title === "string" ? t.title : "?");
+  }
+
   const a = tool.args;
 
   switch (tool.name) {
+
+    // ── Tasks ──────────────────────────────────────────────────────────────
+
     case "list_tasks": {
       const tasks = await api("GET", "/tasks") as any[];
-      let filtered: any[] = tasks;
+      let filtered = tasks;
       if (a.quadrant) filtered = filtered.filter((t) => t.quadrant === a.quadrant);
       if (a.today_only === "true") filtered = filtered.filter((t) => t.today);
-      const summary = filtered.map((t) => ({
+      return JSON.stringify(filtered.map((t) => ({
         id: t.id,
-        title: t.title?.[locale] ?? t.title?.en ?? t.title,
+        title: taskTitle(t),
         quadrant: t.quadrant,
         today: t.today,
-        due: t.due,
-      }));
-      return JSON.stringify(summary);
+        due: t.due ?? null,
+        duration: t.duration ?? null,
+        recurrence: t.recurrence ?? "none",
+      })));
     }
 
     case "create_task": {
-      const body: any = {
+      const body: Record<string, unknown> = {
         title: { en: String(a.title), ...(locale === "zh" ? { zh: String(a.title) } : {}) },
-        quadrant: (a.quadrant as string) || "unclassified",
+        quadrant: (a.quadrant as string) || "Q2",
         today: a.today === "true",
-        ...(a.due ? { due: String(a.due) } : {}),
-        ...(a.duration ? { duration: parseInt(String(a.duration), 10) || 0 } : {}),
       };
+      if (a.due) body.due = String(a.due);
+      if (a.duration) body.duration = Math.max(0, parseInt(String(a.duration), 10) || 0);
+      if (a.recurrence) body.recurrence = a.recurrence;
       const result = await api("POST", "/tasks", body) as any;
-      return JSON.stringify({
-        created: true,
-        id: result.id,
-        title: result.title?.en ?? String(a.title),
-      });
+      return JSON.stringify({ created: true, id: result.id, title: taskTitle(result) });
     }
 
     case "update_task": {
-      const patch: any = {};
-      if (a.title)    patch.title = { en: String(a.title), ...(locale === "zh" ? { zh: String(a.title) } : {}) };
-      if (a.quadrant) patch.quadrant = a.quadrant;
-      if (a.today !== undefined) patch.today = a.today === "true";
-      if (a.due !== undefined)  patch.due = a.due || null;
-      if (a.duration) patch.duration = parseInt(String(a.duration), 10) || 0;
+      const patch: Record<string, unknown> = {};
+      if (a.title !== undefined)      patch.title    = { en: String(a.title), ...(locale === "zh" ? { zh: String(a.title) } : {}) };
+      if (a.quadrant !== undefined)   patch.quadrant = a.quadrant;
+      if (a.today !== undefined)      patch.today    = a.today === "true";
+      if (a.due !== undefined)        patch.due      = a.due || null;
+      if (a.duration !== undefined)   patch.duration = Math.max(0, parseInt(String(a.duration), 10) || 0);
+      if (a.recurrence !== undefined) patch.recurrence = a.recurrence;
       const result = await api("PATCH", `/tasks/${a.id}`, patch) as any;
-      return JSON.stringify({ updated: true, id: result.id });
+      return JSON.stringify({ updated: true, id: result.id, title: taskTitle(result) });
     }
 
     case "complete_task": {
@@ -156,9 +272,97 @@ export async function executeTool(
       return JSON.stringify({ completed: true, id: a.id });
     }
 
+    case "delete_task": {
+      await api("DELETE", `/tasks/${a.id}`);
+      return JSON.stringify({ deleted: true, id: a.id });
+    }
+
+    case "list_completed": {
+      const limit = Math.min(50, parseInt(String(a.limit ?? "10"), 10) || 10);
+      const entries = await api("GET", "/completed") as any[];
+      return JSON.stringify(
+        entries.slice(0, limit).map((e) => ({
+          log_id: e.id,
+          title: e.title?.[locale] ?? e.title?.en ?? e.title,
+          completed_at: e.completedAt,
+          duration: e.duration,
+          quadrant: e.quadrant,
+        }))
+      );
+    }
+
+    case "uncomplete_task": {
+      await api("POST", `/completed/${a.log_id}/reopen`);
+      return JSON.stringify({ reopened: true, log_id: a.log_id });
+    }
+
+    // ── People ─────────────────────────────────────────────────────────────
+
     case "list_people": {
       const people = await api("GET", "/people") as any[];
-      return JSON.stringify(people.map((p) => ({ id: p.id, name: p.name, initials: p.initials })));
+      return JSON.stringify(people.map((p) => ({
+        id: p.id, name: p.name, initials: p.initials, color: p.color, email: p.email,
+      })));
+    }
+
+    case "create_person": {
+      const body = {
+        name: String(a.name),
+        initials: String(a.initials).slice(0, 3).toUpperCase(),
+        color: a.color ?? "#6366f1",
+        email: a.email ?? null,
+      };
+      const result = await api("POST", "/people", body) as any;
+      return JSON.stringify({ created: true, id: result.id, name: result.name });
+    }
+
+    case "update_person": {
+      const patch: Record<string, unknown> = {};
+      if (a.name !== undefined)     patch.name     = a.name;
+      if (a.initials !== undefined) patch.initials = String(a.initials).slice(0, 3).toUpperCase();
+      if (a.color !== undefined)    patch.color    = a.color;
+      if (a.email !== undefined)    patch.email    = a.email;
+      const result = await api("PATCH", `/people/${a.id}`, patch) as any;
+      return JSON.stringify({ updated: true, id: result.id, name: result.name });
+    }
+
+    case "delete_person": {
+      await api("DELETE", `/people/${a.id}`);
+      return JSON.stringify({ deleted: true, id: a.id });
+    }
+
+    // ── Stats ──────────────────────────────────────────────────────────────
+
+    case "get_focus_stats": {
+      const today = new Date().toISOString().slice(0, 10);
+      const [allEntries, allTasks] = await Promise.all([
+        api("GET", "/completed") as Promise<any[]>,
+        api("GET", "/tasks") as Promise<any[]>,
+      ]);
+      const todayEntries = (allEntries as any[]).filter((e) => (e.completedAt ?? "").startsWith(today));
+      const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekEntries = (allEntries as any[]).filter((e) => new Date(e.completedAt) >= weekStart);
+      const focusMinWeek = weekEntries.reduce((s: number, e: any) => s + (e.duration ?? 0), 0);
+      return JSON.stringify({
+        today_completed: todayEntries.length,
+        week_completed: weekEntries.length,
+        week_focus_minutes: focusMinWeek,
+        active_tasks: (allTasks as any[]).length,
+        q1_active: (allTasks as any[]).filter((t: any) => t.quadrant === "Q1").length,
+      });
+    }
+
+    // ── AI helpers ─────────────────────────────────────────────────────────
+
+    case "classify_tasks": {
+      const result = await api("POST", "/ai/classify") as any;
+      return JSON.stringify({ classified: (result?.suggestions ?? []).length, suggestions: result?.suggestions ?? [] });
+    }
+
+    case "get_recommended_task": {
+      const result = await api("POST", "/ai/recommend") as any;
+      if (!result?.task) return JSON.stringify({ task: null, message: "No Q1 tasks in today's plan" });
+      return JSON.stringify({ task: { id: result.task.id, title: taskTitle(result.task), conviction: result.task.conviction } });
     }
 
     default:
