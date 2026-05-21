@@ -61,7 +61,12 @@ async function req<T>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as any).error ?? `HTTP ${res.status}`);
+    const errBody = (err as any).error;
+    const errMsg =
+      typeof errBody === "string"
+        ? errBody
+        : errBody?.message ?? `HTTP ${res.status}`;
+    throw new Error(errMsg);
   }
 
   if (res.status === 204) return undefined as T;
