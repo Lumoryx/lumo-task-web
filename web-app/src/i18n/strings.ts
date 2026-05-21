@@ -271,6 +271,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "ai.chip.procrastinate": "I'm procrastinating",
     "ai.chip.motivate": "Motivate me",
     "ai.setup.banner": "⚙ Configure AI to unlock full chat →",
+    "ai.chat.basicMode": "Basic mode",
+    "pet.chat.empty": "Click a chip above or type a message to start.",
   },
   zh: {
     "brand.name": "Lumo",
@@ -533,5 +535,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "ai.chip.procrastinate": "我在拖延",
     "ai.chip.motivate": "给我打个气",
     "ai.setup.banner": "⚙ 配置 AI 解锁完整对话 →",
+    "ai.chat.basicMode": "基础模式",
+    "pet.chat.empty": "点击上方按钮或直接输入消息开始对话",
   },
 };

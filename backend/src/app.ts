@@ -51,3 +51,8 @@ app.route("/v1", v1);
 app.route("/docs", docsRoutes);
 
 app.get("/health", (c) => c.json({ ok: true }));
+
+app.onError((err, c) => {
+  console.error("[unhandled]", err?.message ?? err);
+  return c.json({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } }, 500);
+});

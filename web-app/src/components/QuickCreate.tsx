@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconClose } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
@@ -45,15 +45,21 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
     setAssigneeIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
+  // Keep refs to the latest callbacks so the keydown listener is registered
+  // only once but always calls the current version (avoids stale closures).
+  const onCloseRef = useRef(onClose);
+  const submitRef = useRef(submit);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => { submitRef.current = submit; });
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
+      if (e.key === "Escape") onCloseRef.current();
+      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, quadrant, duration, dueDate]);
+  }, []);
 
   async function submit() {
     if (!title.trim()) return;

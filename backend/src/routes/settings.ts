@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
 
 const app = new Hono<{ Variables: Variables }>();
@@ -84,7 +85,7 @@ function rowToSettings(row: any) {
 app.get("/", (c) => {
   const userId = c.get("userId") as string;
   const row = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId });
-  if (!row) return c.json({ error: "Not found" }, 404);
+  if (!row) return httpError(c, 404, "NOT_FOUND", "Not found");
   return c.json(rowToSettings(row as any));
 });
 
@@ -94,7 +95,7 @@ app.patch("/", zValidator("json", SettingsPatch), (c) => {
   const body = c.req.valid("json");
 
   const existing = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId }) as any;
-  if (!existing) return c.json({ error: "Not found" }, 404);
+  if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const { ai_configs_update, ...rest } = body;
 

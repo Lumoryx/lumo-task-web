@@ -15,6 +15,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { ToastStack } from "@/components/ToastStack";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /**
  * App root.
@@ -53,7 +54,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
     <ToastStack />
     <Routes>
       {/* Stand-alone full-screen pages (own layout, no Shell) */}
@@ -73,6 +74,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/today" replace />} />
       </Route>
     </Routes>
-    </>
+    </ErrorBoundary>
   );
 }

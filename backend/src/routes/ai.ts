@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { httpError } from "../lib/errors.js";
 import { callLLMWithTools, appendToolResults, type ChatMessage, type LLMConfig } from "../lib/ai-client.js";
 import { TASK_TOOLS, executeTool } from "../lib/ai-tools.js";
 import type { Variables } from "../env.js";
@@ -271,7 +272,7 @@ app.post("/chat", zValidator("json", ChatBody), async (c) => {
     });
   } catch (err: any) {
     console.error("[ai/chat] LLM error:", err?.message ?? err);
-    return c.json({ error: "AI service unavailable. Please try again." }, 502);
+    return httpError(c, 502, "AI_UNAVAILABLE", "AI service unavailable. Please try again.");
   }
 });
 

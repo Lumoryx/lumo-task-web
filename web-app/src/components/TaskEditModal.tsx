@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconClose } from "@/components/icons";
 import { useT } from "@/i18n/useT";
@@ -49,15 +49,19 @@ export function TaskEditModal({ task, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const onCloseRef = useRef(onClose);
+  const handleSaveRef = useRef(handleSave);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => { handleSaveRef.current = handleSave; });
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSave();
+      if (e.key === "Escape") onCloseRef.current();
+      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSaveRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, quadrant, duration, dueDate, assigneeIds]);
+  }, []);
 
   async function handleSave() {
     if (!title.trim() || busy) return;
