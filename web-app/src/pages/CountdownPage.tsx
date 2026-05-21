@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CountdownCard } from "@/components/CountdownCard";
 import { CountdownFormModal } from "@/components/CountdownFormModal";
@@ -8,23 +8,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { useCountdownStore } from "@/store/useCountdownStore";
 import type { CountdownEvent } from "@/types/task";
-
-function daysUntilRaw(dateStr: string, repeat: CountdownEvent["repeat"]): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr + "T00:00:00");
-  if (repeat === "yearly") {
-    const thisYear = new Date(today.getFullYear(), target.getMonth(), target.getDate());
-    if (thisYear < today) {
-      return Math.round(
-        (new Date(today.getFullYear() + 1, target.getMonth(), target.getDate()).getTime() - today.getTime())
-        / 86_400_000
-      );
-    }
-    return Math.round((thisYear.getTime() - today.getTime()) / 86_400_000);
-  }
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
-}
+import { daysUntil } from "@/utils/countdown";
 
 export function CountdownPage() {
   const t = useT();
@@ -80,16 +64,19 @@ export function CountdownPage() {
   }
 
   // Sort: today → upcoming by days asc → past by days desc
-  const sorted = [...events].sort((a, b) => {
-    const da = daysUntilRaw(a.date, a.repeat);
-    const db = daysUntilRaw(b.date, b.repeat);
-    if (da >= 0 && db >= 0) return da - db;
-    if (da < 0  && db < 0)  return db - da;
-    return da >= 0 ? -1 : 1;
-  });
-
-  const upcoming = sorted.filter((e) => daysUntilRaw(e.date, e.repeat) >= 0);
-  const past     = sorted.filter((e) => daysUntilRaw(e.date, e.repeat) <  0);
+  const [upcoming, past] = useMemo(() => {
+    const sorted = [...events].sort((a, b) => {
+      const da = daysUntil(a.date, a.repeat);
+      const db = daysUntil(b.date, b.repeat);
+      if (da >= 0 && db >= 0) return da - db;
+      if (da < 0  && db < 0)  return db - da;
+      return da >= 0 ? -1 : 1;
+    });
+    return [
+      sorted.filter((e) => daysUntil(e.date, e.repeat) >= 0),
+      sorted.filter((e) => daysUntil(e.date, e.repeat) <  0),
+    ];
+  }, [events]);
 
   function openCreate() {
     setEditTarget(null);
@@ -286,7 +273,7 @@ export function CountdownPage() {
                   fontSize: 13, cursor: "pointer",
                 }}
               >
-                取消
+                {t("countdown.btn.cancel")}
               </button>
               <button
                 onClick={confirmDelete}
@@ -299,7 +286,7 @@ export function CountdownPage() {
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
                 }}
               >
-                删除
+                {t("countdown.menu.delete")}
               </button>
             </div>
           </div>

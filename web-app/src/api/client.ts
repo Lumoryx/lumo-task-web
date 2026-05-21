@@ -9,7 +9,6 @@
  */
 
 import type { AppSettings, CompletedEntry, CountdownEvent, Person, PetChatMessage, Task, User } from "@/types/task";
-import { SEED_COUNTDOWNS } from "@/mocks/countdowns";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -304,13 +303,14 @@ function cdKey(userId: string) {
 }
 
 function cdLoad(userId: string): CountdownEvent[] {
-  const key = cdKey(userId);
+  if (userId === "local") return [];
+  const raw = localStorage.getItem(cdKey(userId));
+  if (!raw) return [];
   try {
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw) as CountdownEvent[];
-  } catch { /* ignore */ }
-  localStorage.setItem(key, JSON.stringify(SEED_COUNTDOWNS));
-  return SEED_COUNTDOWNS;
+    return JSON.parse(raw) as CountdownEvent[];
+  } catch {
+    return [];
+  }
 }
 
 function cdSave(userId: string, items: CountdownEvent[]) {

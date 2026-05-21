@@ -24,6 +24,7 @@ export const useCountdownStore = create<CountdownState>((set) => ({
   events: [],
 
   load(userId) {
+    if (userId === "local") { set({ events: [] }); return; }
     try {
       set({ events: countdownApi.list(userId) });
     } catch (e) {

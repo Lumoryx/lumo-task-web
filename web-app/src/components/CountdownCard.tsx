@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconEdit, IconRepeat, IconTrash } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import type { CountdownColor, CountdownEvent } from "@/types/task";
+import { daysUntil, fmtDate } from "@/utils/countdown";
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
 
@@ -44,34 +45,6 @@ const COLOR_MAP: Record<CountdownColor, ColorConfig> = {
   },
 };
 
-// ── Day math ──────────────────────────────────────────────────────────────────
-
-function daysUntil(dateStr: string, repeat: CountdownEvent["repeat"]): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr + "T00:00:00");
-
-  if (repeat === "yearly") {
-    const thisYear = new Date(today.getFullYear(), target.getMonth(), target.getDate());
-    if (thisYear < today) {
-      return Math.round(
-        (new Date(today.getFullYear() + 1, target.getMonth(), target.getDate()).getTime() - today.getTime())
-        / 86_400_000
-      );
-    }
-    return Math.round((thisYear.getTime() - today.getTime()) / 86_400_000);
-  }
-
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
-}
-
-function fmtDate(dateStr: string, repeat: CountdownEvent["repeat"], locale: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  if (repeat === "none") opts.year = "numeric";
-  return d.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", opts);
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface CountdownCardProps {
@@ -89,17 +62,21 @@ export function CountdownCard({ event, locale, onEdit, onDelete }: CountdownCard
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const isToday   = days === 0;
+  const isToday    = days === 0;
   const isTomorrow = days === 1;
-  const isNear    = days > 0 && days <= 7;
-  const isPast    = days < 0;
+  const isNear     = days > 0 && days <= 7;
+  const isPast     = days < 0;
 
-  // Label
-  let dayLabel: string;
-  if (isToday)     dayLabel = t("countdown.today");
-  else if (isTomorrow) dayLabel = t("countdown.tomorrow");
-  else if (isPast) dayLabel = `${Math.abs(days)} ${t("countdown.days.ago")}`;
-  else             dayLabel = `${days} ${t("countdown.days.left")}`;
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [menuOpen]);
 
   // Animation class selection
   const pulseStyle = isToday
@@ -127,7 +104,7 @@ export function CountdownCard({ event, locale, onEdit, onDelete }: CountdownCard
         ...pulseStyle,
       }}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setMenuOpen(false); }}
+      onMouseLeave={() => setHovered(false)}
     >
       {/* Tinted background gradient */}
       <div style={{
@@ -252,7 +229,7 @@ export function CountdownCard({ event, locale, onEdit, onDelete }: CountdownCard
                   onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                 >
                   <IconEdit size={13} />
-                  <span>编辑</span>
+                  <span>{t("countdown.menu.edit")}</span>
                 </button>
                 <button
                   onClick={() => { setMenuOpen(false); onDelete(event.id); }}
@@ -266,7 +243,7 @@ export function CountdownCard({ event, locale, onEdit, onDelete }: CountdownCard
                   onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                 >
                   <IconTrash size={13} />
-                  <span>删除</span>
+                  <span>{t("countdown.menu.delete")}</span>
                 </button>
               </div>
             )}
@@ -347,3 +324,4 @@ export function CountdownCard({ event, locale, onEdit, onDelete }: CountdownCard
     </div>
   );
 }
+

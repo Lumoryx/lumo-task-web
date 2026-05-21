@@ -43,6 +43,18 @@ export function CountdownFormModal({ event, onSave, onClose }: CountdownFormModa
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
 
   useEffect(() => {
+    setForm({
+      title:  event?.title  ?? "",
+      date:   event?.date   ?? today,
+      emoji:  event?.emoji  ?? "",
+      color:  event?.color  ?? "green",
+      repeat: event?.repeat ?? "none",
+      note:   event?.note   ?? "",
+    });
+    setErrors({});
+  }, [event]); // eslint-disable-line react-hooks/exhaustive-deps -- today is stable
+
+  useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 60);
   }, []);
 
@@ -53,8 +65,10 @@ export function CountdownFormModal({ event, onSave, onClose }: CountdownFormModa
 
   function validate(): boolean {
     const errs: typeof errors = {};
-    if (!form.title.trim()) errs.title = "请填写名称";
-    if (!form.date)         errs.date  = "请选择日期";
+    if (!form.title.trim())         errs.title = t("countdown.form.error.title");
+    else if (form.title.trim().length > 100) errs.title = t("countdown.form.error.title.maxlen");
+    if (!form.date)                 errs.date  = t("countdown.form.error.date");
+    if (form.note.length > 500)     errs.note  = t("countdown.form.error.note.maxlen");
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -284,7 +298,7 @@ export function CountdownFormModal({ event, onSave, onClose }: CountdownFormModa
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              取消
+              {t("countdown.btn.cancel")}
             </button>
             <button
               type="submit"
