@@ -11,10 +11,12 @@ import { RegisterPage } from "@/pages/RegisterPage";
 import { AccountPage } from "@/pages/AccountPage";
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { CountdownPage } from "@/pages/CountdownPage";
+import { HabitsPage } from "@/pages/HabitsPage";
 import { applyAccentTheme, useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { useCountdownStore } from "@/store/useCountdownStore";
+import { useHabitsStore } from "@/store/useHabitsStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { ToastStack } from "@/components/ToastStack";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -35,6 +37,8 @@ export default function App() {
   const clearPeople = usePeopleStore((s) => s.clear);
   const loadCountdowns = useCountdownStore((s) => s.load);
   const clearCountdowns = useCountdownStore((s) => s.clear);
+  const loadHabits = useHabitsStore((s) => s.load);
+  const clearHabits = useHabitsStore((s) => s.clear);
   const isSignedIn = useAuthStore(selectIsSignedIn);
   const userId = useAuthStore((s) => s.user.id);
   const location = useLocation();
@@ -48,12 +52,14 @@ export default function App() {
       loadTasks();
       loadPeople();
       loadCountdowns(userId);
+      loadHabits(userId);
     } else {
       clearTasks();
       clearPeople();
       clearCountdowns();
+      clearHabits();
     }
-  }, [isSignedIn, userId, loadTasks, loadPeople, loadCountdowns, clearTasks, clearPeople, clearCountdowns]);
+  }, [isSignedIn, userId, loadTasks, loadPeople, loadCountdowns, loadHabits, clearTasks, clearPeople, clearCountdowns, clearHabits]);
 
   // First-run gate — redirect to onboarding unless already there.
   if (!onboarded && location.pathname !== "/onboarding") {
@@ -75,6 +81,7 @@ export default function App() {
         <Route path="/today" element={<TodayPage />} />
         <Route path="/matrix" element={<MatrixPage />} />
         <Route path="/focus" element={<FocusPage />} />
+        <Route path="/habits" element={<HabitsPage />} />
         <Route path="/countdown" element={<CountdownPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/account" element={<AccountPage />} />

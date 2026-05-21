@@ -139,3 +139,22 @@ export interface CountdownEvent {
   note?: string;
   createdAt: string;
 }
+
+export type HabitFrequency = "daily" | "weekdays" | "weekly";
+export type HabitColor = "green" | "cyan" | "amber" | "red" | "purple";
+
+export interface Habit {
+  id: string;
+  title: string;
+  emoji?: string;
+  color: HabitColor;
+  frequency: HabitFrequency;
+  note?: string;
+  createdAt: string;
+}
+
+export interface HabitLog {
+  habitId: string;
+  date: string; // YYYY-MM-DD
+  completedAt: string;
+}

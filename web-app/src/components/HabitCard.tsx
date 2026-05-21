@@ -1,0 +1,144 @@
+import { useEffect, useRef, useState } from "react";
+import { IconCheck, IconMore } from "@/components/icons";
+import { useT } from "@/i18n/useT";
+import type { Habit, HabitLog } from "@/types/task";
+import { currentStreak, isCompletedToday, longestStreak, toDateStr } from "@/utils/habits";
+
+const COLOR_MAP: Record<string, string> = {
+  green:  "var(--status-success)",
+  cyan:   "var(--accent-primary)",
+  amber:  "var(--status-warning)",
+  red:    "var(--status-danger)",
+  purple: "#a78bfa",
+};
+
+interface Props {
+  habit: Habit;
+  logs: HabitLog[];
+  onComplete: () => void;
+  onUndo: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete }: Props) {
+  const t = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const today = toDateStr(new Date());
+  const done = isCompletedToday(habit, logs);
+  const streak = currentStreak(habit, logs);
+  const best = longestStreak(habit, logs);
+  const color = COLOR_MAP[habit.color] ?? COLOR_MAP.green;
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [menuOpen]);
+
+  function handleCheckClick() {
+    if (done) {
+      onUndo();
+    } else {
+      onComplete();
+    }
+  }
+
+  return (
+    <div
+      className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-border-faint transition-all"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      {/* Check button */}
+      <button
+        onClick={handleCheckClick}
+        aria-label={done ? t("habit.undo") : t("habit.done")}
+        className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors"
+        style={{
+          borderColor: done ? color : "var(--border-faint)",
+          background: done ? color : "transparent",
+          color: done ? "var(--text-inverse)" : "var(--text-muted)",
+        }}
+      >
+        {done && <IconCheck size={14} />}
+      </button>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          {habit.emoji && (
+            <span className="text-base leading-none">{habit.emoji}</span>
+          )}
+          <span className="font-medium text-text-primary truncate">{habit.title}</span>
+        </div>
+        <div className="flex items-center gap-3 mt-0.5">
+          <span className="text-[11px] text-text-muted">
+            {t(`habit.freq.${habit.frequency}`)}
+          </span>
+          {best > 0 && (
+            <span className="text-[11px] text-text-faint">
+              {t("habit.best")}: {best}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Streak badge */}
+      <div className="flex flex-col items-center flex-shrink-0 min-w-[48px]">
+        {streak > 0 ? (
+          <>
+            <span className="text-[18px] font-bold leading-none" style={{ color }}>
+              {streak}
+            </span>
+            <span className="text-[9px] text-text-muted mt-0.5">{t("habit.streak")}</span>
+          </>
+        ) : (
+          <span className="text-[11px] text-text-faint">{t("habit.streak.0")}</span>
+        )}
+      </div>
+
+      {/* Menu */}
+      <div className="relative flex-shrink-0" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="open menu"
+          className="p-1.5 rounded-md text-text-faint hover:text-text-secondary hover:bg-elevated transition-colors"
+        >
+          <IconMore size={14} />
+        </button>
+
+        {menuOpen && (
+          <div className="absolute right-0 top-full mt-1 z-20 min-w-[120px] rounded-lg border border-border-faint bg-surface shadow-lg py-1">
+            <button
+              onClick={() => { setMenuOpen(false); onEdit(); }}
+              className="w-full px-3 py-1.5 text-left text-[13px] text-text-secondary hover:bg-elevated hover:text-text-primary transition-colors"
+            >
+              {t("habit.menu.edit")}
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); onDelete(); }}
+              className="w-full px-3 py-1.5 text-left text-[13px] hover:bg-elevated transition-colors"
+              style={{ color: "var(--status-danger)" }}
+            >
+              {t("habit.menu.delete")}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Done overlay glow */}
+      {done && (
+        <div
+          className="absolute inset-0 rounded-xl pointer-events-none"
+          style={{ background: `${color}08` }}
+        />
+      )}
+    </div>
+  );
+}
