@@ -5,7 +5,6 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { useAIStore } from "@/store/useAIStore";
 import { useCalendarStore } from "@/store/useCalendarStore";
-import { api } from "@/api/client";
 import { useT } from "@/i18n/useT";
 import { toast } from "@/store/useToastStore";
 import type { Locale, Person } from "@/types/task";
@@ -335,25 +334,20 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   async function handleTest() {
     setTestStatus("loading");
     try {
-      // First save the current form values so the backend uses them
-      await api.patchSettings({
-        ai_provider: viewProvider,
-        ai_configs_update: {
-          provider: viewProvider,
-          ...(apiKey.trim() ? { key: apiKey.trim() } : {}),
-          model: model.trim() || null,
-          baseUrl: baseUrl.trim() || null,
-        },
+      const { testConnection } = useAIStore.getState();
+      const ok = await testConnection({
+        provider: viewProvider,
+        key: apiKey.trim() || undefined,
+        model: model.trim() || null,
+        baseUrl: baseUrl.trim() || null,
+        locale,
+        userName: "Test",
       });
-      const res = await api.petChat({
-        messages: [{ role: "user", content: "ping" }],
-        context: { locale, userName: "Test" },
-      });
-      if (res.fallback) {
+      if (ok) {
+        setTestStatus("ok");
+      } else {
         setTestStatus("fail");
         toast.error(t("error.ai.test"), t("ai.config.test.fail"));
-      } else {
-        setTestStatus("ok");
       }
     } catch (e) {
       setTestStatus("fail");
@@ -536,7 +530,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
 const MS_CLIENT_ID = (import.meta as any).env?.VITE_MS_CLIENT_ID as string | undefined;
 
 function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
-  const { connected, userEmail, loading, connect, disconnect } = useCalendarStore();
+  const { connected, userEmail, serverMode, serverEmail, loading, connect, disconnect } = useCalendarStore();
   const [busy, setBusy] = useState(false);
 
   async function handleConnect() {
@@ -571,11 +565,13 @@ function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: st
               <span className="text-[13px] font-medium text-text-primary">Microsoft Outlook</span>
               {connected && (
                 <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-fog)", color: "var(--accent-primary)" }}>
-                  ✓ {t("outlook.connected")}
+                  {serverMode ? t("outlook.serverMode") : `✓ ${t("outlook.connected")}`}
                 </span>
               )}
             </div>
-            {connected && userEmail ? (
+            {serverMode ? (
+              <div className="mt-0.5 text-[11px] text-text-muted">{serverEmail ?? t("outlook.serverConfigured")}</div>
+            ) : connected && userEmail ? (
               <div className="mt-0.5 text-[11px] text-text-muted">{userEmail}</div>
             ) : (
               <div className="mt-0.5 text-[11px] text-text-muted">
@@ -592,7 +588,7 @@ function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: st
             >
               {t("outlook.disconnect")}
             </button>
-          ) : (
+          ) : serverMode ? null : (
             <button
               onClick={handleConnect}
               disabled={!MS_CLIENT_ID || busy || loading}

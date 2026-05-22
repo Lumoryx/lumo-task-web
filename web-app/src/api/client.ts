@@ -324,6 +324,14 @@ export const api = {
   }): Promise<{ reply: string; mood: "idle" | "happy" | "excited"; fallback: boolean; toolsUsed?: string[] }> {
     return req("POST", "/ai/chat", body);
   },
+
+  async outlookStatus(): Promise<{ configured: boolean; userEmail: string | null }> {
+    return req("GET", "/outlook/status");
+  },
+
+  async outlookCalendar(start: string, end: string): Promise<{ events: unknown[] }> {
+    return req("GET", `/outlook/calendar?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+  },
 };
 
 // ── Countdown localStorage API ────────────────────────────────────────────────

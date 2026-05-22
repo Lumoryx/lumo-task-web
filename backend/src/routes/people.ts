@@ -12,10 +12,10 @@ const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
 
 const PersonBody = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(100),
   initials: z.string().min(1).max(2),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  email: z.string().email().nullable().optional(),
+  email: z.string().email().max(255).nullable().optional(),
 });
 
 function rowToPerson(row: PersonRow) {

@@ -39,6 +39,7 @@ interface AIStore {
     setActive?: boolean;
   }) => Promise<void>;
   sendMessage: (text: string, ctx: ActivityContext) => Promise<void>;
+  testConnection: (opts: { provider: AIProvider; key?: string; model?: string | null; baseUrl?: string | null; locale: string; userName: string }) => Promise<boolean>;
   clearHistory: () => void;
   openChat: () => void;
   closeChat: () => void;
@@ -151,6 +152,15 @@ export const useAIStore = create<AIStore>()(
           }));
           toast.error(t("error.ai.chat"), detail);
         }
+      },
+
+      async testConnection({ provider, key, model, baseUrl, locale, userName }) {
+        await get().saveConfig({ provider, newKey: key ?? null, model: model ?? null, baseUrl: baseUrl ?? null, setActive: true });
+        const res = await api.petChat({
+          messages: [{ role: "user", content: "ping" }],
+          context: { locale, userName },
+        });
+        return !res.fallback;
       },
 
       clearHistory: () => set({ messages: [] }),

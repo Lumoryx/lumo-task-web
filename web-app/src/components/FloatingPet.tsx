@@ -113,6 +113,10 @@ export function FloatingPet() {
   const { chatOpen, toggleChat, loadConfig, configLoaded } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
   const locale = useAppStore((s) => s.locale);
+  const tasksRef = useRef(tasks);
+  const localeRef = useRef(locale);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+  useEffect(() => { localeRef.current = locale; }, [locale]);
   const isSignedIn = useAuthStore(selectIsSignedIn);
   const userId = useAuthStore((s) => s.user.id);
 
@@ -124,26 +128,28 @@ export function FloatingPet() {
     if (!configLoaded) loadConfig();
   }, [configLoaded, loadConfig]);
 
-  // Morning brief — show once per day on first load when user has tasks
+  // Morning brief — show once per day on first load when user has tasks.
+  // Uses refs for tasks/locale so changing them doesn't re-trigger the one-shot logic.
   useEffect(() => {
     if (!isSignedIn || !visible) return;
     const key = getMorningBriefKey(userId);
     if (localStorage.getItem(key)) return;
     const h = new Date().getHours();
     if (h < 5 || h >= 12) return; // Only in morning
-    const q1Count = tasks.filter((tk) => tk.quadrant === "Q1" && !tk.completed).length;
-    const todayCount = tasks.filter((tk) => tk.today && !tk.completed).length;
+    const currentTasks = tasksRef.current;
+    const currentLocale = localeRef.current;
+    const q1Count = currentTasks.filter((tk) => tk.quadrant === "Q1" && !tk.completed).length;
+    const todayCount = currentTasks.filter((tk) => tk.today && !tk.completed).length;
     if (todayCount === 0) return;
     localStorage.setItem(key, "1");
-    const msg = locale === "zh"
+    const msg = currentLocale === "zh"
       ? `早上好！今天有 ${todayCount} 个任务${q1Count > 0 ? `，其中 ${q1Count} 个 Q1 紧急` : ""}。加油！🌱`
       : `Good morning! You have ${todayCount} task${todayCount !== 1 ? "s" : ""} today${q1Count > 0 ? `, ${q1Count} urgent Q1` : ""}. Let's go! 🌱`;
     setTimeout(() => {
       setMsg(msg as string);
       setMood("happy");
     }, 2000);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn, userId, visible]);
+  }, [isSignedIn, userId, visible, setMsg, setMood]);
   const dragOffset = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number>(0);
   const pendingPos = useRef(pos);

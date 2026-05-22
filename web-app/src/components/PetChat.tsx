@@ -109,6 +109,9 @@ export function PetChat({ petPos }: Props) {
 
   return createPortal(
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="AI Pet Chat"
       className="fade-in"
       style={{
         position: "fixed",

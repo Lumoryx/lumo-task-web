@@ -71,6 +71,8 @@ export function TaskDetailModal({ task, onClose }: Props) {
       style={{ background: "rgba(8,11,10,0.6)", backdropFilter: "blur(6px)", padding: "0 32px" }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         className="w-full overflow-hidden rounded-[16px] border"
         style={{
