@@ -7,6 +7,9 @@ import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { useT } from "@/i18n/useT";
 import { PetChat } from "@/components/PetChat";
 import { DogSvg } from "@/components/DogSvg";
+import { DogLevelUpModal } from "@/components/DogLevelUpModal";
+import { useDogStore } from "@/store/useDogStore";
+import { computeAllTimeStats } from "@/utils/stats";
 
 // ── Message pool ──────────────────────────────────────────────────────────────
 
@@ -112,6 +115,7 @@ export function FloatingPet() {
   const { pos, visible, activeMsg, mood, setPos, setMsg, setMood } = usePetStore();
   const { chatOpen, toggleChat, loadConfig, configLoaded } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
+  const completed = useTasksStore((s) => s.completed);
   const locale = useAppStore((s) => s.locale);
   const tasksRef = useRef(tasks);
   const localeRef = useRef(locale);
@@ -119,6 +123,8 @@ export function FloatingPet() {
   useEffect(() => { localeRef.current = locale; }, [locale]);
   const isSignedIn = useAuthStore(selectIsSignedIn);
   const userId = useAuthStore((s) => s.user.id);
+  const dogLevel = useDogStore((s) => s.level);
+  const initDog = useDogStore((s) => s.initFromStats);
 
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -127,6 +133,13 @@ export function FloatingPet() {
   useEffect(() => {
     if (!configLoaded) loadConfig();
   }, [configLoaded, loadConfig]);
+
+  // One-time dog XP init from historical stats (runs once completed entries are loaded)
+  useEffect(() => {
+    if (completed.length === 0) return;
+    const allTime = computeAllTimeStats(completed);
+    initDog(allTime.tasksCompleted, allTime.focusMinutes);
+  }, [completed, initDog]);
 
   // Morning brief — show once per day on first load when user has tasks.
   // Uses refs for tasks/locale so changing them doesn't re-trigger the one-shot logic.
@@ -265,7 +278,7 @@ export function FloatingPet() {
         onMouseLeave={onMouseLeave}
       >
         {!chatOpen && displayMsg && <SpeechBubble text={displayMsg} />}
-        <DogSvg mood={mood} />
+        <DogSvg mood={mood} level={dogLevel} />
         {/* Chat open indicator dot */}
         {chatOpen && (
           <div
@@ -283,6 +296,7 @@ export function FloatingPet() {
         )}
       </div>
       <PetChat petPos={pos} />
+      <DogLevelUpModal />
     </>
   );
 }

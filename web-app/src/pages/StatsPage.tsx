@@ -8,8 +8,10 @@ import { useTasksStore } from "@/store/useTasksStore";
 import type { CompletedEntry } from "@/types/task";
 import { computeWeekStats, computeAllTimeStats, fmtHour } from "@/utils/stats";
 import { currentStreak as habitStreak } from "@/utils/habits";
+import { shouldShowWrapped, markWrappedShown, computePrevWeekStats } from "@/utils/wrapped";
 import { useNavigate } from "react-router-dom";
 import { ShareCard } from "@/components/ShareCard";
+import { WrappedCard } from "@/components/WrappedCard";
 
 const DAY_KEYS = ["stats.day.sun","stats.day.mon","stats.day.tue","stats.day.wed","stats.day.thu","stats.day.fri","stats.day.sat"];
 
@@ -30,18 +32,24 @@ export function StatsPage() {
   const navigate = useNavigate();
   const locale = useAppStore((s) => s.locale);
   const isSignedIn = useAuthStore(selectIsSignedIn);
+  const userId = useAuthStore((s) => s.user.id);
   const userName = useAuthStore((s) => s.user.name);
   const { habits, logs: habitLogs } = useHabitsStore();
   const [entries, setEntries] = useState<CompletedEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showWrapped, setShowWrapped] = useState(false);
 
   useEffect(() => {
     if (!isSignedIn) return;
     useTasksStore.getState().fetchAllCompleted().then((data) => {
       setEntries(data);
       setLoading(false);
+      if (shouldShowWrapped(userId)) {
+        setShowWrapped(true);
+        markWrappedShown(userId);
+      }
     }).catch(() => setLoading(false));
-  }, [isSignedIn]);
+  }, [isSignedIn, userId]);
 
   if (!isSignedIn) {
     return (
@@ -66,8 +74,8 @@ export function StatsPage() {
 
   const week = computeWeekStats(entries);
   const allTime = computeAllTimeStats(entries);
+  const prevWeekStats = computePrevWeekStats(entries);
 
-  // Best habit streak across all habits
   const bestHabitStreak = habits.length > 0
     ? Math.max(...habits.map((h) => habitStreak(h, habitLogs)))
     : 0;
@@ -75,7 +83,6 @@ export function StatsPage() {
   const focusHours = (week.focusMinutes / 60).toFixed(1);
   const allFocusHours = (allTime.focusMinutes / 60).toFixed(0);
 
-  // Week range label
   const weekLabel = `${week.weekStart.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric" })} – ${week.weekEnd.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric" })}`;
 
   const maxDay = Math.max(...week.byDay, 1);
@@ -97,6 +104,19 @@ export function StatsPage() {
           <div className="text-center py-16 text-text-muted text-[13px]">{t("stats.empty")}</div>
         ) : (
           <>
+            {/* Weekly Wrapped — shown once on Monday */}
+            {showWrapped && prevWeekStats.tasksCompleted > 0 && (
+              <section>
+                <h2 className="text-[13px] font-semibold text-text-secondary mb-3">{t("wrapped.section.title")}</h2>
+                <WrappedCard
+                  stats={prevWeekStats}
+                  currentStreak={allTime.currentStreak}
+                  userName={userName}
+                  onDismiss={() => setShowWrapped(false)}
+                />
+              </section>
+            )}
+
             {/* Week stats */}
             <section>
               <div className="flex items-center justify-between mb-3">

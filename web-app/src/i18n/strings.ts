@@ -233,6 +233,21 @@ export const STRINGS: Record<Locale, Dict> = {
     "pet.streak.14": "14 days straight! Incredible focus! 🔥🔥",
     "pet.streak.30": "30-day streak! You're unstoppable! 🔥🔥🔥",
 
+    "dog.levelup.label": "Level Up!",
+    "dog.levelup.hint": "Keep completing tasks to grow your dog.",
+    "dog.levelup.share": "Share",
+    "dog.levelup.dismiss": "Awesome!",
+    "dog.tier.unlocked.adult": "✨ Adult unlocked — scarf equipped!",
+    "dog.tier.unlocked.wise": "🔭 Wise unlocked — glasses equipped!",
+    "dog.tier.unlocked.legendary": "👑 Legendary unlocked — crown equipped!",
+    "dog.badge.level": "Lv.",
+
+    "wrapped.title": "Weekly Wrapped",
+    "wrapped.share.title": "My Lumo Week",
+    "wrapped.share.btn": "Share",
+    "wrapped.dismiss": "Got it",
+    "wrapped.section.title": "Your Week Wrapped",
+
     "ai.config.title": "AI Assistant",
     "ai.config.provider": "Provider",
     "ai.config.apiKey": "API Key",
@@ -632,6 +647,21 @@ export const STRINGS: Record<Locale, Dict> = {
     "pet.streak.7": "连击 7 天！势头正劲！🔥",
     "pet.streak.14": "14 天连击！专注力超强！🔥🔥",
     "pet.streak.30": "30 天连击！势不可挡！🔥🔥🔥",
+
+    "dog.levelup.label": "升级了！",
+    "dog.levelup.hint": "继续完成任务，让小狗继续成长。",
+    "dog.levelup.share": "分享",
+    "dog.levelup.dismiss": "太棒了！",
+    "dog.tier.unlocked.adult": "✨ 成犬解锁 — 围巾装备！",
+    "dog.tier.unlocked.wise": "🔭 智慧犬解锁 — 眼镜装备！",
+    "dog.tier.unlocked.legendary": "👑 传奇解锁 — 皇冠装备！",
+    "dog.badge.level": "Lv.",
+
+    "wrapped.title": "每周回顾",
+    "wrapped.share.title": "我的 Lumo 周报",
+    "wrapped.share.btn": "分享",
+    "wrapped.dismiss": "好的",
+    "wrapped.section.title": "本周回顾",
 
     "ai.config.title": "AI 助手",
     "ai.config.provider": "服务商",
