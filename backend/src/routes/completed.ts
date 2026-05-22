@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Variables } from "../env.js";
+import { httpError } from "../lib/errors.js";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
@@ -48,7 +49,7 @@ app.post("/:id/reopen", (c) => {
   const entryId = c.req.param("id");
 
   const entry = db.prepare("SELECT * FROM completed_entries WHERE id = :id AND user_id = :uid").get({ id: entryId, uid: userId }) as any;
-  if (!entry) return c.json({ error: "Not found" }, 404);
+  if (!entry) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   db.prepare("DELETE FROM completed_entries WHERE id = :id").run({ id: entryId });
 

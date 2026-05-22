@@ -26,7 +26,7 @@ export function createRateLimiter<E extends Env>(
   }
 
   return async (c: Context<E>, next: Next) => {
-    if (process.env.NODE_ENV === "test") return next();
+    if (process.env.LUMO_DISABLE_RATE_LIMIT === "1") return next();
 
     const key = getKey(c);
     const now = Date.now();

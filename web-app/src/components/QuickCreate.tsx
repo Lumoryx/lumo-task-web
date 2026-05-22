@@ -5,7 +5,6 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
-import { api } from "@/api/client";
 import type { Quadrant, TaskRecurrence } from "@/types/task";
 
 interface QuickCreateProps {
@@ -34,6 +33,7 @@ export function QuickCreate({ initialQuadrant = "Q2", initialTitle, initialDue, 
   const t = useT();
   const locale = useAppStore((s) => s.locale);
   const create = useTasksStore((s) => s.create);
+  const parseTaskText = useTasksStore((s) => s.parseTaskText);
   const people = usePeopleStore((s) => s.people);
 
   const todayISO = new Date().toISOString().split("T")[0];
@@ -73,7 +73,7 @@ export function QuickCreate({ initialQuadrant = "Q2", initialTitle, initialDue, 
     if (!aiText.trim() || aiParsing) return;
     setAiParsing(true);
     try {
-      const result = await api.parseTask(aiText.trim(), locale);
+      const result = await parseTaskText(aiText.trim(), locale);
       setTitle(result.title);
       if (result.quadrant && result.quadrant !== "unclassified") {
         setQuadrant(result.quadrant as Quadrant);

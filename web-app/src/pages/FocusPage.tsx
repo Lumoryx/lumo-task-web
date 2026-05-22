@@ -5,7 +5,6 @@ import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
-import { api } from "@/api/client";
 import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
@@ -66,7 +65,7 @@ export function FocusPage() {
         setPetBounce(true);
         setTimeout(() => setPetBounce(false), 1200);
         // Check streak milestones
-        api.listAllCompleted().then((entries) => {
+        useTasksStore.getState().fetchAllCompleted().then((entries) => {
           const { currentStreak } = computeAllTimeStats(entries);
           if (currentStreak === 7 || currentStreak === 14 || currentStreak === 30) {
             usePetStore.getState().celebrate(`pet.streak.${currentStreak}`);
