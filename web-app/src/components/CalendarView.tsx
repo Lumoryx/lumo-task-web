@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
+import { useCalendarStore } from "@/store/useCalendarStore";
 import { useT, useLocaleString } from "@/i18n/useT";
 import type { Task, Locale } from "@/types/task";
 import { fmtDuration, parseDueISO, toISODate } from "@/lib/format";
 import { TaskDetailModal } from "./TaskDetailModal";
+import { OutlookEventCard } from "./OutlookEventCard";
+import { QuickCreate } from "./QuickCreate";
 import { IconCheck } from "./icons";
 
 const DND_MIME = "application/x-lumo-task";
@@ -72,11 +75,42 @@ export function CalendarView() {
   const tasks = useTasksStore((s) => s.tasks);
   const update = useTasksStore((s) => s.update);
 
+  const connected = useCalendarStore((s) => s.connected);
+  const outlookEvents = useCalendarStore((s) => s.events);
+  const fetchEvents = useCalendarStore((s) => s.fetchEvents);
+
   const [weekOffset, setWeekOffset] = useState(0);
   const [overDay, setOverDay] = useState<string | null>(null);
   const [overUnscheduled, setOverUnscheduled] = useState(false);
+  const [qcOpen, setQcOpen] = useState(false);
+  const [qcTitle, setQcTitle] = useState("");
+  const [qcDue, setQcDue] = useState("");
 
   const days = getWeekDays(weekOffset);
+
+  useEffect(() => {
+    if (!connected) return;
+    const d = getWeekDays(weekOffset);
+    const endDate = new Date(d[6].date);
+    endDate.setHours(23, 59, 59, 999);
+    fetchEvents(d[0].date.toISOString(), endDate.toISOString());
+  }, [weekOffset, connected, fetchEvents]);
+
+  function openQCFromEvent(title: string, due: string) {
+    setQcTitle(title);
+    setQcDue(due);
+    setQcOpen(true);
+  }
+
+  // Partition Outlook events into day buckets
+  const eventBuckets = new Map<string, typeof outlookEvents>();
+  days.forEach((d) => eventBuckets.set(d.iso, []));
+  for (const evt of outlookEvents) {
+    const dateStr = evt.start.dateTime.substring(0, 10);
+    if (eventBuckets.has(dateStr)) {
+      eventBuckets.get(dateStr)!.push(evt);
+    }
+  }
 
   // Partition active tasks into day buckets or unscheduled
   const dayBuckets = new Map<string, Task[]>();
@@ -244,7 +278,7 @@ export function CalendarView() {
                 </span>
               </div>
 
-              {/* Task list */}
+              {/* Task list + Outlook events */}
               <div className="flex-1 min-h-0 overflow-y-auto p-1.5 flex flex-col gap-1">
                 {dayTasks.length === 0 && isOver && (
                   <div className="text-[11px] text-text-faint italic px-1 py-1">
@@ -254,11 +288,23 @@ export function CalendarView() {
                 {dayTasks.map((task) => (
                   <CalTaskCard key={task.id} task={task} />
                 ))}
+                {(eventBuckets.get(day.iso) ?? []).map((evt) => (
+                  <OutlookEventCard key={evt.id} event={evt} onCreateTask={openQCFromEvent} />
+                ))}
               </div>
             </div>
           );
         })}
       </div>
+
+      {qcOpen && (
+        <QuickCreate
+          initialTitle={qcTitle}
+          initialDue={qcDue}
+          onClose={() => setQcOpen(false)}
+          onCreated={() => setQcOpen(false)}
+        />
+      )}
     </div>
   );
 }

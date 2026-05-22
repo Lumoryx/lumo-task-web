@@ -422,6 +422,15 @@ export const STRINGS: Record<Locale, Dict> = {
     "calendar.unscheduled": "No date",
     "calendar.unscheduled.hint": "Drop to clear date",
     "calendar.drop.here": "Drop to schedule",
+
+    "settings.integrations": "Integrations",
+    "outlook.connect": "Connect Outlook",
+    "outlook.disconnect": "Disconnect",
+    "outlook.connected": "Connected",
+    "outlook.hint": "See your Outlook calendar events alongside tasks.",
+    "outlook.notConfigured": "Requires VITE_MS_CLIENT_ID to be set.",
+    "outlook.createTask": "Create task from event",
+    "outlook.error.connect": "Failed to connect Outlook",
   },
   zh: {
     "brand.name": "Lumo",
@@ -835,5 +844,14 @@ export const STRINGS: Record<Locale, Dict> = {
     "calendar.unscheduled": "无日期",
     "calendar.unscheduled.hint": "拖到这里清除日期",
     "calendar.drop.here": "拖到这里排期",
+
+    "settings.integrations": "集成",
+    "outlook.connect": "连接 Outlook",
+    "outlook.disconnect": "断开连接",
+    "outlook.connected": "已连接",
+    "outlook.hint": "在日历视图中同步查看 Outlook 日程。",
+    "outlook.notConfigured": "需要配置 VITE_MS_CLIENT_ID。",
+    "outlook.createTask": "从日程创建任务",
+    "outlook.error.connect": "连接 Outlook 失败",
   },
 };
