@@ -29,15 +29,10 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
-        env:
-          # Use a writable local cache; /opt/pw-browsers is read-only in CI
-          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
 
       - name: Run UI tests
         run: npx playwright test
         env:
-          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
-          # Suppress browser "open" behaviour from Vite
           BROWSER: none
 
       - name: Upload Playwright report
