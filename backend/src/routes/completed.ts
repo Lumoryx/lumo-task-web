@@ -3,11 +3,12 @@ import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Variables } from "../env.js";
 import { httpError } from "../lib/errors.js";
+import type { CompletedEntryRow } from "../db/rows.js";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
 
-function rowToEntry(row: any) {
+function rowToEntry(row: CompletedEntryRow) {
   return {
     id: row.id,
     task_id: row.task_id ?? null,
@@ -40,7 +41,7 @@ app.get("/", (c) => {
     `).all({ uid: userId });
   }
 
-  return c.json((rows as any[]).map(rowToEntry));
+  return c.json((rows as CompletedEntryRow[]).map(rowToEntry));
 });
 
 // POST /completed/:id/reopen — uncomplete by log entry ID
@@ -48,7 +49,7 @@ app.post("/:id/reopen", (c) => {
   const userId = c.get("userId") as string;
   const entryId = c.req.param("id");
 
-  const entry = db.prepare("SELECT * FROM completed_entries WHERE id = :id AND user_id = :uid").get({ id: entryId, uid: userId }) as any;
+  const entry = db.prepare("SELECT * FROM completed_entries WHERE id = :id AND user_id = :uid").get({ id: entryId, uid: userId }) as CompletedEntryRow | undefined;
   if (!entry) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   db.prepare("DELETE FROM completed_entries WHERE id = :id").run({ id: entryId });

@@ -5,6 +5,7 @@ import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
+import type { SettingsRow } from "../db/rows.js";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
@@ -55,7 +56,7 @@ function parseAiConfigs(raw: string | null): Record<Provider, { key: string; mod
 
 const CLOUD_FREE_LIMIT = 100;
 
-function rowToSettings(row: any) {
+function rowToSettings(row: SettingsRow) {
   const configs = parseAiConfigs(row.ai_configs);
   const providerConfigs: Record<string, { hasKey: boolean; model: string; baseUrl: string }> = {};
   for (const p of PROVIDERS) {
@@ -96,7 +97,7 @@ app.get("/", (c) => {
   const userId = c.get("userId") as string;
   const row = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId });
   if (!row) return httpError(c, 404, "NOT_FOUND", "Not found");
-  return c.json(rowToSettings(row as any));
+  return c.json(rowToSettings(row as unknown as SettingsRow));
 });
 
 // PATCH /settings
@@ -104,7 +105,7 @@ app.patch("/", zValidator("json", SettingsPatch), (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
 
-  const existing = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId }) as any;
+  const existing = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId }) as unknown as SettingsRow | undefined;
   if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const { ai_configs_update, ...rest } = body;
@@ -136,7 +137,7 @@ app.patch("/", zValidator("json", SettingsPatch), (c) => {
   }
 
   const row = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId });
-  return c.json(rowToSettings(row as any));
+  return c.json(rowToSettings(row as unknown as SettingsRow));
 });
 
 export default app;

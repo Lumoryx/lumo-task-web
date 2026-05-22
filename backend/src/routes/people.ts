@@ -6,6 +6,7 @@ import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
+import type { PersonRow } from "../db/rows.js";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
@@ -17,7 +18,7 @@ const PersonBody = z.object({
   email: z.string().email().nullable().optional(),
 });
 
-function rowToPerson(row: any) {
+function rowToPerson(row: PersonRow) {
   return {
     id: row.id,
     name: row.name,
@@ -32,7 +33,7 @@ function rowToPerson(row: any) {
 app.get("/", (c) => {
   const userId = c.get("userId") as string;
   const rows = db.prepare("SELECT * FROM people WHERE user_id = :uid ORDER BY created_at ASC").all({ uid: userId });
-  return c.json((rows as any[]).map(rowToPerson));
+  return c.json((rows as unknown as PersonRow[]).map(rowToPerson));
 });
 
 // POST /people
@@ -48,7 +49,7 @@ app.post("/", zValidator("json", PersonBody), (c) => {
   `).run({ id, user_id: userId, name: body.name, initials: body.initials, color: body.color, email: body.email ?? null, now });
 
   const row = db.prepare("SELECT * FROM people WHERE id = :id").get({ id });
-  return c.json(rowToPerson(row as any), 201);
+  return c.json(rowToPerson(row as unknown as PersonRow), 201);
 });
 
 // PATCH /people/:id
@@ -57,7 +58,7 @@ app.patch("/:id", zValidator("json", PersonBody.partial()), (c) => {
   const personId = c.req.param("id");
   const body = c.req.valid("json");
 
-  const existing = db.prepare("SELECT * FROM people WHERE id = :id AND user_id = :uid").get({ id: personId, uid: userId }) as any;
+  const existing = db.prepare("SELECT * FROM people WHERE id = :id AND user_id = :uid").get({ id: personId, uid: userId }) as unknown as PersonRow | undefined;
   if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   db.prepare(`
@@ -73,7 +74,7 @@ app.patch("/:id", zValidator("json", PersonBody.partial()), (c) => {
   });
 
   const row = db.prepare("SELECT * FROM people WHERE id = :id").get({ id: personId });
-  return c.json(rowToPerson(row as any));
+  return c.json(rowToPerson(row as unknown as PersonRow));
 });
 
 // DELETE /people/:id
@@ -82,7 +83,7 @@ app.delete("/:id", (c) => {
   const personId = c.req.param("id");
 
   const result = db.prepare("DELETE FROM people WHERE id = :id AND user_id = :uid").run({ id: personId, uid: userId });
-  if ((result as any).changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
+  if (result.changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   // Remove this person from assignee_ids JSON array on all affected tasks
   db.prepare(`

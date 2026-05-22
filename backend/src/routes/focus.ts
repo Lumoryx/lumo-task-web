@@ -6,6 +6,7 @@ import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Variables } from "../env.js";
 import { createRateLimiter } from "../lib/rateLimit.js";
+import type { FocusTaskRow } from "../db/rows.js";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
@@ -27,7 +28,7 @@ app.post("/sessions", focusRateLimit, zValidator("json", FocusSessionBody), (c) 
 
   // If linked to a task, record it as a completed entry and increment pomos_done
   if (body.task_id) {
-    const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: body.task_id, uid: userId }) as any;
+    const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: body.task_id, uid: userId }) as FocusTaskRow | undefined;
     if (task) {
       db.prepare(`
         INSERT INTO completed_entries (id, user_id, task_id, title_en, title_zh, duration, quadrant, started_at, completed_at)
