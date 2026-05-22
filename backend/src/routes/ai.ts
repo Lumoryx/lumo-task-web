@@ -18,19 +18,65 @@ const classifyRateLimit = createRateLimiter<{ Variables: Variables }>(20, 60_000
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-function getProviderConfig(userId: string): { apiKey: string | null; llmConfig: LLMConfig | null } {
-  const settings = db.prepare("SELECT ai_provider, ai_configs FROM settings WHERE user_id = :uid")
-    .get({ uid: userId }) as any;
+const CLOUD_FREE_LIMIT = 100;
+
+interface ProviderResult {
+  apiKey: string | null;
+  llmConfig: LLMConfig | null;
+  usingCloud: boolean;
+  limitReached: boolean;
+}
+
+function getProviderConfig(userId: string): ProviderResult {
+  const settings = db.prepare(
+    "SELECT ai_provider, ai_configs, ai_cloud_used, ai_cloud_month FROM settings WHERE user_id = :uid"
+  ).get({ uid: userId }) as any;
+
   const activeProvider = (settings?.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom";
   let configs: Record<string, any> = {};
   try { configs = JSON.parse(settings?.ai_configs ?? "{}"); } catch {}
   const providerCfg = configs[activeProvider] ?? {};
   const apiKey = providerCfg.key?.trim() || null;
-  if (!apiKey) return { apiKey: null, llmConfig: null };
+
+  // User has their own key — use it directly
+  if (apiKey) {
+    return {
+      apiKey,
+      llmConfig: { provider: activeProvider, apiKey, baseUrl: providerCfg.baseUrl ?? null, model: providerCfg.model ?? null },
+      usingCloud: false,
+      limitReached: false,
+    };
+  }
+
+  // Fall back to Lumo Cloud (server-side key)
+  const cloudKey = (process.env.LUMO_AI_KEY ?? "").trim() || null;
+  if (!cloudKey) return { apiKey: null, llmConfig: null, usingCloud: false, limitReached: false };
+
+  const user = db.prepare("SELECT plan FROM users WHERE id = :uid").get({ uid: userId }) as any;
+  const limit = user?.plan === "pro" ? 999_999 : CLOUD_FREE_LIMIT;
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const storedMonth = settings?.ai_cloud_month ?? "";
+  const used = storedMonth === currentMonth ? (settings?.ai_cloud_used ?? 0) : 0;
+
+  if (used >= limit) {
+    return { apiKey: null, llmConfig: null, usingCloud: true, limitReached: true };
+  }
+
   return {
-    apiKey,
-    llmConfig: { provider: activeProvider, apiKey, baseUrl: providerCfg.baseUrl ?? null, model: providerCfg.model ?? null },
+    apiKey: cloudKey,
+    llmConfig: { provider: "claude", apiKey: cloudKey, baseUrl: null, model: "claude-haiku-4-5-20251001" },
+    usingCloud: true,
+    limitReached: false,
   };
+}
+
+function incrementCloudUsage(userId: string) {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const s = db.prepare("SELECT ai_cloud_used, ai_cloud_month FROM settings WHERE user_id = :uid")
+    .get({ uid: userId }) as any;
+  const used = (s?.ai_cloud_month ?? "") === currentMonth ? (s?.ai_cloud_used ?? 0) : 0;
+  db.prepare("UPDATE settings SET ai_cloud_used = :used, ai_cloud_month = :month WHERE user_id = :uid")
+    .run({ used: used + 1, month: currentMonth, uid: userId });
 }
 
 function heuristicQuadrant(task: any, today: string): { q: string; confidence: number } {
@@ -58,7 +104,18 @@ app.post("/classify", classifyRateLimit, async (c) => {
 
   if (tasks.length === 0) return c.json({ suggestions });
 
-  const { llmConfig } = getProviderConfig(userId);
+  const { llmConfig, usingCloud, limitReached } = getProviderConfig(userId);
+
+  if (limitReached) {
+    // Quota exhausted — fall through to heuristic, surface the flag
+    for (const task of tasks) {
+      const h = heuristicQuadrant(task, today);
+      db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
+        .run({ q: h.q, now: new Date().toISOString(), id: task.id });
+      suggestions.push({ task_id: task.id, quadrant: h.q, confidence: h.confidence });
+    }
+    return c.json({ suggestions, cloudLimitReached: true });
+  }
 
   if (llmConfig) {
     const taskList = tasks.map((t: any) => ({
@@ -111,6 +168,7 @@ Return ONLY a JSON array, no markdown:
           }
         }
 
+        if (usingCloud) incrementCloudUsage(userId);
         return c.json({ suggestions });
       }
     } catch (err: any) {
@@ -142,7 +200,7 @@ app.post("/recommend", classifyRateLimit, async (c) => {
   if (q1Tasks.length === 0) return c.json({ task: null });
 
   const topTask = q1Tasks[0];
-  const { llmConfig } = getProviderConfig(userId);
+  const { llmConfig, usingCloud } = getProviderConfig(userId);
 
   if (llmConfig && q1Tasks.length >= 1) {
     const today = new Date().toISOString().slice(0, 10);
@@ -173,6 +231,7 @@ Choose the single most critical task to work on RIGHT NOW. Return ONLY valid JSO
         db.prepare("UPDATE tasks SET conviction = :c, reason_en = :r, next_step_en = :ns, updated_at = :now WHERE id = :id")
           .run({ c: conviction, r: reason, ns: nextStep, now: new Date().toISOString(), id: picked.id });
 
+        if (usingCloud) incrementCloudUsage(userId);
         return c.json({
           task: {
             id: picked.id,
@@ -214,21 +273,13 @@ app.post("/parse", classifyRateLimit, zValidator("json", ParseBody), async (c) =
   const userId = c.get("userId") as string;
   const { text, locale } = c.req.valid("json");
 
-  const settings = db.prepare("SELECT ai_provider, ai_configs FROM settings WHERE user_id = :uid")
-    .get({ uid: userId }) as any;
-  const activeProvider = (settings?.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom";
-  let configs: Record<string, { key?: string; model?: string; baseUrl?: string }> = {};
-  try { configs = JSON.parse(settings?.ai_configs ?? "{}"); } catch {}
-  const providerCfg = configs[activeProvider] ?? {};
-  const apiKey = providerCfg.key?.trim() || null;
+  const { llmConfig, usingCloud } = getProviderConfig(userId);
 
-  // No LLM key — return best-effort heuristic
-  if (!apiKey) {
+  if (!llmConfig) {
     return c.json({ title: text.trim(), quadrant: "unclassified", due: null, duration: null, confidence: 0 });
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const llmConfig: LLMConfig = { provider: activeProvider, apiKey, baseUrl: providerCfg.baseUrl ?? null, model: providerCfg.model ?? null };
   const langNote = locale === "zh" ? "The user may write in Chinese." : "";
 
   const prompt = `You are a task parser. Today is ${today}. ${langNote}
@@ -245,6 +296,7 @@ Input: "${text}"`;
         const parsed = JSON.parse(m ? m[0] : result.text);
         const dueRaw = typeof parsed.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.due) ? parsed.due : null;
         const durationRaw = typeof parsed.duration === "number" && parsed.duration >= 0 && parsed.duration <= 1440 ? Math.round(parsed.duration) : null;
+        if (usingCloud) incrementCloudUsage(userId);
         return c.json({
           title: typeof parsed.title === "string" ? parsed.title.trim() || text.trim() : text.trim(),
           quadrant: ["Q1","Q2","Q3","Q4","unclassified"].includes(parsed.quadrant) ? parsed.quadrant : "unclassified",
@@ -497,20 +549,16 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
   // Extract JWT for tool execution (reuse user's own auth token)
   const jwt = (c.req.header("Authorization") ?? "").replace(/^Bearer\s+/i, "");
 
-  const settings = db.prepare("SELECT ai_provider, ai_configs FROM settings WHERE user_id = :uid")
-    .get({ uid: userId }) as any;
-
-  const activeProvider = (settings?.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom";
-  let configs: Record<string, { key?: string; model?: string; baseUrl?: string }> = {};
-  try { configs = JSON.parse(settings?.ai_configs ?? "{}"); } catch {}
-  const providerCfg = configs[activeProvider] ?? {};
-  const apiKey = providerCfg.key?.trim() || null;
+  const { llmConfig, usingCloud, limitReached } = getProviderConfig(userId);
+  // Resolve active provider for appendToolResults (needs provider name)
+  const settingsRow = db.prepare("SELECT ai_provider FROM settings WHERE user_id = :uid").get({ uid: userId }) as any;
+  const activeProvider = (settingsRow?.ai_provider ?? (llmConfig?.provider ?? "openai")) as "openai" | "deepseek" | "claude" | "custom";
 
   const locale = context?.locale ?? "en";
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
 
-  // No LLM — try intent parser first, fall back to canned response
-  if (!apiKey) {
+  // No LLM (no key or limit reached) — try intent parser first, fall back to canned response
+  if (!llmConfig || limitReached) {
     try {
       const intent = await tryParseIntent(lastUserMsg, locale, jwt);
       if (intent) {
@@ -522,13 +570,6 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
     const reply = fallbackReply({ q1Count: context?.q1Count, locale, userName: context?.userName, userMessage: lastUserMsg });
     return c.json({ reply, mood: inferMood(reply, context?.q1Count ?? 0), fallback: true, toolsUsed: [] });
   }
-
-  const llmConfig: LLMConfig = {
-    provider: activeProvider,
-    apiKey,
-    baseUrl: providerCfg.baseUrl ?? null,
-    model: providerCfg.model ?? null,
-  };
 
   const systemPrompt = buildSystemPrompt(context ?? {});
   let currentMessages: unknown[] = [
@@ -550,10 +591,12 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
             const intent = await tryParseIntent(lastUserMsg, locale, jwt);
             if (intent) {
               const combined = intent.reply + "\n\n" + result.text;
+              if (usingCloud) incrementCloudUsage(userId);
               return c.json({ reply: combined, mood: "happy", fallback: false, toolsUsed: intent.toolsUsed });
             }
           } catch {}
         }
+        if (usingCloud) incrementCloudUsage(userId);
         return c.json({
           reply: result.text,
           mood: inferMood(result.text, context?.q1Count ?? 0),

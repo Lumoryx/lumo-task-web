@@ -121,6 +121,12 @@ export interface AppSettings {
   onboarding_complete: boolean;
   ai_provider: "openai" | "deepseek" | "claude" | "custom";
   ai_provider_configs: Record<string, ProviderConfig>;
+  /** Whether the server has a built-in Lumo Cloud AI key configured. */
+  ai_cloud_enabled: boolean;
+  /** How many Lumo Cloud AI calls the user has used this month. */
+  ai_cloud_used: number;
+  /** Monthly quota for free users (100). */
+  ai_cloud_limit: number;
 }
 
 export interface PetChatMessage {

@@ -25,6 +25,9 @@ interface AIStore {
   messages: PetChatMessage[];
   loading: boolean;
   chatOpen: boolean;
+  cloudEnabled: boolean;
+  cloudUsed: number;
+  cloudLimit: number;
 
   loadConfig: () => Promise<void>;
   /** Save config for one provider. Pass newKey only when the user entered a new key. */
@@ -58,6 +61,9 @@ export const useAIStore = create<AIStore>()(
       messages: [],
       loading: false,
       chatOpen: false,
+      cloudEnabled: false,
+      cloudUsed: 0,
+      cloudLimit: 100,
 
       async loadConfig() {
         try {
@@ -69,6 +75,9 @@ export const useAIStore = create<AIStore>()(
               ...s.ai_provider_configs,
             },
             configLoaded: true,
+            cloudEnabled: s.ai_cloud_enabled ?? false,
+            cloudUsed: s.ai_cloud_used ?? 0,
+            cloudLimit: s.ai_cloud_limit ?? 100,
           });
         } catch (e) {
           set({ configLoaded: true });

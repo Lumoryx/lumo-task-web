@@ -286,7 +286,8 @@ const PROVIDER_DEFAULTS: Record<string, { model: string; baseUrl: string }> = {
 };
 
 function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
-  const { activeProvider, providerConfigs, saveConfig } = useAIStore();
+  const { activeProvider, providerConfigs, saveConfig, cloudEnabled, cloudUsed, cloudLimit } = useAIStore();
+  const anyKeyConfigured = Object.values(providerConfigs).some((c) => c.hasKey);
 
   // Local UI state — scoped to the currently viewed provider tab
   const [viewProvider, setViewProvider] = useState<"openai" | "deepseek" | "claude" | "custom">(activeProvider);
@@ -366,6 +367,36 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
         {t("ai.config.title")}
       </h3>
       <div className="rounded-[10px] border bg-surface overflow-hidden flex flex-col" style={{ borderColor: "var(--border-default)" }}>
+
+        {/* Lumo Cloud free tier usage bar — only when server key is active and user has no own key */}
+        {cloudEnabled && !anyKeyConfigured && (
+          <div className="px-5 py-3.5 border-b border-border-faint">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[12px] font-medium text-text-primary">
+                {t("ai.cloud.label")}
+              </span>
+              <span className="text-[11px] tabular-nums" style={{
+                color: cloudUsed >= cloudLimit ? "var(--status-urgent)" : "var(--text-muted)",
+              }}>
+                {cloudUsed} / {cloudLimit}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, (cloudUsed / cloudLimit) * 100)}%`,
+                  background: cloudUsed >= cloudLimit ? "var(--status-urgent)" : "var(--accent-primary)",
+                }}
+              />
+            </div>
+            <div className="mt-1.5 text-[11px] text-text-muted">
+              {cloudUsed >= cloudLimit
+                ? t("ai.cloud.limit_reached")
+                : t("ai.cloud.hint")}
+            </div>
+          </div>
+        )}
 
         {/* Provider tabs — "已配置" badge shown directly on configured tabs */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint first:border-t-0"
