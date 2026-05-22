@@ -23,6 +23,42 @@ async function skipOnboarding(page: Page) {
   });
 }
 
+/** Set onboarded=true AND simulate a signed-in user so the auth gate passes. */
+async function skipOnboardingAndSignIn(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "lumo.app.v1",
+      JSON.stringify({
+        state: {
+          locale: "en",
+          accent: "green",
+          density: "comfortable",
+          reducedMotion: false,
+          onboarded: true,
+        },
+        version: 0,
+      })
+    );
+    localStorage.setItem(
+      "lumo.auth.v1",
+      JSON.stringify({
+        state: {
+          user: {
+            id: "u1",
+            email: "alex@stride.studio",
+            name: "Alex",
+            initials: "AL",
+            local: false,
+            plan: "free",
+            stats: { tasks: 5, pomodoros: 3, syncOK: false },
+          },
+        },
+        version: 0,
+      })
+    );
+  });
+}
+
 /**
  * Mock all /v1/* API calls so tests run without a live backend.
  */
@@ -126,8 +162,8 @@ test("TC01 – Onboarding: complete full 5-step flow", async ({ page }) => {
   await expect(page.getByText("5 / 5")).toBeVisible();
   await page.locator("footer .btn-primary").click();
 
-  // Completing onboarding lands in the main app
-  await expect(page).toHaveURL(/matrix|today/);
+  // Completing onboarding now redirects to the login page
+  await expect(page).toHaveURL(/login/);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,7 +176,8 @@ test("TC02 – Onboarding: skip button goes to Today page", async ({ page }) => 
   // "Skip" sits in the top-right of the onboarding card
   await page.getByRole("button", { name: "Skip" }).click();
 
-  await expect(page).toHaveURL(/today/);
+  // After skipping onboarding the user must log in before entering the app
+  await expect(page).toHaveURL(/login/);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -207,7 +244,7 @@ test("TC05 – Register page: email, password, confirm and nickname fields visib
 // TC06 – Today page: sidebar and page content render correctly
 // ─────────────────────────────────────────────────────────────────────────────
 test("TC06 – Today page: sidebar brand and page content are visible", async ({ page }) => {
-  await skipOnboarding(page);
+  await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/today");
 
@@ -227,7 +264,7 @@ test("TC06 – Today page: sidebar brand and page content are visible", async ({
 test("TC07 – Matrix page: four quadrant headers visible (Do first, Schedule, Delegate, Drop)", async ({
   page,
 }) => {
-  await skipOnboarding(page);
+  await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/matrix");
 
@@ -242,7 +279,7 @@ test("TC07 – Matrix page: four quadrant headers visible (Do first, Schedule, D
 // TC08 – Focus page: renders without errors (empty state with no tasks)
 // ─────────────────────────────────────────────────────────────────────────────
 test("TC08 – Focus page: empty state renders when there are no tasks", async ({ page }) => {
-  await skipOnboarding(page);
+  await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/focus");
 
@@ -259,7 +296,7 @@ test("TC08 – Focus page: empty state renders when there are no tasks", async (
 test("TC09 – Settings page: appearance section with accent and density controls visible", async ({
   page,
 }) => {
-  await skipOnboarding(page);
+  await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/settings");
 
@@ -277,7 +314,7 @@ test("TC09 – Settings page: appearance section with accent and density control
 test("TC10 – Sidebar navigation: Today → Matrix → Settings updates the URL", async ({
   page,
 }) => {
-  await skipOnboarding(page);
+  await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/today");
 
