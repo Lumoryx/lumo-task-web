@@ -13,7 +13,7 @@ const TIER_COLORS = {
 };
 
 export function DogLevelUpModal() {
-  const { level, pendingLevelUp, clearPendingLevelUp } = useDogStore();
+  const { pendingLevelUp, clearPendingLevelUp } = useDogStore();
   const locale = useAppStore((s) => s.locale);
   const t = useT();
   const cardRef = useRef<HTMLDivElement>(null);
