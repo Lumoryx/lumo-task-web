@@ -12,6 +12,7 @@ import { TaskEditModal } from "@/components/TaskEditModal";
 import { TaskMoreMenu } from "@/components/TaskMoreMenu";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
+import { CalendarView } from "@/components/CalendarView";
 
 /**
  * Eisenhower 2×2. Each quadrant is a column with a header and a stack
@@ -21,12 +22,25 @@ import { PersonAvatar } from "@/pages/SettingsPage";
  * Drag a card from any quadrant (or from the Unclassified strip) onto
  * another quadrant to reassign. The target quadrant highlights on dragover.
  */
+type ViewMode = "matrix" | "calendar";
+
+function readView(): ViewMode {
+  const v = localStorage.getItem("lumo.matrix.view");
+  return v === "calendar" ? "calendar" : "matrix";
+}
+
 export function MatrixPage() {
   const t = useT();
   const tasks = useTasksStore((s) => s.tasks);
   const unclassified = tasks.filter((x) => x.quadrant === "unclassified" && !x.completed);
   const allActive = tasks.filter((x) => !x.completed);
   const [classifyOpen, setClassifyOpen] = useState(false);
+  const [view, setView] = useState<ViewMode>(readView);
+
+  function switchView(v: ViewMode) {
+    setView(v);
+    localStorage.setItem("lumo.matrix.view", v);
+  }
 
   const quadrants: Array<{ id: Quadrant; label: string; sub: string }> = [
     { id: "Q1", label: t("matrix.q1"), sub: "Urgent · Important" },
@@ -36,37 +50,112 @@ export function MatrixPage() {
   ];
 
   return (
-    <div className="fade-in flex flex-col h-full p-7 gap-4">
-      {/* Toolbar: unclassified strip (left) + AI classify (right) */}
-      <div className="flex items-center gap-3 flex-shrink-0">
-        {/* Unclassified drop zone + chips */}
-        <UnclassifiedBar unclassified={unclassified} label={t("matrix.unclassified")} />
+    <div className="fade-in flex flex-col h-full">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-shrink-0 px-7 pt-7 pb-4">
+        {view === "matrix" ? (
+          <>
+            <UnclassifiedBar unclassified={unclassified} label={t("matrix.unclassified")} />
+            <button
+              className="btn btn-secondary flex-shrink-0"
+              onClick={() => setClassifyOpen(true)}
+              disabled={allActive.length === 0}
+            >
+              <IconSparkle size={14} />
+              {t("matrix.aiClassify")}
+              {allActive.length > 0 && (
+                <span className="ml-1 text-[11px] text-text-faint tabular-nums">
+                  · {allActive.length}
+                </span>
+              )}
+            </button>
+          </>
+        ) : (
+          <div className="flex-1" />
+        )}
 
-        {/* AI classify — always available for all tasks */}
-        <button
-          className="btn btn-secondary flex-shrink-0"
-          onClick={() => setClassifyOpen(true)}
-          disabled={allActive.length === 0}
+        {/* View toggle — segmented control */}
+        <div
+          className="flex items-center rounded-lg overflow-hidden flex-shrink-0"
+          style={{ border: "1px solid var(--border-default)" }}
         >
-          <IconSparkle size={14} />
-          {t("matrix.aiClassify")}
-          {allActive.length > 0 && (
-            <span className="ml-1 text-[11px] text-text-faint tabular-nums">
-              · {allActive.length}
-            </span>
-          )}
-        </button>
+          <ViewToggleBtn
+            active={view === "matrix"}
+            onClick={() => switchView("matrix")}
+            icon={
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor">
+                <rect x="0" y="0" width="4.5" height="4.5" rx="1" opacity="0.85" />
+                <rect x="6.5" y="0" width="4.5" height="4.5" rx="1" opacity="0.85" />
+                <rect x="0" y="6.5" width="4.5" height="4.5" rx="1" opacity="0.5" />
+                <rect x="6.5" y="6.5" width="4.5" height="4.5" rx="1" opacity="0.5" />
+              </svg>
+            }
+            label={t("matrix.view.matrix")}
+          />
+          <div style={{ width: 1, alignSelf: "stretch", background: "var(--border-default)" }} />
+          <ViewToggleBtn
+            active={view === "calendar"}
+            onClick={() => switchView("calendar")}
+            icon={
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <rect x="0.5" y="1.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.1" />
+                <path d="M0.5 4.5h11" stroke="currentColor" strokeWidth="1.1" />
+                <circle cx="4" cy="7.5" r="1" fill="currentColor" opacity="0.7" />
+                <circle cx="8" cy="7.5" r="1" fill="currentColor" opacity="0.7" />
+              </svg>
+            }
+            label={t("matrix.view.calendar")}
+          />
+        </div>
       </div>
 
-      {/* 2×2 grid */}
-      <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1 min-h-0">
-        {quadrants.map((q) => (
-          <QuadrantPanel key={q.id} id={q.id} title={q.label} subtitle={q.sub} />
-        ))}
-      </div>
+      {/* Content area */}
+      {view === "matrix" ? (
+        <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1 min-h-0 px-7 pb-7">
+          {quadrants.map((q) => (
+            <QuadrantPanel key={q.id} id={q.id} title={q.label} subtitle={q.sub} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <CalendarView />
+        </div>
+      )}
 
       {classifyOpen && <AIClassifyModal onClose={() => setClassifyOpen(false)} />}
     </div>
+  );
+}
+
+function ViewToggleBtn({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 transition-colors"
+      style={{
+        padding: "5px 11px",
+        fontSize: 12,
+        fontWeight: 500,
+        background: active ? "var(--bg-elevated)" : "transparent",
+        color: active ? "var(--text-primary)" : "var(--text-muted)",
+        border: "none",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 

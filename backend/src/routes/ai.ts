@@ -16,60 +16,189 @@ app.use("/*", authMiddleware);
 const chatRateLimit     = createRateLimiter<{ Variables: Variables }>(10, 60_000, (c) => c.get("userId") as string);
 const classifyRateLimit = createRateLimiter<{ Variables: Variables }>(20, 60_000, (c) => c.get("userId") as string);
 
-// POST /ai/classify — heuristic quadrant assignment
-app.post("/classify", classifyRateLimit, (c) => {
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function getProviderConfig(userId: string): { apiKey: string | null; llmConfig: LLMConfig | null } {
+  const settings = db.prepare("SELECT ai_provider, ai_configs FROM settings WHERE user_id = :uid")
+    .get({ uid: userId }) as any;
+  const activeProvider = (settings?.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom";
+  let configs: Record<string, any> = {};
+  try { configs = JSON.parse(settings?.ai_configs ?? "{}"); } catch {}
+  const providerCfg = configs[activeProvider] ?? {};
+  const apiKey = providerCfg.key?.trim() || null;
+  if (!apiKey) return { apiKey: null, llmConfig: null };
+  return {
+    apiKey,
+    llmConfig: { provider: activeProvider, apiKey, baseUrl: providerCfg.baseUrl ?? null, model: providerCfg.model ?? null },
+  };
+}
+
+function heuristicQuadrant(task: any, today: string): { q: string; confidence: number } {
+  if (task.due && task.due <= today) return { q: "Q1", confidence: 0.85 };
+  if (task.due) {
+    const days = Math.ceil((new Date(task.due).getTime() - Date.now()) / 86_400_000);
+    if (days <= 7) return { q: "Q2", confidence: 0.75 };
+    return { q: "Q3", confidence: 0.65 };
+  }
+  if (task.duration <= 15) return { q: "Q4", confidence: 0.6 };
+  return { q: "Q3", confidence: 0.6 };
+}
+
+// POST /ai/classify — LLM-powered semantic classification (heuristic fallback)
+app.post("/classify", classifyRateLimit, async (c) => {
   const userId = c.get("userId") as string;
   const today = new Date().toISOString().slice(0, 10);
 
-  const tasks = db.prepare("SELECT * FROM tasks WHERE user_id = :uid AND completed = 0 AND quadrant = 'unclassified'").all({ uid: userId }) as any[];
+  const tasks = db.prepare(
+    "SELECT * FROM tasks WHERE user_id = :uid AND completed = 0 AND quadrant = 'unclassified'"
+  ).all({ uid: userId }) as any[];
 
-  const suggestions: Array<{ task_id: string; quadrant: string; confidence: number }> = [];
+  type Suggestion = { task_id: string; quadrant: string; confidence: number; reason?: string };
+  const suggestions: Suggestion[] = [];
 
-  for (const task of tasks) {
-    let q = "Q3";
-    let confidence = 0.6;
+  if (tasks.length === 0) return c.json({ suggestions });
 
-    if (task.due && task.due <= today) {
-      q = "Q1"; confidence = 0.85;
-    } else if (task.due) {
-      const daysUntil = Math.ceil((new Date(task.due).getTime() - Date.now()) / 86400000);
-      if (daysUntil <= 7) { q = "Q2"; confidence = 0.75; }
-      else { q = "Q3"; confidence = 0.65; }
-    } else if (task.duration <= 15) {
-      q = "Q4"; confidence = 0.6;
+  const { llmConfig } = getProviderConfig(userId);
+
+  if (llmConfig) {
+    const taskList = tasks.map((t: any) => ({
+      id: t.id,
+      title: t.title_en || t.title_zh || "Untitled",
+      desc: t.desc_en || "",
+      due: t.due || null,
+      duration: t.duration || 0,
+    }));
+
+    const prompt = `You are a productivity expert classifying tasks using the Eisenhower Matrix.
+Today: ${today}
+
+Quadrant rules:
+- Q1 (Urgent + Important): overdue, hard deadlines within 48h, critical issues, crises
+- Q2 (Important + Not Urgent): planning, long-term goals, learning, upcoming deadlines 3-30 days out
+- Q3 (Urgent + Not Important): interruptions, favors, most meetings, quick unimportant requests
+- Q4 (Not Urgent + Not Important): time-wasters, trivial tasks, low-value activities
+
+Tasks to classify:
+${taskList.map((t: any) => `[${t.id}] "${t.title}"${t.due ? ` (due:${t.due})` : ""}${t.duration ? ` (${t.duration}min)` : ""}${t.desc ? ` — ${t.desc}` : ""}`).join("\n")}
+
+Return ONLY a JSON array, no markdown:
+[{"task_id":"...","quadrant":"Q1|Q2|Q3|Q4","confidence":0.0-1.0,"reason":"one short sentence why"}]`;
+
+    try {
+      const result = await callLLMWithTools(llmConfig, [{ role: "user", content: prompt }], []);
+      if (result.finish === "text") {
+        const m = result.text.match(/\[[\s\S]*\]/);
+        const parsed = JSON.parse(m ? m[0] : result.text) as any[];
+        const covered = new Set<string>();
+
+        for (const item of parsed) {
+          const q = ["Q1","Q2","Q3","Q4"].includes(item.quadrant) ? item.quadrant : "Q3";
+          const confidence = typeof item.confidence === "number" ? Math.min(1, Math.max(0, item.confidence)) : 0.7;
+          const reason = typeof item.reason === "string" ? item.reason.slice(0, 200) : undefined;
+          db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
+            .run({ q, now: new Date().toISOString(), id: item.task_id });
+          suggestions.push({ task_id: item.task_id, quadrant: q, confidence, reason });
+          covered.add(item.task_id);
+        }
+
+        // Heuristic fallback for any tasks the LLM missed
+        for (const task of tasks) {
+          if (!covered.has(task.id)) {
+            const h = heuristicQuadrant(task, today);
+            db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
+              .run({ q: h.q, now: new Date().toISOString(), id: task.id });
+            suggestions.push({ task_id: task.id, quadrant: h.q, confidence: h.confidence });
+          }
+        }
+
+        return c.json({ suggestions });
+      }
+    } catch (err: any) {
+      console.error("[ai/classify] LLM failed, falling back to heuristic:", err?.message);
     }
+  }
 
+  // Pure heuristic (no API key or LLM failed)
+  for (const task of tasks) {
+    const h = heuristicQuadrant(task, today);
     db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
-      .run({ q, now: new Date().toISOString(), id: task.id });
-
-    suggestions.push({ task_id: task.id, quadrant: q, confidence });
+      .run({ q: h.q, now: new Date().toISOString(), id: task.id });
+    suggestions.push({ task_id: task.id, quadrant: h.q, confidence: h.confidence });
   }
 
   return c.json({ suggestions });
 });
 
-// POST /ai/recommend — return highest-priority Q1 today task
-app.post("/recommend", classifyRateLimit, (c) => {
+// POST /ai/recommend — LLM-reasoned recommendation (SQL sort fallback)
+app.post("/recommend", classifyRateLimit, async (c) => {
   const userId = c.get("userId") as string;
 
-  const task = db.prepare(`
+  const q1Tasks = db.prepare(`
     SELECT * FROM tasks
     WHERE user_id = :uid AND completed = 0 AND quadrant = 'Q1' AND today = 1
     ORDER BY conviction DESC NULLS LAST, due ASC NULLS LAST
-    LIMIT 1
-  `).get({ uid: userId }) as any;
+  `).all({ uid: userId }) as any[];
 
-  if (!task) return c.json({ task: null });
+  if (q1Tasks.length === 0) return c.json({ task: null });
 
+  const topTask = q1Tasks[0];
+  const { llmConfig } = getProviderConfig(userId);
+
+  if (llmConfig && q1Tasks.length >= 1) {
+    const today = new Date().toISOString().slice(0, 10);
+    const taskList = q1Tasks.slice(0, 5).map((t: any) => ({
+      id: t.id,
+      title: t.title_en || t.title_zh || "Untitled",
+      due: t.due,
+      duration: t.duration,
+    }));
+
+    const prompt = `You are a productivity assistant. Today is ${today}.
+The user's Q1 (Urgent + Important) tasks for today:
+${taskList.map((t: any, i: number) => `${i+1}. [${t.id}] "${t.title}"${t.due ? ` due:${t.due}` : ""}${t.duration ? ` (${t.duration}min)` : ""}`).join("\n")}
+
+Choose the single most critical task to work on RIGHT NOW. Return ONLY valid JSON:
+{"task_id":"...","conviction":0.0-1.0,"reason":"one concise sentence why this is most critical right now","next_step":"one concrete action to start immediately"}`;
+
+    try {
+      const result = await callLLMWithTools(llmConfig, [{ role: "user", content: prompt }], []);
+      if (result.finish === "text") {
+        const m = result.text.match(/\{[\s\S]*\}/);
+        const parsed = JSON.parse(m ? m[0] : result.text);
+        const picked = q1Tasks.find((t: any) => t.id === parsed.task_id) ?? topTask;
+        const conviction = typeof parsed.conviction === "number" ? Math.min(1, Math.max(0, parsed.conviction)) : 0.85;
+        const reason = typeof parsed.reason === "string" ? parsed.reason.slice(0, 300) : null;
+        const nextStep = typeof parsed.next_step === "string" ? parsed.next_step.slice(0, 300) : null;
+
+        db.prepare("UPDATE tasks SET conviction = :c, reason_en = :r, next_step_en = :ns, updated_at = :now WHERE id = :id")
+          .run({ c: conviction, r: reason, ns: nextStep, now: new Date().toISOString(), id: picked.id });
+
+        return c.json({
+          task: {
+            id: picked.id,
+            title: { en: picked.title_en, ...(picked.title_zh ? { zh: picked.title_zh } : {}) },
+            quadrant: picked.quadrant,
+            conviction,
+            ...(reason ? { reason: { en: reason } } : {}),
+            ...(nextStep ? { next_step: { en: nextStep } } : {}),
+          },
+        });
+      }
+    } catch (err: any) {
+      console.error("[ai/recommend] LLM failed, falling back to SQL sort:", err?.message);
+    }
+  }
+
+  // Heuristic fallback
   const conviction = 0.85;
   db.prepare("UPDATE tasks SET conviction = :c, updated_at = :now WHERE id = :id")
-    .run({ c: conviction, now: new Date().toISOString(), id: task.id });
+    .run({ c: conviction, now: new Date().toISOString(), id: topTask.id });
 
   return c.json({
     task: {
-      id: task.id,
-      title: { en: task.title_en, ...(task.title_zh ? { zh: task.title_zh } : {}) },
-      quadrant: task.quadrant,
+      id: topTask.id,
+      title: { en: topTask.title_en, ...(topTask.title_zh ? { zh: topTask.title_zh } : {}) },
+      quadrant: topTask.quadrant,
       conviction,
     },
   });

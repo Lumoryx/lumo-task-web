@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconArrowLeft, IconCheck, IconPause, IconPlay } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
@@ -34,12 +34,50 @@ export function FocusPage() {
   const [paused, setPaused] = useState(false);
   const [compact, setCompact] = useState(false);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+  const workerRef = useRef<Worker | null>(null);
+  // Keep a stable ref to locale so the worker message handler always sees the latest value
+  // without needing locale in the effect's dependency array.
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
+  // Boot the Web Worker timer on mount; tear it down on unmount.
   useEffect(() => {
-    if (paused || remaining === 0) return;
-    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
-    return () => clearInterval(id);
-  }, [paused, remaining]);
+    const worker = new Worker("/timer-worker.js");
+    workerRef.current = worker;
+
+    worker.onmessage = (e: MessageEvent<{ type: string; remaining?: number }>) => {
+      if (e.data.type === "tick" && typeof e.data.remaining === "number") {
+        setRemaining(e.data.remaining);
+      }
+      if (e.data.type === "done") {
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification("Lumo · Pomodoro done", {
+            body: localeRef.current === "zh"
+              ? "专注时间结束！去休息一下 ☕"
+              : "Time's up! Take a well-earned break ☕",
+            icon: "/favicon.ico",
+          });
+        }
+      }
+    };
+
+    worker.postMessage({ type: "start", duration: TOTAL });
+
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, []); // intentionally empty: localeRef is a stable ref; worker lifecycle is mount/unmount only
+
+  // Sync pause/resume state changes to the worker
+  useEffect(() => {
+    if (!workerRef.current) return;
+    workerRef.current.postMessage({ type: paused ? "pause" : "resume" });
+  }, [paused]);
 
   function enterCompact() {
     setCompact(true);
