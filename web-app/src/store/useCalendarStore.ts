@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { PublicClientApplication, InteractionRequiredAuthError } from "@azure/msal-browser";
+import { api } from "@/api/client";
 
 export interface OutlookEvent {
   id: string;
@@ -14,9 +15,12 @@ export interface OutlookEvent {
 interface CalendarStore {
   connected: boolean;
   userEmail: string | null;
+  serverMode: boolean;
+  serverEmail: string | null;
   events: OutlookEvent[];
   loading: boolean;
   error: string | null;
+  initServerMode: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => void;
   fetchEvents: (startISO: string, endISO: string) => Promise<void>;
@@ -50,7 +54,7 @@ async function ensureMsal(): Promise<PublicClientApplication> {
   return _msal;
 }
 
-async function getToken(): Promise<string> {
+async function getMsalToken(): Promise<string> {
   const msal = await ensureMsal();
   const accounts = msal.getAllAccounts();
   if (accounts.length === 0) throw new Error("No MSAL accounts — reconnect required");
@@ -71,11 +75,28 @@ export const useCalendarStore = create<CalendarStore>()(
     (set, get) => ({
       connected: false,
       userEmail: null,
+      serverMode: false,
+      serverEmail: null,
       events: [],
       loading: false,
       error: null,
 
+      async initServerMode() {
+        try {
+          const status = await api.outlookStatus();
+          if (status.configured) {
+            set({ serverMode: true, serverEmail: status.userEmail, connected: true });
+          }
+        } catch {
+          // Backend not reachable or not configured — stay in client mode
+        }
+      },
+
       async connect() {
+        if (get().serverMode) {
+          set({ connected: true });
+          return;
+        }
         set({ loading: true, error: null });
         try {
           const msal = await ensureMsal();
@@ -94,27 +115,32 @@ export const useCalendarStore = create<CalendarStore>()(
       disconnect() {
         _msal = null;
         _initialized = false;
-        set({ connected: false, userEmail: null, events: [], error: null });
+        set({ connected: false, userEmail: null, serverMode: false, serverEmail: null, events: [], error: null });
       },
 
       async fetchEvents(startISO, endISO) {
         if (!get().connected) return;
         set({ loading: true, error: null });
         try {
-          const token = await getToken();
-          const url =
-            `https://graph.microsoft.com/v1.0/me/calendarView` +
-            `?startDateTime=${encodeURIComponent(startISO)}` +
-            `&endDateTime=${encodeURIComponent(endISO)}` +
-            `&$select=id,subject,start,end,location,isAllDay` +
-            `&$orderby=start/dateTime` +
-            `&$top=100`;
-          const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok) throw new Error(`Graph API error ${res.status}`);
-          const data = await res.json();
-          set({ events: data.value ?? [], loading: false });
+          if (get().serverMode) {
+            const data = await api.outlookCalendar(startISO, endISO);
+            set({ events: (data.events ?? []) as OutlookEvent[], loading: false });
+          } else {
+            const token = await getMsalToken();
+            const url =
+              `https://graph.microsoft.com/v1.0/me/calendarView` +
+              `?startDateTime=${encodeURIComponent(startISO)}` +
+              `&endDateTime=${encodeURIComponent(endISO)}` +
+              `&$select=id,subject,start,end,location,isAllDay` +
+              `&$orderby=start/dateTime` +
+              `&$top=100`;
+            const res = await fetch(url, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(`Graph API error ${res.status}`);
+            const data = await res.json();
+            set({ events: data.value ?? [], loading: false });
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           if (msg.includes("No MSAL accounts")) {
@@ -127,7 +153,7 @@ export const useCalendarStore = create<CalendarStore>()(
     }),
     {
       name: "lumo-outlook",
-      partialize: (s) => ({ connected: s.connected, userEmail: s.userEmail }),
+      partialize: (s) => ({ connected: s.connected, userEmail: s.userEmail, serverMode: s.serverMode, serverEmail: s.serverEmail }),
     }
   )
 );

@@ -105,6 +105,8 @@ export function CountdownFormModal({ event, onSave, onClose }: CountdownFormModa
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         style={{
           background: "var(--bg-elevated)",
           border: "1px solid var(--border-default)",

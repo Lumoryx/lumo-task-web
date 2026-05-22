@@ -125,6 +125,8 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         className="flex flex-col w-full overflow-hidden border rounded-[14px] bg-elevated shadow-lifted"
         style={{

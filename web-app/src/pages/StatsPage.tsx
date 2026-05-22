@@ -4,7 +4,7 @@ import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { useHabitsStore } from "@/store/useHabitsStore";
-import { api } from "@/api/client";
+import { useTasksStore } from "@/store/useTasksStore";
 import type { CompletedEntry } from "@/types/task";
 import { computeWeekStats, computeAllTimeStats, fmtHour } from "@/utils/stats";
 import { currentStreak as habitStreak } from "@/utils/habits";
@@ -37,7 +37,7 @@ export function StatsPage() {
 
   useEffect(() => {
     if (!isSignedIn) return;
-    api.listAllCompleted().then((data) => {
+    useTasksStore.getState().fetchAllCompleted().then((data) => {
       setEntries(data);
       setLoading(false);
     }).catch(() => setLoading(false));

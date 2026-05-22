@@ -57,8 +57,8 @@ export function QuickCreate({ initialQuadrant = "Q2", initialTitle, initialDue, 
   // only once but always calls the current version (avoids stale closures).
   const onCloseRef = useRef(onClose);
   const submitRef = useRef(submit);
-  useEffect(() => { onCloseRef.current = onClose; });
-  useEffect(() => { submitRef.current = submit; });
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { submitRef.current = submit; }, [submit]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -121,6 +121,8 @@ export function QuickCreate({ initialQuadrant = "Q2", initialTitle, initialDue, 
       style={{ background: "rgba(8, 11, 10, 0.6)", backdropFilter: "blur(6px)", padding: "0 32px" }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         className="w-full overflow-hidden border rounded-[14px] bg-elevated shadow-lifted"
         style={{

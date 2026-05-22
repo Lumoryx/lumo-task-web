@@ -30,13 +30,18 @@ function calcNextDue(currentDue: string | null, recurrence: string): string | nu
 }
 
 const LocalizedString = z.object({
-  en: z.string(),
-  zh: z.string().optional(),
+  en: z.string().max(500),
+  zh: z.string().max(500).optional(),
+});
+
+const LongLocalizedString = z.object({
+  en: z.string().max(2000),
+  zh: z.string().max(2000).optional(),
 });
 
 const TaskCreateBody = z.object({
   title: LocalizedString,
-  desc: LocalizedString.optional().nullable(),
+  desc: LongLocalizedString.optional().nullable(),
   quadrant: z.enum(["Q1", "Q2", "Q3", "Q4", "unclassified"]).default("unclassified"),
   today: z.boolean().default(false),
   due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -44,9 +49,9 @@ const TaskCreateBody = z.object({
   pomos_total: z.number().int().default(0),
   assignee_ids: z.array(z.string()).default([]),
   conviction: z.number().nullable().optional(),
-  next_step: LocalizedString.optional().nullable(),
+  next_step: LongLocalizedString.optional().nullable(),
   recurrence: z.enum(["none", "daily", "weekdays", "weekly", "monthly"]).default("none"),
-  reason: LocalizedString.optional().nullable(),
+  reason: LongLocalizedString.optional().nullable(),
   ai_suggest: z.string().nullable().optional(),
   not_now: z.array(z.object({
     id: z.string(),

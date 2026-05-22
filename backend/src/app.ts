@@ -8,6 +8,7 @@ import completedRoutes from "./routes/completed.js";
 import focusRoutes from "./routes/focus.js";
 import settingsRoutes from "./routes/settings.js";
 import aiRoutes from "./routes/ai.js";
+import outlookRoutes from "./routes/outlook.js";
 import docsRoutes from "./routes/docs.js";
 
 const allowedOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
@@ -46,6 +47,7 @@ v1.route("/completed", completedRoutes);
 v1.route("/focus", focusRoutes);
 v1.route("/settings", settingsRoutes);
 v1.route("/ai", aiRoutes);
+v1.route("/outlook", outlookRoutes);
 
 app.route("/v1", v1);
 app.route("/docs", docsRoutes);

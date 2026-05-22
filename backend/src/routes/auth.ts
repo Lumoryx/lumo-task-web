@@ -23,9 +23,9 @@ const authRateLimit = createRateLimiter<{ Variables: Variables }>(10, 60_000, (c
 });
 
 const RegisterBody = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1),
+  email: z.string().email().max(255),
+  password: z.string().min(8).max(256),
+  name: z.string().min(1).max(100),
 });
 
 const SigninBody = z.object({
@@ -34,8 +34,8 @@ const SigninBody = z.object({
 });
 
 const ChangePasswordBody = z.object({
-  current_password: z.string(),
-  new_password: z.string().min(8),
+  current_password: z.string().max(256),
+  new_password: z.string().min(8).max(256),
 });
 
 function makeInitials(name: string) {

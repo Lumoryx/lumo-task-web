@@ -320,22 +320,22 @@ Input: "${text}"`;
 const ChatBody = z.object({
   messages: z.array(z.object({
     role: z.enum(["user", "assistant"]),
-    content: z.string(),
+    content: z.string().max(5000),
   })).max(20),
   context: z.object({
-    page: z.string().optional(),
+    page: z.string().max(200).optional(),
     todayTasks: z.array(z.object({
       id: z.string(),
-      title: z.string(),
-      quadrant: z.string(),
-    })).optional(),
+      title: z.string().max(500),
+      quadrant: z.string().max(20),
+    })).max(50).optional(),
     q1Count: z.number().int().optional(),
     recentCompleted: z.array(z.object({
-      title: z.string(),
+      title: z.string().max(500),
       completedAt: z.string(),
-    })).optional(),
+    })).max(20).optional(),
     locale: z.enum(["en", "zh"]).optional(),
-    userName: z.string().optional(),
+    userName: z.string().max(100).optional(),
   }).optional(),
 });
 

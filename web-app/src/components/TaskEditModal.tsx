@@ -51,8 +51,8 @@ export function TaskEditModal({ task, onClose }: Props) {
 
   const onCloseRef = useRef(onClose);
   const handleSaveRef = useRef(handleSave);
-  useEffect(() => { onCloseRef.current = onClose; });
-  useEffect(() => { handleSaveRef.current = handleSave; });
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => { handleSaveRef.current = handleSave; }, [handleSave]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -99,6 +99,8 @@ export function TaskEditModal({ task, onClose }: Props) {
       style={{ background: "rgba(8, 11, 10, 0.65)", backdropFilter: "blur(6px)", padding: "0 32px" }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         className="w-full overflow-hidden border rounded-[14px]"
         style={{

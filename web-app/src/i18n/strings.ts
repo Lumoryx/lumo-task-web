@@ -407,6 +407,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "outlook.notConfigured": "Requires VITE_MS_CLIENT_ID to be set.",
     "outlook.createTask": "Create task from event",
     "outlook.error.connect": "Failed to connect Outlook",
+    "outlook.serverMode": "Server Mode",
+    "outlook.serverConfigured": "Configured via server",
   },
   zh: {
     "brand.name": "Lumo",
@@ -805,5 +807,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "outlook.notConfigured": "需要配置 VITE_MS_CLIENT_ID。",
     "outlook.createTask": "从日程创建任务",
     "outlook.error.connect": "连接 Outlook 失败",
+    "outlook.serverMode": "服务端模式",
+    "outlook.serverConfigured": "通过服务端配置",
   },
 };
