@@ -5,6 +5,8 @@ import { IconArrowRight, IconUndo } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
+import { usePetStore } from "@/store/usePetStore";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { fmtDuration } from "@/lib/format";
 import type { CompletedEntry, Locale, Task } from "@/types/task";
 
@@ -39,6 +41,7 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
   const navigate = useNavigate();
   const t = useT();
   const ls = useLocaleString();
+  const isMobile = useIsMobile();
 
   const conviction = task.conviction ?? 0.9;
   const targetPct = Math.round(conviction * 100);
@@ -77,7 +80,7 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
         border: "1px solid var(--border-default)",
         background: "var(--bg-surface)",
         display: "grid",
-        gridTemplateColumns: "1fr 220px",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 220px",
         boxShadow: "var(--shadow-lifted)",
       }}
     >
@@ -186,7 +189,7 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
       </div>
 
       {/* ── Right column — conviction sidecar ── */}
-      <div
+      {!isMobile && <div
         className="relative flex flex-col gap-5"
         style={{
           padding: "26px 22px 24px",
@@ -265,7 +268,7 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
             </div>
           </div>
         )}
-      </div>
+      </div>}
     </article>
   );
 }
@@ -362,14 +365,29 @@ function TodayEmptyState() {
   );
 }
 
+// Confetti colors for the all-done celebration
+const CONFETTI_COLORS = ["#3dffa0", "#ff6b6b", "#a8e64b", "#5bc8d4", "#ffb347"];
+
 // ─── All-done Banner ────────────────────────────────────────────────────────
 
 function AllDoneBanner() {
   const t = useT();
 
+  useEffect(() => {
+    usePetStore.getState().celebrate("pet.celebrate.alldone");
+  }, []);
+
+  const confetti = Array.from({ length: 16 }, (_, i) => ({
+    id: i,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    left: `${6 + (i * 6) % 88}%`,
+    delay: `${(i * 0.12).toFixed(2)}s`,
+    duration: `${0.9 + (i % 4) * 0.25}s`,
+  }));
+
   return (
     <div
-      className="fade-in flex items-center gap-4 rounded-xl border mb-10"
+      className="fade-in relative flex items-center gap-4 rounded-xl border mb-10 overflow-hidden"
       style={{
         padding: "18px 24px",
         borderColor: "var(--accent-edge)",
@@ -377,6 +395,24 @@ function AllDoneBanner() {
         boxShadow: "0 0 30px var(--accent-fog)",
       }}
     >
+      {/* Confetti particles */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {confetti.map((c) => (
+          <div
+            key={c.id}
+            className="absolute"
+            style={{
+              width: 5,
+              height: 8,
+              top: -10,
+              left: c.left,
+              borderRadius: 2,
+              background: c.color,
+              animation: `confettiFall ${c.duration} ${c.delay} ease-in both`,
+            }}
+          />
+        ))}
+      </div>
       {/* Animated orb */}
       <div className="lumo-glyph flex-shrink-0" style={{ width: 20, height: 20 }}>
         <div className="halo" />
@@ -594,7 +630,7 @@ export function TodayPage() {
   }
 
   return (
-    <div className="fade-in px-8 py-8">
+    <div className="fade-in px-4 sm:px-8 py-6 sm:py-8">
       {!top && completed.length > 0 && (
         <AllDoneBanner />
       )}

@@ -4,6 +4,9 @@ import { IconArrowLeft, IconCheck, IconPause, IconPlay } from "@/components/icon
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
+import { usePetStore } from "@/store/usePetStore";
+import { api } from "@/api/client";
+import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 
@@ -33,6 +36,7 @@ export function FocusPage() {
   const [remaining, setRemaining] = useState(TOTAL);
   const [paused, setPaused] = useState(false);
   const [compact, setCompact] = useState(false);
+  const [petBounce, setPetBounce] = useState(false);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const workerRef = useRef<Worker | null>(null);
   // Keep a stable ref to locale so the worker message handler always sees the latest value
@@ -58,6 +62,16 @@ export function FocusPage() {
             icon: "/favicon.ico",
           });
         }
+        // Bounce the compact pet
+        setPetBounce(true);
+        setTimeout(() => setPetBounce(false), 1200);
+        // Check streak milestones
+        api.listAllCompleted().then((entries) => {
+          const { currentStreak } = computeAllTimeStats(entries);
+          if (currentStreak === 7 || currentStreak === 14 || currentStreak === 30) {
+            usePetStore.getState().celebrate(`pet.streak.${currentStreak}`);
+          }
+        }).catch(() => {});
       }
     };
 
@@ -256,7 +270,13 @@ export function FocusPage() {
         </div>
 
         {/* Pet */}
-        <div style={{ marginTop: 4, flexShrink: 0 }}>
+        <div
+          style={{
+            marginTop: 4,
+            flexShrink: 0,
+            animation: petBounce ? "petBounce 0.4s ease-in-out 3" : undefined,
+          }}
+        >
           <DogSvg mood={petMood} size={72} />
         </div>
 
