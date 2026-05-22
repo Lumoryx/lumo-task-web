@@ -9,6 +9,7 @@ import type { CompletedEntry } from "@/types/task";
 import { computeWeekStats, computeAllTimeStats, fmtHour } from "@/utils/stats";
 import { currentStreak as habitStreak } from "@/utils/habits";
 import { useNavigate } from "react-router-dom";
+import { ShareCard } from "@/components/ShareCard";
 
 const DAY_KEYS = ["stats.day.sun","stats.day.mon","stats.day.tue","stats.day.wed","stats.day.thu","stats.day.fri","stats.day.sat"];
 
@@ -161,64 +162,14 @@ export function StatsPage() {
 
             {/* Share card */}
             <section>
-              <div
-                className="relative rounded-2xl p-6 overflow-hidden"
-                style={{
-                  background: "linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-surface) 100%)",
-                  border: "1px solid var(--accent-edge)",
-                  boxShadow: "0 0 40px var(--accent-fog)",
-                }}
-              >
-                {/* Glow */}
-                <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 80% 20%, var(--accent-glow) 0%, transparent 60%)", opacity: 0.3 }} />
-
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-text-faint mb-1">Lumo Task</div>
-                      <div className="text-[16px] font-bold text-text-primary">{t("stats.share.title")}</div>
-                      <div className="text-[12px] text-text-muted mt-0.5">{weekLabel} · {userName}</div>
-                    </div>
-                    <div className="text-3xl">🌟</div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="text-center">
-                      <div className="text-[24px] font-bold" style={{ color: "var(--accent-primary)" }}>{week.tasksCompleted}</div>
-                      <div className="text-[10px] text-text-faint mt-0.5">{t("stats.tasks")}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-[24px] font-bold" style={{ color: "var(--accent-primary)" }}>{focusHours}<span className="text-[14px]">h</span></div>
-                      <div className="text-[10px] text-text-faint mt-0.5">{t("stats.focus")}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-[24px] font-bold" style={{ color: "var(--accent-primary)" }}>🔥{allTime.currentStreak}</div>
-                      <div className="text-[10px] text-text-faint mt-0.5">{t("stats.streak")}</div>
-                    </div>
-                  </div>
-
-                  {/* Mini heatmap */}
-                  <div className="flex items-end gap-1.5 mb-4">
-                    {week.byDay.map((count, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                        <div
-                          className="w-full rounded-sm"
-                          style={{
-                            height: count === 0 ? 3 : `${Math.max(6, (count / maxDay) * 28)}px`,
-                            background: count > 0 ? "var(--accent-primary)" : "var(--bg-deep, var(--bg-elevated))",
-                            opacity: count > 0 ? 0.8 + (count / maxDay) * 0.2 : 0.3,
-                          }}
-                        />
-                        <span className="text-[8px] text-text-faint">{t(DAY_KEYS[i])}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="text-center text-[11px] font-medium" style={{ color: "var(--accent-primary)" }}>
-                    {t("stats.share.hint")}
-                  </div>
-                </div>
-              </div>
+              <ShareCard
+                tasksCompleted={week.tasksCompleted}
+                focusHours={focusHours}
+                currentStreak={allTime.currentStreak}
+                byDay={week.byDay}
+                userName={userName}
+                weekLabel={weekLabel}
+              />
             </section>
           </>
         )}

@@ -12,6 +12,7 @@ interface PetStore {
   setMsg: (key: string | null) => void;
   setMood: (mood: PetMood) => void;
   toggleVisible: () => void;
+  celebrate: (msgKey: string, durationMs?: number) => void;
 }
 
 function defaultPos() {
@@ -30,6 +31,10 @@ export const usePetStore = create<PetStore>()(
       setMsg: (activeMsg) => set({ activeMsg }),
       setMood: (mood) => set({ mood }),
       toggleVisible: () => set((s) => ({ visible: !s.visible })),
+      celebrate: (msgKey, durationMs = 8000) => {
+        set({ activeMsg: msgKey, mood: "excited" });
+        setTimeout(() => set({ activeMsg: null, mood: "idle" }), durationMs);
+      },
     }),
     {
       name: "lumo-pet",

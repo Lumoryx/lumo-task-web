@@ -111,7 +111,7 @@ export function MatrixPage() {
 
       {/* Content area */}
       {view === "matrix" ? (
-        <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1 min-h-0 px-7 pb-7">
+        <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-3 sm:gap-4 flex-1 min-h-0 overflow-y-auto px-4 sm:px-7 pb-4 sm:pb-7">
           {quadrants.map((q) => (
             <QuadrantPanel key={q.id} id={q.id} title={q.label} subtitle={q.sub} />
           ))}
