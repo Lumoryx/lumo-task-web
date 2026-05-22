@@ -192,6 +192,18 @@ export const api = {
     return rows.map(adaptEntry);
   },
 
+  async classifyTasks(): Promise<Array<{
+    task_id: string;
+    quadrant: string;
+    confidence: number;
+    reason?: string;
+  }>> {
+    const data = await req<{ suggestions: Array<{ task_id: string; quadrant: string; confidence: number; reason?: string }> }>(
+      "POST", "/ai/classify"
+    );
+    return data.suggestions ?? [];
+  },
+
   async parseTask(text: string, locale?: string): Promise<{
     title: string;
     quadrant: string;

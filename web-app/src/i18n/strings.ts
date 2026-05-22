@@ -400,6 +400,25 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "pet.brief.morning": "Good morning! Here's your day:",
     "pet.brief.tasks": "You have {n} tasks today.",
+
+    "matrix.aiClassify.tasks": "tasks",
+    "matrix.aiClassify.unclassified": "unclassified",
+    "matrix.aiClassify.hint.ai": "AI suggestions · tap a chip to override",
+    "matrix.aiClassify.hint.manual": "Drag chips to reclassify · or tap to change",
+    "matrix.aiClassify.pending": "Analyzing tasks…",
+    "matrix.aiClassify.current": "Current:",
+    "matrix.aiClassify.suggests": "Suggests",
+    "matrix.aiClassify.nosuggestion": "No suggestion",
+    "matrix.aiClassify.changed": "pending",
+
+    "matrix.view.matrix": "Matrix",
+    "matrix.view.calendar": "Calendar",
+    "calendar.prev": "Prev week",
+    "calendar.next": "Next week",
+    "calendar.today.btn": "This week",
+    "calendar.unscheduled": "No date",
+    "calendar.unscheduled.hint": "Drop to clear date",
+    "calendar.drop.here": "Drop to schedule",
   },
   zh: {
     "brand.name": "Lumo",
@@ -791,5 +810,24 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "pet.brief.morning": "早上好！今日计划：",
     "pet.brief.tasks": "你有 {n} 个任务。",
+
+    "matrix.aiClassify.tasks": "个任务",
+    "matrix.aiClassify.unclassified": "未分类",
+    "matrix.aiClassify.hint.ai": "AI 建议 · 点击可覆盖",
+    "matrix.aiClassify.hint.manual": "拖拽可重新分类 · 或点击更改",
+    "matrix.aiClassify.pending": "分析任务中…",
+    "matrix.aiClassify.current": "当前：",
+    "matrix.aiClassify.suggests": "建议",
+    "matrix.aiClassify.nosuggestion": "无建议",
+    "matrix.aiClassify.changed": "待调整",
+
+    "matrix.view.matrix": "矩阵",
+    "matrix.view.calendar": "日历",
+    "calendar.prev": "上一周",
+    "calendar.next": "下一周",
+    "calendar.today.btn": "本周",
+    "calendar.unscheduled": "无日期",
+    "calendar.unscheduled.hint": "拖到这里清除日期",
+    "calendar.drop.here": "拖到这里排期",
   },
 };

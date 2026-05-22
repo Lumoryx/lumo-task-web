@@ -1,5 +1,26 @@
 import type { Locale } from "@/types/task";
 
+/** Returns YYYY-MM-DD using local time (avoids UTC offset issues from toISOString). */
+export function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+/**
+ * Resolves a task's loose `due` string to a strict ISO date (YYYY-MM-DD),
+ * or null if it can't be pinned to a specific calendar date.
+ * Handles: YYYY-MM-DD pass-through, "today" keyword.
+ * Loose labels like "Fri" / "next wk" return null (can't be pinned).
+ */
+export function parseDueISO(due: string | null): string | null {
+  if (!due) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(due)) return due;
+  if (due === "today") return toISODate(new Date());
+  return null;
+}
+
 export function fmtDuration(mins: number, locale: Locale): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
