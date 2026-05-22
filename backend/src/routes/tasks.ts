@@ -6,6 +6,7 @@ import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
+import type { TaskRow } from "../db/rows.js";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
@@ -59,7 +60,7 @@ function safeParse<T>(raw: string | null | undefined, fallback: T): T {
   try { return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
 
-function rowToTask(row: any) {
+function rowToTask(row: TaskRow) {
   return {
     id: row.id,
     assignee_ids: safeParse<string[]>(row.assignee_ids, []),
@@ -87,7 +88,7 @@ function rowToTask(row: any) {
 app.get("/", (c) => {
   const userId = c.get("userId") as string;
   const rows = db.prepare("SELECT * FROM tasks WHERE user_id = :uid AND completed = 0 ORDER BY created_at ASC").all({ uid: userId });
-  return c.json((rows as any[]).map(rowToTask));
+  return c.json((rows as unknown as TaskRow[]).map(rowToTask));
 });
 
 // POST /tasks
@@ -129,7 +130,7 @@ app.post("/", zValidator("json", TaskCreateBody), (c) => {
   });
 
   const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ id });
-  return c.json(rowToTask(row as any), 201);
+  return c.json(rowToTask(row as unknown as TaskRow), 201);
 });
 
 // GET /tasks/:id
@@ -137,7 +138,7 @@ app.get("/:id", (c) => {
   const userId = c.get("userId") as string;
   const row = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: c.req.param("id"), uid: userId });
   if (!row) return httpError(c, 404, "NOT_FOUND", "Not found");
-  return c.json(rowToTask(row as any));
+  return c.json(rowToTask(row as unknown as TaskRow));
 });
 
 // PATCH /tasks/:id
@@ -147,7 +148,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
   const body = c.req.valid("json");
   const now = new Date().toISOString();
 
-  const existing = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as any;
+  const existing = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as unknown as TaskRow | undefined;
   if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const merged = {
@@ -183,14 +184,14 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
   `).run({ ...merged, id: taskId, uid: userId, now });
 
   const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ id: taskId });
-  return c.json(rowToTask(row as any));
+  return c.json(rowToTask(row as unknown as TaskRow));
 });
 
 // DELETE /tasks/:id
 app.delete("/:id", (c) => {
   const userId = c.get("userId") as string;
   const result = db.prepare("DELETE FROM tasks WHERE id = :id AND user_id = :uid").run({ id: c.req.param("id"), uid: userId });
-  if ((result as any).changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
+  if (((result as { changes: number }).changes) === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
   return new Response(null, { status: 204 });
 });
 
@@ -199,7 +200,7 @@ app.post("/:id/complete", (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
 
-  const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as any;
+  const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as unknown as TaskRow | undefined;
   if (!task) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const now = new Date().toISOString();
@@ -277,7 +278,7 @@ app.post("/:id/uncomplete", (c) => {
   }
 
   const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ id: taskId });
-  return c.json(rowToTask(row as any));
+  return c.json(rowToTask(row as unknown as TaskRow));
 });
 
 export default app;

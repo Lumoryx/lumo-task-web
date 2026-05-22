@@ -9,6 +9,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import { createRateLimiter } from "../lib/rateLimit.js";
 import type { Variables } from "../env.js";
+import type { UserRow } from "../db/rows.js";
 
 const app = new Hono<{ Variables: Variables }>();
 
@@ -82,7 +83,7 @@ app.post("/signin", authRateLimit, zValidator("json", SigninBody), async (c) => 
   const { email, password } = c.req.valid("json");
 
   try {
-    const user = db.prepare("SELECT * FROM users WHERE email = :email").get({ email }) as any;
+    const user = db.prepare("SELECT * FROM users WHERE email = :email").get({ email }) as UserRow | undefined;
     if (!user) return httpError(c, 401, "INVALID_CREDENTIALS", "Invalid credentials");
 
     const ok = await verifyPassword(password, user.password_hash);
@@ -94,7 +95,7 @@ app.post("/signin", authRateLimit, zValidator("json", SigninBody), async (c) => 
         COUNT(CASE WHEN completed = 0 THEN 1 END) as task_count,
         COALESCE(SUM(pomos_done), 0) as pomo_count
       FROM tasks WHERE user_id = :uid
-    `).get({ uid: user.id }) as any;
+    `).get({ uid: user.id }) as { task_count: number; pomo_count: number };
 
     const token = await signToken(user.id);
 
@@ -121,7 +122,7 @@ app.post("/change-password", authRateLimit, authMiddleware, zValidator("json", C
   const { current_password, new_password } = c.req.valid("json");
 
   try {
-    const user = db.prepare("SELECT password_hash FROM users WHERE id = :id").get({ id: userId }) as any;
+    const user = db.prepare("SELECT password_hash FROM users WHERE id = :id").get({ id: userId }) as Pick<UserRow, "password_hash"> | undefined;
     if (!user) return httpError(c, 404, "NOT_FOUND", "Not found");
 
     const ok = await verifyPassword(current_password, user.password_hash);

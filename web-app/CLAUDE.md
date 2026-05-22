@@ -58,19 +58,11 @@ npm run build      # type-check + production bundle
 npm run typecheck  # tsc --noEmit only
 ```
 
-## What's intentionally **not** here yet
-
-- Authentication / sign-in flow (the app is local-first by default)
-- Real backend sync
-- Tests
-
-Each of these is a clean "next ticket" — the seams are in place.
-
 ## What's already wired up
 
 - ✅ Full-viewport web/Windows-desktop layout (sidebar + topbar + content)
 - ✅ Mock API + localStorage persistence
-- ✅ Today / Matrix / Focus / Settings pages
+- ✅ Today / Matrix / Focus / Settings / Stats pages
 - ✅ Drag-and-drop between Matrix quadrants (HTML5 DnD, no extra deps)
 - ✅ AI classify modal — review Lumo's per-task suggestions, override any,
   apply all in one go
@@ -78,3 +70,15 @@ Each of these is a clean "next ticket" — the seams are in place.
   "Replay onboarding" in Settings
 - ✅ Bilingual (en / zh) with locale-aware task strings
 - ✅ Accent theming (4 swatches) wired to CSS vars
+- ✅ Calendar week view with drag-to-set-due-date
+- ✅ Pomodoro Web Worker (survives tab switches, notifies on completion)
+- ✅ AI semantic classification (LLM quadrant + reason, heuristic fallback)
+- ✅ Shareable weekly stats card (PNG export via html2canvas, Web Share API)
+- ✅ PWA manifest + service worker (installable, offline shell)
+- ✅ Mobile layout (bottom tab bar, responsive Matrix/Today/ConvictionCard)
+- ✅ Lumo Dog celebration moments (Q1 complete, all-done banner, streak milestones)
+
+## Test coverage
+
+- 104 unit tests (Vitest + RTL): components, hooks, utils, store actions
+- 10 E2E tests (Playwright): auth flow, task CRUD, focus session, stats

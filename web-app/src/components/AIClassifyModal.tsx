@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { IconClose, IconSparkle } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useTasksStore } from "@/store/useTasksStore";
-import { api } from "@/api/client";
 import type { Quadrant, Task } from "@/types/task";
 
 interface AIClassifyModalProps {
@@ -22,6 +21,7 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
   const ls = useLocaleString();
   const tasks = useTasksStore((s) => s.tasks);
   const update = useTasksStore((s) => s.update);
+  const classifyTasks = useTasksStore((s) => s.classifyTasks);
 
   // All non-completed tasks — unclassified first, then by quadrant
   const candidates = useMemo(() => {
@@ -58,7 +58,7 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
     classifyCalledRef.current = true;
     setIsClassifying(true);
 
-    api.classifyTasks()
+    classifyTasks()
       .then((suggestions) => {
         setAssign((prev) => {
           const next = { ...prev };
