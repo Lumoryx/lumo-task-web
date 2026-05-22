@@ -10,6 +10,8 @@ import type { Quadrant, TaskRecurrence } from "@/types/task";
 
 interface QuickCreateProps {
   initialQuadrant?: Quadrant;
+  initialTitle?: string;
+  initialDue?: string;
   onClose: () => void;
   onCreated?: () => void;
 }
@@ -28,7 +30,7 @@ const Q_META: Record<Quadrant, { en: string; zh: string; descEn: string; descZh:
  * Modal for creating a task quickly. Per design: centered, dismiss via X or
  * Escape. Escape is a convenience but the X button is always the primary affordance.
  */
-export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: QuickCreateProps) {
+export function QuickCreate({ initialQuadrant = "Q2", initialTitle, initialDue, onClose, onCreated }: QuickCreateProps) {
   const t = useT();
   const locale = useAppStore((s) => s.locale);
   const create = useTasksStore((s) => s.create);
@@ -36,12 +38,12 @@ export function QuickCreate({ initialQuadrant = "Q2", onClose, onCreated }: Quic
 
   const todayISO = new Date().toISOString().split("T")[0];
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle ?? "");
   const [busy, setBusy] = useState(false);
   const [quadrant, setQuadrant] = useState<Quadrant>(initialQuadrant);
   const [duration, setDuration] = useState(30);
   const [durationRaw, setDurationRaw] = useState("30");
-  const [dueDate, setDueDate] = useState<string>(todayISO);
+  const [dueDate, setDueDate] = useState<string>(initialDue ?? todayISO);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [recurrence, setRecurrence] = useState<TaskRecurrence>("none");
   const [aiMode, setAiMode] = useState(false);

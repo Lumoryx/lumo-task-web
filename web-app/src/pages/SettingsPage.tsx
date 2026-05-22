@@ -4,6 +4,7 @@ import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { useAIStore } from "@/store/useAIStore";
+import { useCalendarStore } from "@/store/useCalendarStore";
 import { api } from "@/api/client";
 import { useT } from "@/i18n/useT";
 import { toast } from "@/store/useToastStore";
@@ -92,6 +93,8 @@ export function SettingsPage() {
       />
 
       <AIConfigGroup t={t} locale={locale} />
+
+      <IntegrationsGroup t={t} locale={locale} />
 
       <Group title="Data">
         <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
@@ -286,7 +289,8 @@ const PROVIDER_DEFAULTS: Record<string, { model: string; baseUrl: string }> = {
 };
 
 function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
-  const { activeProvider, providerConfigs, saveConfig } = useAIStore();
+  const { activeProvider, providerConfigs, saveConfig, cloudEnabled, cloudUsed, cloudLimit } = useAIStore();
+  const anyKeyConfigured = Object.values(providerConfigs).some((c) => c.hasKey);
 
   // Local UI state — scoped to the currently viewed provider tab
   const [viewProvider, setViewProvider] = useState<"openai" | "deepseek" | "claude" | "custom">(activeProvider);
@@ -366,6 +370,36 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
         {t("ai.config.title")}
       </h3>
       <div className="rounded-[10px] border bg-surface overflow-hidden flex flex-col" style={{ borderColor: "var(--border-default)" }}>
+
+        {/* Lumo Cloud free tier usage bar — only when server key is active and user has no own key */}
+        {cloudEnabled && !anyKeyConfigured && (
+          <div className="px-5 py-3.5 border-b border-border-faint">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[12px] font-medium text-text-primary">
+                {t("ai.cloud.label")}
+              </span>
+              <span className="text-[11px] tabular-nums" style={{
+                color: cloudUsed >= cloudLimit ? "var(--status-urgent)" : "var(--text-muted)",
+              }}>
+                {cloudUsed} / {cloudLimit}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, (cloudUsed / cloudLimit) * 100)}%`,
+                  background: cloudUsed >= cloudLimit ? "var(--status-urgent)" : "var(--accent-primary)",
+                }}
+              />
+            </div>
+            <div className="mt-1.5 text-[11px] text-text-muted">
+              {cloudUsed >= cloudLimit
+                ? t("ai.cloud.limit_reached")
+                : t("ai.cloud.hint")}
+            </div>
+          </div>
+        )}
 
         {/* Provider tabs — "已配置" badge shown directly on configured tabs */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint first:border-t-0"
@@ -492,6 +526,86 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           </button>
         </div>
 
+      </div>
+    </section>
+  );
+}
+
+/* ── Integrations section ─────────────────────────────────────────── */
+
+const MS_CLIENT_ID = (import.meta as any).env?.VITE_MS_CLIENT_ID as string | undefined;
+
+function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+  const { connected, userEmail, loading, connect, disconnect } = useCalendarStore();
+  const [busy, setBusy] = useState(false);
+
+  async function handleConnect() {
+    setBusy(true);
+    try {
+      await connect();
+    } catch {
+      toast.error(t("outlook.error.connect"), "");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mb-7">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
+        {t("settings.integrations")}
+      </h3>
+      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+        <div
+          className="grid items-center px-5 py-4"
+          style={{ gridTemplateColumns: "1fr auto", gap: 16 }}
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              {/* Outlook icon */}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="2" width="20" height="20" rx="3" fill="#0078D4" />
+                <path d="M12 7C9.24 7 7 9.24 7 12s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8.5c-1.93 0-3.5-1.57-3.5-3.5S10.07 8.5 12 8.5s3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" fill="white"/>
+                <path d="M17 7h3v10h-3z" fill="white" opacity="0.8"/>
+              </svg>
+              <span className="text-[13px] font-medium text-text-primary">Microsoft Outlook</span>
+              {connected && (
+                <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-fog)", color: "var(--accent-primary)" }}>
+                  ✓ {t("outlook.connected")}
+                </span>
+              )}
+            </div>
+            {connected && userEmail ? (
+              <div className="mt-0.5 text-[11px] text-text-muted">{userEmail}</div>
+            ) : (
+              <div className="mt-0.5 text-[11px] text-text-muted">
+                {MS_CLIENT_ID ? t("outlook.hint") : t("outlook.notConfigured")}
+              </div>
+            )}
+          </div>
+
+          {connected ? (
+            <button
+              onClick={disconnect}
+              className="btn btn-secondary"
+              style={{ height: 32, fontSize: 12 }}
+            >
+              {t("outlook.disconnect")}
+            </button>
+          ) : (
+            <button
+              onClick={handleConnect}
+              disabled={!MS_CLIENT_ID || busy || loading}
+              className="btn btn-secondary"
+              style={{ height: 32, fontSize: 12 }}
+              title={!MS_CLIENT_ID ? t("outlook.notConfigured") : undefined}
+            >
+              {busy || loading
+                ? locale === "zh" ? "连接中…" : "Connecting…"
+                : t("outlook.connect")}
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

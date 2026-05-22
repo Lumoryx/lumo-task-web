@@ -149,6 +149,13 @@ export function runMigrations() {
   if (!taskCols.some((c: any) => c.name === "recurrence")) {
     db.exec("ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
   }
+
+  // Migrate: add Lumo Cloud AI usage tracking to settings
+  const settingsColsV2 = db.prepare("PRAGMA table_info(settings)").all() as any[];
+  if (!settingsColsV2.some((c: any) => c.name === "ai_cloud_used")) {
+    db.exec("ALTER TABLE settings ADD COLUMN ai_cloud_used INTEGER NOT NULL DEFAULT 0");
+    db.exec("ALTER TABLE settings ADD COLUMN ai_cloud_month TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 // When run directly

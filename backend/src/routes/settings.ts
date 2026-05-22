@@ -53,6 +53,8 @@ function parseAiConfigs(raw: string | null): Record<Provider, { key: string; mod
   return defaults;
 }
 
+const CLOUD_FREE_LIMIT = 100;
+
 function rowToSettings(row: any) {
   const configs = parseAiConfigs(row.ai_configs);
   const providerConfigs: Record<string, { hasKey: boolean; model: string; baseUrl: string }> = {};
@@ -63,6 +65,11 @@ function rowToSettings(row: any) {
       baseUrl: configs[p].baseUrl,
     };
   }
+
+  const cloudEnabled = Boolean((process.env.LUMO_AI_KEY ?? "").trim());
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const cloudUsed = (row.ai_cloud_month ?? "") === currentMonth ? (row.ai_cloud_used ?? 0) : 0;
+
   return {
     locale: row.locale,
     accent: row.accent,
@@ -78,6 +85,9 @@ function rowToSettings(row: any) {
     onboarding_complete: Boolean(row.onboarding_complete),
     ai_provider: (row.ai_provider ?? "openai") as string,
     ai_provider_configs: providerConfigs,
+    ai_cloud_enabled: cloudEnabled,
+    ai_cloud_used: cloudUsed,
+    ai_cloud_limit: CLOUD_FREE_LIMIT,
   };
 }
 
