@@ -13,6 +13,7 @@ import type { CompletedEntry, Task } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
 import { usePetStore } from "@/store/usePetStore";
+import { useDogStore, XP_PER_TASK } from "@/store/useDogStore";
 
 interface TasksState {
   tasks: Task[];
@@ -93,6 +94,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       if (completingTask?.quadrant === "Q1") {
         usePetStore.getState().celebrate("pet.celebrate.q1");
       }
+      useDogStore.getState().addXP(XP_PER_TASK);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(t("error.task.complete"), msg);

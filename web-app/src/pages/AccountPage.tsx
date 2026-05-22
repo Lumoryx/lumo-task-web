@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
+import { DogEvolutionBadge } from "@/components/DogEvolutionBadge";
 
 /**
  * /account — signed-in user profile + plan + usage + security + danger zone.
@@ -127,6 +128,11 @@ export function AccountPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Dog evolution badge */}
+      <div className="mt-4">
+        <DogEvolutionBadge />
       </div>
 
       {/* Usage */}
