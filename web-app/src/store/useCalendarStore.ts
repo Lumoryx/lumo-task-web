@@ -23,6 +23,9 @@ interface CalendarStore {
 }
 
 const CLIENT_ID = (import.meta as any).env?.VITE_MS_CLIENT_ID as string | undefined;
+// When set to a specific tenant ID or domain, restricts login to that tenant only.
+// Leave unset (or "common") to allow any Microsoft account.
+const TENANT_ID = ((import.meta as any).env?.VITE_MS_TENANT_ID as string | undefined) || "common";
 const SCOPES = ["Calendars.Read", "User.Read"];
 
 let _msal: PublicClientApplication | null = null;
@@ -34,7 +37,7 @@ async function ensureMsal(): Promise<PublicClientApplication> {
     _msal = new PublicClientApplication({
       auth: {
         clientId: CLIENT_ID,
-        authority: "https://login.microsoftonline.com/common",
+        authority: `https://login.microsoftonline.com/${TENANT_ID}`,
         redirectUri: window.location.origin,
       },
       cache: { cacheLocation: "localStorage" },
