@@ -13,6 +13,7 @@ import { TaskMoreMenu } from "@/components/TaskMoreMenu";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 import { CalendarView } from "@/components/CalendarView";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /**
  * Eisenhower 2×2. Each quadrant is a column with a header and a stack
@@ -31,6 +32,7 @@ function readView(): ViewMode {
 
 export function MatrixPage() {
   const t = useT();
+  const isMobile = useIsMobile();
   const tasks = useTasksStore((s) => s.tasks);
   const unclassified = tasks.filter((x) => x.quadrant === "unclassified" && !x.completed);
   const allActive = tasks.filter((x) => !x.completed);
@@ -55,14 +57,22 @@ export function MatrixPage() {
       <div className="flex items-center gap-3 flex-shrink-0 px-7 pt-7 pb-4">
         {view === "matrix" ? (
           <>
-            <UnclassifiedBar unclassified={unclassified} label={t("matrix.unclassified")} />
+            {isMobile ? (
+              unclassified.length > 0 && (
+                <span className="chip flex-shrink-0" style={{ fontSize: 11 }}>
+                  {t("matrix.unclassified")} · {unclassified.length}
+                </span>
+              )
+            ) : (
+              <UnclassifiedBar unclassified={unclassified} label={t("matrix.unclassified")} />
+            )}
             <button
               className="btn btn-secondary flex-shrink-0"
               onClick={() => setClassifyOpen(true)}
               disabled={allActive.length === 0}
             >
               <IconSparkle size={14} />
-              {t("matrix.aiClassify")}
+              {!isMobile && t("matrix.aiClassify")}
               {allActive.length > 0 && (
                 <span className="ml-1 text-[11px] text-text-faint tabular-nums">
                   · {allActive.length}

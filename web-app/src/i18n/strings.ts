@@ -250,6 +250,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "pet.idle.6": "One task at a time! 🐕",
     "pet.celebrate.q1": "Woof! Q1 done! You're crushing it! 🎯",
     "pet.celebrate.alldone": "Today's plan complete! Amazing work! 🌟",
+    "pet.streak.7": "7-day streak! You're on a roll! 🔥",
+    "pet.streak.14": "14 days straight! Incredible focus! 🔥🔥",
+    "pet.streak.30": "30-day streak! You're unstoppable! 🔥🔥🔥",
 
     "ai.config.title": "AI Assistant",
     "ai.config.provider": "Provider",
@@ -676,6 +679,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "pet.idle.6": "一次只做一件事！🐕",
     "pet.celebrate.q1": "汪！Q1 搞定了！太厉害了！🎯",
     "pet.celebrate.alldone": "今日清单全部完成！太棒了！🌟",
+    "pet.streak.7": "连击 7 天！势头正劲！🔥",
+    "pet.streak.14": "14 天连击！专注力超强！🔥🔥",
+    "pet.streak.30": "30 天连击！势不可挡！🔥🔥🔥",
 
     "ai.config.title": "AI 助手",
     "ai.config.provider": "服务商",
