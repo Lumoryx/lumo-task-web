@@ -186,6 +186,80 @@ export const TASK_TOOLS: ToolDefinition[] = [
     description: "Get the AI-recommended highest-priority Q1 task to work on right now.",
     parameters: { type: "object", properties: {} },
   },
+
+  // ── Batch / bulk operations ───────────────────────────────────────────────
+
+  {
+    name: "batch_create_tasks",
+    description: "Create multiple tasks at once. Use when the user lists several tasks to add. Each item becomes its own task.",
+    parameters: {
+      type: "object",
+      properties: {
+        tasks: {
+          type: "array",
+          description: "Array of tasks to create",
+          items: {
+            type: "object",
+            properties: {
+              title:    { type: "string", description: "Task title" },
+              quadrant: { type: "string", description: "Eisenhower quadrant", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
+              today:    { type: "string", description: "'true' to add to today's plan", enum: ["true", "false"] },
+              due:      { type: "string", description: "Due date YYYY-MM-DD (optional)" },
+            },
+            required: ["title"],
+          },
+        },
+      },
+      required: ["tasks"],
+    },
+  },
+
+  {
+    name: "search_tasks",
+    description: "Search tasks by keyword. Use when the user asks to find a specific task by name or content.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search keyword" },
+        include_completed: { type: "string", description: "'true' to include recently completed tasks", enum: ["true", "false"] },
+      },
+      required: ["query"],
+    },
+  },
+
+  {
+    name: "generate_today_plan",
+    description: "Automatically select the most important tasks and add them to today's plan. Picks up to 5 high-priority tasks the user hasn't planned yet.",
+    parameters: {
+      type: "object",
+      properties: {
+        max_tasks: { type: "string", description: "Maximum number of tasks to add to today (default 5, max 10)" },
+      },
+    },
+  },
+
+  {
+    name: "reorganize_matrix",
+    description: "Move multiple tasks to new quadrants at once. Use when the user asks to reorganize, reclassify, or bulk-move tasks.",
+    parameters: {
+      type: "object",
+      properties: {
+        changes: {
+          type: "array",
+          description: "Array of quadrant changes",
+          items: {
+            type: "object",
+            properties: {
+              id:           { type: "string", description: "Task ID from list_tasks" },
+              new_quadrant: { type: "string", description: "New quadrant to move to", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
+            },
+            required: ["id", "new_quadrant"],
+          },
+        },
+      },
+      required: ["changes"],
+    },
+  },
 ];
 
 // ── Tool executor ─────────────────────────────────────────────────────────────
@@ -363,6 +437,89 @@ export async function executeTool(
       const result = await api("POST", "/ai/recommend") as any;
       if (!result?.task) return JSON.stringify({ task: null, message: "No Q1 tasks in today's plan" });
       return JSON.stringify({ task: { id: result.task.id, title: taskTitle(result.task), conviction: result.task.conviction } });
+    }
+
+    // ── Batch / bulk operations ────────────────────────────────────────────
+
+    case "batch_create_tasks": {
+      const items = Array.isArray(a.tasks) ? a.tasks : [];
+      const created: { id: string; title: string }[] = [];
+      for (const item of items.slice(0, 20)) {
+        if (!item.title) continue;
+        const body: Record<string, unknown> = {
+          title: { en: String(item.title), ...(locale === "zh" ? { zh: String(item.title) } : {}) },
+          quadrant: (item.quadrant as string) || "Q2",
+          today: item.today === "true",
+        };
+        if (item.due) body.due = String(item.due);
+        const result = await api("POST", "/tasks", body) as any;
+        created.push({ id: result.id, title: taskTitle(result) });
+      }
+      return JSON.stringify({ created: created.length, tasks: created });
+    }
+
+    case "search_tasks": {
+      const query = String(a.query ?? "").toLowerCase().trim();
+      if (!query) return JSON.stringify({ results: [] });
+      const allTasks = await api("GET", "/tasks") as any[];
+      const results = allTasks.filter((t) => {
+        const title = taskTitle(t).toLowerCase();
+        return title.includes(query);
+      }).slice(0, 10).map((t) => ({
+        id: t.id,
+        title: taskTitle(t),
+        quadrant: t.quadrant,
+        today: t.today,
+        due: t.due ?? null,
+      }));
+      if (a.include_completed === "true") {
+        const completed = await api("GET", "/completed") as any[];
+        const compResults = completed.filter((e) => {
+          const title = (e.title?.[locale] ?? e.title?.en ?? e.title ?? "").toLowerCase();
+          return title.includes(query);
+        }).slice(0, 5).map((e) => ({
+          log_id: e.id,
+          title: e.title?.[locale] ?? e.title?.en ?? e.title,
+          completed_at: e.completedAt,
+        }));
+        return JSON.stringify({ results, recently_completed: compResults });
+      }
+      return JSON.stringify({ results });
+    }
+
+    case "generate_today_plan": {
+      const maxTasks = Math.min(10, parseInt(String(a.max_tasks ?? "5"), 10) || 5);
+      const allTasks = await api("GET", "/tasks") as any[];
+      const notToday = allTasks.filter((t) => !t.today && !t.completed);
+      // Priority: Q1 first, then Q2, then by due date
+      const priority = ["Q1", "Q2", "Q3", "Q4", "unclassified"];
+      notToday.sort((a: any, b: any) => {
+        const pa = priority.indexOf(a.quadrant);
+        const pb = priority.indexOf(b.quadrant);
+        if (pa !== pb) return pa - pb;
+        if (a.due && b.due) return a.due.localeCompare(b.due);
+        if (a.due) return -1;
+        if (b.due) return 1;
+        return 0;
+      });
+      const toAdd = notToday.slice(0, maxTasks);
+      const added: { id: string; title: string; quadrant: string }[] = [];
+      for (const task of toAdd) {
+        await api("PATCH", `/tasks/${task.id}`, { today: true });
+        added.push({ id: task.id, title: taskTitle(task), quadrant: task.quadrant });
+      }
+      return JSON.stringify({ added: added.length, tasks: added });
+    }
+
+    case "reorganize_matrix": {
+      const changes = Array.isArray(a.changes) ? a.changes : [];
+      const updated: { id: string; new_quadrant: string }[] = [];
+      for (const change of changes.slice(0, 50)) {
+        if (!change.id || !change.new_quadrant) continue;
+        await api("PATCH", `/tasks/${change.id}`, { quadrant: change.new_quadrant });
+        updated.push({ id: change.id, new_quadrant: change.new_quadrant });
+      }
+      return JSON.stringify({ updated: updated.length, changes: updated });
     }
 
     default:

@@ -5,10 +5,12 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { useAIStore } from "@/store/useAIStore";
 import { useCalendarStore } from "@/store/useCalendarStore";
+import { usePetStore } from "@/store/usePetStore";
 import { useT } from "@/i18n/useT";
 import { toast } from "@/store/useToastStore";
 import type { Locale, Person } from "@/types/task";
 import { PERSON_COLORS } from "@/mocks/people";
+import { PET_SPECIES_LIST, PetSvg } from "@/components/PetSvg";
 
 const ACCENT_SWATCHES: Array<{ id: Accent; hex: string; label: string }> = [
   { id: "green", hex: "#3DFFA0", label: "Lumo Green" },
@@ -29,6 +31,7 @@ export function SettingsPage() {
     useAppStore();
   const reset = useTasksStore((s) => s.reset);
   const { people, create: createPerson, update: updatePerson, remove: removePerson } = usePeopleStore();
+  const { species, petName, setSpecies, setPetName } = usePetStore();
 
   return (
     <div className="fade-in px-8 py-8 max-w-[760px] mx-auto">
@@ -83,6 +86,15 @@ export function SettingsPage() {
         </Row>
       </Group>
 
+      <PetGroup
+        species={species}
+        petName={petName}
+        onSpeciesChange={setSpecies}
+        onNameChange={setPetName}
+        t={t}
+        locale={locale}
+      />
+
       <MembersGroup
         people={people}
         onCreate={createPerson}
@@ -132,6 +144,76 @@ function deriveInitials(name: string) {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+function PetGroup({
+  species,
+  petName,
+  onSpeciesChange,
+  onNameChange,
+  t,
+  locale,
+}: {
+  species: import("@/components/PetSvg").PetSpecies;
+  petName: string;
+  onSpeciesChange: (s: import("@/components/PetSvg").PetSpecies) => void;
+  onNameChange: (name: string) => void;
+  t: (k: string) => string;
+  locale: string;
+}) {
+  return (
+    <section className="mb-7">
+      <h3 className="text-[11px] font-semibold uppercase mb-2 pl-0.5 text-text-faint" style={{ letterSpacing: "0.1em" }}>
+        {t("settings.pet")}
+      </h3>
+      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+        {/* Species selector */}
+        <div className="px-5 py-4">
+          <div className="text-[13px] font-medium text-text-primary mb-3">{t("settings.pet.species")}</div>
+          <div className="flex gap-3 flex-wrap">
+            {PET_SPECIES_LIST.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => onSpeciesChange(s.value)}
+                className="flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all"
+                style={{
+                  border: species === s.value ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                  background: species === s.value ? "var(--accent-fog)" : "var(--bg-deep)",
+                  minWidth: 72,
+                }}
+              >
+                <PetSvg species={s.value} mood={species === s.value ? "happy" : "idle"} size={44} />
+                <span className="text-[11px] text-text-secondary">
+                  {locale === "zh" ? s.labelZh : s.labelEn}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Pet name input */}
+        <div className="px-5 py-4 border-t border-border-faint">
+          <label className="text-[13px] font-medium text-text-primary block mb-1.5">
+            {t("settings.pet.name")}
+          </label>
+          <input
+            type="text"
+            value={petName}
+            onChange={(e) => onNameChange(e.target.value.slice(0, 20))}
+            placeholder={locale === "zh" ? t("settings.pet.name.placeholder.zh") : t("settings.pet.name.placeholder")}
+            className="w-full text-[13px] text-text-primary bg-transparent outline-none rounded-lg px-3 py-2"
+            style={{
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-deep)",
+              maxWidth: 240,
+            }}
+          />
+          <p className="text-[11px] text-text-faint mt-1">
+            {locale === "zh" ? "留空则使用默认名称" : "Leave empty to use the default name"}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function MembersGroup({
