@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useDogStore } from "@/store/useDogStore";
+import { useAIStore } from "@/store/useAIStore";
 import { DogSvg } from "@/components/DogSvg";
 import type { PrevWeekStats } from "@/utils/wrapped";
 
@@ -21,6 +22,7 @@ export function WrappedCard({ stats, currentStreak, userName, onDismiss }: Wrapp
   const t = useT();
   const locale = useAppStore((s) => s.locale);
   const { level } = useDogStore();
+  const fetchWrappedInsight = useAIStore((s) => s.fetchWrappedInsight);
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<"idle" | "downloaded">("idle");
@@ -31,26 +33,17 @@ export function WrappedCard({ stats, currentStreak, userName, onDismiss }: Wrapp
   useEffect(() => {
     if (stats.tasksCompleted === 0) return;
     let cancelled = false;
-    async function fetchInsight() {
-      try {
-        const { api } = await import("@/api/client");
-        const result = await api.petChat({
-          messages: [{
-            role: "user",
-            content: locale === "zh"
-              ? `请用一句话点评我上周的数据：完成了${stats.tasksCompleted}个任务，专注了${Math.round(stats.focusMinutes / 60 * 10) / 10}小时，Q1完成${stats.q1Tasks}个，连击${currentStreak}天。要积极鼓励，不超过20字。`
-              : `In one sentence, review my last week: ${stats.tasksCompleted} tasks done, ${Math.round(stats.focusMinutes / 60 * 10) / 10}h focus, ${stats.q1Tasks} Q1 tasks, ${currentStreak}-day streak. Be encouraging, max 15 words.`,
-          }],
-          context: { page: "stats", locale },
-        });
-        if (!cancelled && result.reply) setInsight(result.reply);
-      } catch {
-        // silently degrade
-      }
-    }
-    fetchInsight();
+    fetchWrappedInsight(
+      [{
+        role: "user",
+        content: locale === "zh"
+          ? `请用一句话点评我上周的数据：完成了${stats.tasksCompleted}个任务，专注了${Math.round(stats.focusMinutes / 60 * 10) / 10}小时，Q1完成${stats.q1Tasks}个，连击${currentStreak}天。要积极鼓励，不超过20字。`
+          : `In one sentence, review my last week: ${stats.tasksCompleted} tasks done, ${Math.round(stats.focusMinutes / 60 * 10) / 10}h focus, ${stats.q1Tasks} Q1 tasks, ${currentStreak}-day streak. Be encouraging, max 15 words.`,
+      }],
+      { page: "stats", locale },
+    ).then((reply) => { if (!cancelled && reply) setInsight(reply); });
     return () => { cancelled = true; };
-  }, [stats, currentStreak, locale]);
+  }, [stats, currentStreak, locale, fetchWrappedInsight]);
 
   async function handleShare() {
     if (!cardRef.current || busy) return;

@@ -110,12 +110,18 @@ app.patch("/", zValidator("json", SettingsPatch), (c) => {
 
   const { ai_configs_update, ...rest } = body;
 
-  // Update scalar fields
+  // Explicit allowlist prevents unintended columns from reaching the query
+  const ALLOWED_COLUMNS = new Set([
+    "locale", "accent", "density", "reduced_motion", "ai_enabled",
+    "pomodoro_duration", "short_break", "long_break", "long_break_interval",
+    "auto_start_breaks", "notifications_enabled", "onboarding_complete", "ai_provider",
+  ]);
+
   const updates: string[] = [];
   const params: Record<string, string | number | null> = { uid: userId };
 
   for (const [key, val] of Object.entries(rest)) {
-    if (val === undefined) continue;
+    if (val === undefined || !ALLOWED_COLUMNS.has(key)) continue;
     const dbVal = typeof val === "boolean" ? (val ? 1 : 0) : (val as string | number | null);
     updates.push(`${key} = :${key}`);
     params[key] = dbVal;

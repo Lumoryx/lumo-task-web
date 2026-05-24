@@ -1,4 +1,12 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(cd *lumo-task-web/web-app* && npm test*)",
+      "Bash(cd *lumo-task-web/backend* && npm test*)",
+      "Bash(cd *lumo-task-web/web-app* && npm run typecheck*)",
+      "Bash(cd *lumo-task-web/backend* && npm run typecheck*)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -6,20 +14,16 @@
         "hooks": [
           {
             "type": "command",
+            "command": "& 'E:\\9. Codex\\lumo-task-web\\.claude\\run-tests-on-save.ps1'",
+            "shell": "powershell",
             "timeout": 120,
-            "statusMessage": "Running ECC tests...",
-            "command": "f=$(jq -r '.tool_input.file_path // .tool_response.filePath'); echo \"$f\" | grep -qE '\\.(ts|tsx)$' || exit 0; if echo \"$f\" | grep -q '/web-app/'; then cd /home/user/lumo-task-web/web-app && npm test 2>&1 | tail -20; elif echo \"$f\" | grep -q '/backend/'; then cd /home/user/lumo-task-web/backend && npm test 2>&1 | tail -20; fi"
+            "statusMessage": "Running ECC tests..."
           }
         ]
       }
     ]
   },
-  "permissions": {
-    "allow": [
-      "Bash(cd /home/user/lumo-task-web/web-app && npm test*)",
-      "Bash(cd /home/user/lumo-task-web/backend && npm test*)",
-      "Bash(cd /home/user/lumo-task-web/web-app && npm run typecheck*)",
-      "Bash(cd /home/user/lumo-task-web/backend && npm run typecheck*)"
-    ]
+  "enabledPlugins": {
+    "ecc@ecc": true
   }
 }
