@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useT, useLocaleString } from "@/i18n/useT";
@@ -6,9 +6,13 @@ import { useAppStore } from "@/store/useAppStore";
 import { useAIStore } from "@/store/useAIStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import type { PetSpecies } from "@/components/PetSvg";
+import { getSpeciesEmoji } from "@/components/PetSvg";
 
 interface Props {
   petPos: { x: number; y: number };
+  species?: PetSpecies;
+  petName?: string;
 }
 
 const QUICK_CHIPS_EN = [
@@ -25,12 +29,13 @@ const QUICK_CHIPS_ZH = [
   { key: "ai.chip.stats",    text: "今日进度" },
 ];
 
-export function PetChat({ petPos }: Props) {
+export function PetChat({ petPos, species = "dog", petName = "" }: Props) {
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
   const location = useLocation();
   const navigate = useNavigate();
+  const [maximized, setMaximized] = useState(false);
 
   const { messages, loading, chatOpen, closeChat, sendMessage, clearHistory, activeProvider, providerConfigs } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
@@ -55,8 +60,10 @@ export function PetChat({ petPos }: Props) {
         .map((e) => ({ title: ls(e.title), completedAt: e.completedAt ?? "" })),
       locale,
       userName: user?.name ?? undefined,
+      species,
+      petName: petName || undefined,
     };
-  }, [tasks, completed, location.pathname, locale, user]);
+  }, [tasks, completed, location.pathname, locale, user, species, petName]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -70,10 +77,15 @@ export function PetChat({ petPos }: Props) {
 
   // Keyboard dismiss
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeChat(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (maximized) setMaximized(false);
+        else closeChat();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [closeChat]);
+  }, [closeChat, maximized]);
 
   const handleSend = () => {
     const text = inputRef.current?.value.trim();
@@ -93,17 +105,33 @@ export function PetChat({ petPos }: Props) {
     sendMessage(text, context);
   };
 
-  // Panel position: left of pet, clamped to viewport
-  const PANEL_W = 320;
-  const PANEL_H = 440;
+  // Panel dimensions
+  const NORMAL_W = 400;
+  const NORMAL_H = 540;
+  const MAX_W = Math.min(680, window.innerWidth - 24);
+  const MAX_H = Math.min(740, window.innerHeight - 24);
   const MARGIN = 12;
-  const rawLeft = petPos.x - PANEL_W - MARGIN;
-  const rawTop = petPos.y - PANEL_H + 60;
-  const panelLeft = Math.max(MARGIN, Math.min(rawLeft, window.innerWidth - PANEL_W - MARGIN));
-  const panelTop = Math.max(MARGIN, Math.min(rawTop, window.innerHeight - PANEL_H - MARGIN));
+
+  const panelW = maximized ? MAX_W : NORMAL_W;
+  const panelH = maximized ? MAX_H : NORMAL_H;
+
+  // Centered when maximized, otherwise left of pet
+  let panelLeft: number;
+  let panelTop: number;
+  if (maximized) {
+    panelLeft = Math.round((window.innerWidth - panelW) / 2);
+    panelTop = Math.round((window.innerHeight - panelH) / 2);
+  } else {
+    const rawLeft = petPos.x - panelW - MARGIN;
+    const rawTop = petPos.y - panelH + 60;
+    panelLeft = Math.max(MARGIN, Math.min(rawLeft, window.innerWidth - panelW - MARGIN));
+    panelTop = Math.max(MARGIN, Math.min(rawTop, window.innerHeight - panelH - MARGIN));
+  }
 
   const chips = locale === "zh" ? QUICK_CHIPS_ZH : QUICK_CHIPS_EN;
   const hasConfig = providerConfigs[activeProvider]?.hasKey ?? false;
+  const emoji = getSpeciesEmoji(species);
+  const displayName = petName || (locale === "zh" ? t(`pet.species.${species}.zh`) : t(`pet.species.${species}.en`));
 
   if (!chatOpen) return null;
 
@@ -117,16 +145,17 @@ export function PetChat({ petPos }: Props) {
         position: "fixed",
         left: panelLeft,
         top: panelTop,
-        width: PANEL_W,
-        height: PANEL_H,
+        width: panelW,
+        height: panelH,
         zIndex: 9997,
         display: "flex",
         flexDirection: "column",
-        borderRadius: 14,
+        borderRadius: maximized ? 18 : 14,
         overflow: "hidden",
         border: "1px solid var(--accent-edge)",
         background: "var(--bg-elevated)",
         boxShadow: "var(--shadow-lifted), 0 0 40px var(--accent-fog)",
+        transition: "width 0.2s ease, height 0.2s ease, border-radius 0.2s ease",
       }}
     >
       {/* Header */}
@@ -138,10 +167,10 @@ export function PetChat({ petPos }: Props) {
           background: "var(--bg-surface)",
         }}
       >
-        <span style={{ fontSize: 18, lineHeight: 1 }}>🐕</span>
+        <span style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</span>
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-semibold text-text-primary leading-none">
-            {t("ai.chat.title")}
+            {displayName}
           </div>
           <div className="text-[10px] text-text-faint mt-0.5">
             {t("ai.chat.subtitle")}
@@ -156,6 +185,26 @@ export function PetChat({ petPos }: Props) {
           className="text-[10px] text-text-faint hover:text-text-muted transition-colors px-1.5 py-0.5 rounded"
         >
           {t("ai.chat.clear")}
+        </button>
+        {/* Maximize / restore toggle */}
+        <button
+          onClick={() => setMaximized((m) => !m)}
+          title={maximized ? t("ai.chat.restore") : t("ai.chat.maximize")}
+          className="flex items-center justify-center w-6 h-6 rounded-md text-text-muted hover:bg-subtle hover:text-text-primary transition-colors"
+          style={{ border: "1px solid var(--border-default)" }}
+          aria-label={maximized ? "Restore" : "Maximize"}
+        >
+          {maximized ? (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <rect x="1" y="4" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M4 4V2a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <rect x="1" y="1" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M7 3L3 7M3 4v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
         </button>
         <button
           onClick={closeChat}
@@ -240,7 +289,7 @@ export function PetChat({ petPos }: Props) {
               className="text-[12px] leading-relaxed"
               style={{
                 maxWidth: "82%",
-                padding: "7px 10px",
+                padding: "8px 11px",
                 borderRadius: msg.role === "user" ? "12px 12px 3px 12px" : "12px 12px 12px 3px",
                 background: msg.role === "user" ? "var(--accent-primary)" : "var(--bg-subtle)",
                 color: msg.role === "user" ? "#fff" : "var(--text-primary)",
@@ -279,7 +328,7 @@ export function PetChat({ petPos }: Props) {
             <div
               className="text-[12px]"
               style={{
-                padding: "7px 12px",
+                padding: "8px 12px",
                 borderRadius: "12px 12px 12px 3px",
                 background: "var(--bg-subtle)",
                 border: "1px solid var(--border-faint)",
@@ -297,7 +346,7 @@ export function PetChat({ petPos }: Props) {
       <div
         className="flex items-end gap-2 flex-shrink-0"
         style={{
-          padding: "8px 10px",
+          padding: "10px 12px",
           borderTop: "1px solid var(--border-faint)",
           background: "var(--bg-surface)",
         }}
@@ -312,7 +361,7 @@ export function PetChat({ petPos }: Props) {
           style={{
             border: "none",
             lineHeight: 1.5,
-            maxHeight: 72,
+            maxHeight: 96,
             overflowY: "auto",
             scrollbarWidth: "none",
             color: "var(--text-primary)",
@@ -320,7 +369,7 @@ export function PetChat({ petPos }: Props) {
           onInput={(e) => {
             const el = e.currentTarget;
             el.style.height = "auto";
-            el.style.height = Math.min(el.scrollHeight, 72) + "px";
+            el.style.height = Math.min(el.scrollHeight, 96) + "px";
           }}
         />
         <button
@@ -328,8 +377,8 @@ export function PetChat({ petPos }: Props) {
           disabled={loading}
           className="flex-shrink-0 flex items-center justify-center rounded-lg transition-colors"
           style={{
-            width: 30,
-            height: 30,
+            width: 32,
+            height: 32,
             background: loading ? "var(--bg-subtle)" : "var(--accent-primary)",
             color: loading ? "var(--text-faint)" : "#fff",
             border: "none",

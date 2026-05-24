@@ -6,7 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { useT } from "@/i18n/useT";
 import { PetChat } from "@/components/PetChat";
-import { DogSvg } from "@/components/DogSvg";
+import { PetSvg } from "@/components/PetSvg";
 import { DogLevelUpModal } from "@/components/DogLevelUpModal";
 import { useDogStore } from "@/store/useDogStore";
 import { computeAllTimeStats } from "@/utils/stats";
@@ -112,7 +112,7 @@ function getMorningBriefKey(userId: string): string {
 
 export function FloatingPet() {
   const t = useT();
-  const { pos, visible, activeMsg, mood, setPos, setMsg, setMood } = usePetStore();
+  const { pos, visible, activeMsg, mood, species, petName, setPos, setMsg, setMood } = usePetStore();
   const { chatOpen, toggleChat, loadConfig, configLoaded } = useAIStore();
   const tasks = useTasksStore((s) => s.tasks);
   const completed = useTasksStore((s) => s.completed);
@@ -252,10 +252,11 @@ export function FloatingPet() {
     }
   }
 
+  const hoverMsgKey = species !== "dog" ? `pet.hover.${species}` : "pet.hover";
   const displayMsg = activeMsg
     ? t(activeMsg)
     : isHovered
-    ? t("pet.hover")
+    ? t(hoverMsgKey)
     : null;
 
   if (!visible) return null;
@@ -278,7 +279,7 @@ export function FloatingPet() {
         onMouseLeave={onMouseLeave}
       >
         {!chatOpen && displayMsg && <SpeechBubble text={displayMsg} />}
-        <DogSvg mood={mood} level={dogLevel} />
+        <PetSvg species={species} mood={mood} level={dogLevel} />
         {/* Chat open indicator dot */}
         {chatOpen && (
           <div
@@ -295,7 +296,7 @@ export function FloatingPet() {
           />
         )}
       </div>
-      <PetChat petPos={pos} />
+      <PetChat petPos={pos} species={species} petName={petName} />
       <DogLevelUpModal />
     </>
   );
