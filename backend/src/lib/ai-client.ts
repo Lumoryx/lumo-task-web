@@ -10,12 +10,19 @@ export interface LLMConfig {
   model?: string | null;
 }
 
+export interface ToolProperty {
+  type: string;
+  description: string;
+  enum?: string[];
+  items?: ToolProperty | { type: string; description?: string; properties?: Record<string, ToolProperty>; required?: string[] };
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
   parameters: {
     type: "object";
-    properties: Record<string, { type: string; description: string; enum?: string[] }>;
+    properties: Record<string, ToolProperty>;
     required?: string[];
   };
 }

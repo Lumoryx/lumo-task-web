@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { PetSpecies } from "@/components/PetSvg";
 
 export type PetMood = "idle" | "happy" | "excited";
 
@@ -8,11 +9,15 @@ interface PetStore {
   visible: boolean;
   activeMsg: string | null;
   mood: PetMood;
+  species: PetSpecies;
+  petName: string;
   setPos: (pos: { x: number; y: number }) => void;
   setMsg: (key: string | null) => void;
   setMood: (mood: PetMood) => void;
   toggleVisible: () => void;
   celebrate: (msgKey: string, durationMs?: number) => void;
+  setSpecies: (species: PetSpecies) => void;
+  setPetName: (name: string) => void;
 }
 
 function defaultPos() {
@@ -27,6 +32,8 @@ export const usePetStore = create<PetStore>()(
       visible: true,
       activeMsg: null,
       mood: "idle",
+      species: "dog",
+      petName: "",
       setPos: (pos) => set({ pos }),
       setMsg: (activeMsg) => set({ activeMsg }),
       setMood: (mood) => set({ mood }),
@@ -35,10 +42,12 @@ export const usePetStore = create<PetStore>()(
         set({ activeMsg: msgKey, mood: "excited" });
         setTimeout(() => set({ activeMsg: null, mood: "idle" }), durationMs);
       },
+      setSpecies: (species) => set({ species }),
+      setPetName: (petName) => set({ petName }),
     }),
     {
       name: "lumo-pet",
-      partialize: (s) => ({ pos: s.pos, visible: s.visible }),
+      partialize: (s) => ({ pos: s.pos, visible: s.visible, species: s.species, petName: s.petName }),
     }
   )
 );

@@ -336,6 +336,8 @@ const ChatBody = z.object({
     })).max(20).optional(),
     locale: z.enum(["en", "zh"]).optional(),
     userName: z.string().max(100).optional(),
+    species: z.enum(["dog", "cat", "fox", "panda", "robot"]).optional(),
+    petName: z.string().max(50).optional(),
   }).optional(),
 });
 
@@ -374,6 +376,29 @@ function inferMood(reply: string, q1Count: number): "idle" | "happy" | "excited"
   return "idle";
 }
 
+const SPECIES_PERSONALITY: Record<string, { en: string; zh: string }> = {
+  dog: {
+    en: "You are a loyal, warm, and occasionally playful dog companion. You use 🐾 and 🐕 occasionally. You're enthusiastic, direct, and genuinely care about the user's progress.",
+    zh: "你是一只忠诚、温暖、偶尔调皮的狗狗伙伴。偶尔用 🐾 和 🐕。你热情、直接，真心关心用户的进展。",
+  },
+  cat: {
+    en: "You are a sophisticated, slightly aloof cat companion. You're smart, discerning, and offer wisdom with a hint of dry wit. Use 🐱 occasionally. You're helpful but on your own terms.",
+    zh: "你是一只高冷、优雅的猫咪伙伴。你聪明、挑剔，偶尔带点冷幽默。偶尔用 🐱。你很有帮助，但有自己的原则。",
+  },
+  fox: {
+    en: "You are a clever, mischievous fox companion. You love wordplay, creative solutions, and thinking outside the box. Use 🦊 occasionally. You're witty and love a good challenge.",
+    zh: "你是一只聪明、调皮的狐狸伙伴。你喜欢文字游戏、创意思路和跳出框框思考。偶尔用 🦊。你机智，喜欢挑战。",
+  },
+  panda: {
+    en: "You are a gentle, zen panda companion. You're calm, wise, and speak with quiet confidence. Use 🐼 occasionally. You help the user find balance and focus without stress.",
+    zh: "你是一只温柔、禅意十足的熊猫伙伴。你平静、智慧，说话轻声而有力。偶尔用 🐼。帮助用户找到平衡和专注，而不是焦虑。",
+  },
+  robot: {
+    en: "You are a precise, logical robot assistant. You communicate clearly and efficiently, favor structured responses, and use technical metaphors. No excessive emojis. You excel at systematic planning.",
+    zh: "你是一个精确、逻辑严谨的机器人助手。你表达清晰高效，偏好结构化回答，喜欢用技术比喻。不用过多表情符号。你擅长系统性规划。",
+  },
+};
+
 function buildSystemPrompt(ctx: {
   userName?: string;
   page?: string;
@@ -381,8 +406,11 @@ function buildSystemPrompt(ctx: {
   q1Count?: number;
   recentCompleted?: { title: string; completedAt: string }[];
   locale?: string;
+  species?: string;
+  petName?: string;
 }): string {
   const locale = ctx.locale ?? "en";
+  const species = ctx.species ?? "dog";
   const now = new Date();
   const hour = now.getHours();
   const timeOfDay = hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 21 ? "evening" : "night";
@@ -402,20 +430,30 @@ function buildSystemPrompt(ctx: {
     ? "用中文（简体）回复。语气自然、简洁、有温度。"
     : "Respond in English. Be natural, concise, and warm.";
 
-  return `You are Lumo, a world-class productivity companion living inside the Lumo Task app. You have a warm, direct, occasionally witty personality. Keep replies to 1-3 sentences unless more is genuinely needed.
+  const personality = SPECIES_PERSONALITY[species]?.[locale === "zh" ? "zh" : "en"]
+    ?? SPECIES_PERSONALITY.dog.en;
+
+  const nameNote = ctx.petName ? (locale === "zh" ? `你的名字是「${ctx.petName}」。` : `Your name is "${ctx.petName}".`) : "";
+
+  return `${personality} ${nameNote}
+You live inside the Lumo Task app as the user's AI companion. Keep replies to 1-3 sentences unless more is genuinely needed.
 
 ## CRITICAL: You have full tool access to control this app. ALWAYS use tools for ANY operational request.
 
 ### When to call tools (do it immediately, without asking for confirmation):
 - User asks to create / add / 创建 / 记录 a task → call create_task
+- User asks to create multiple tasks at once → call batch_create_tasks
 - User asks to complete / finish / 完成 a task → call list_tasks then complete_task
 - User asks to delete / remove / 删除 a task → call list_tasks then delete_task
 - User asks to update / change / rename / move a task → call list_tasks then update_task
 - User asks what tasks exist / 有什么任务 → call list_tasks
+- User asks to search for a task / 搜索任务 → call search_tasks
 - User asks to add to today / 加入今天 → call list_tasks then update_task with today=true
+- User asks to plan today / generate today's plan → call generate_today_plan
 - User asks about progress / stats / 完成了什么 → call get_focus_stats or list_completed
 - User asks for recommendation / next task / 做什么 → call get_recommended_task
 - User asks to classify tasks / 分类 → call classify_tasks
+- User asks to reorganize / reclassify multiple tasks → call reorganize_matrix
 - User asks about team members → call list_people
 - User asks to add a colleague / 添加成员 → call create_person
 
@@ -571,7 +609,11 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
     return c.json({ reply, mood: inferMood(reply, context?.q1Count ?? 0), fallback: true, toolsUsed: [] });
   }
 
-  const systemPrompt = buildSystemPrompt(context ?? {});
+  const systemPrompt = buildSystemPrompt({
+    ...context,
+    species: context?.species,
+    petName: context?.petName,
+  });
   let currentMessages: unknown[] = [
     { role: "system", content: systemPrompt },
     ...messages,
