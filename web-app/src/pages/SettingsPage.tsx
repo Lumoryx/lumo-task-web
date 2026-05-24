@@ -31,7 +31,7 @@ export function SettingsPage() {
     useAppStore();
   const reset = useTasksStore((s) => s.reset);
   const { people, create: createPerson, update: updatePerson, remove: removePerson } = usePeopleStore();
-  const { species, petName, setSpecies, setPetName } = usePetStore();
+  const { species, petName, setSpecies, setPetName, visible, toggleVisible, setPos } = usePetStore();
 
   return (
     <div className="fade-in px-8 py-8 max-w-[760px] mx-auto">
@@ -89,8 +89,11 @@ export function SettingsPage() {
       <PetGroup
         species={species}
         petName={petName}
+        visible={visible}
         onSpeciesChange={setSpecies}
         onNameChange={setPetName}
+        onToggleVisible={toggleVisible}
+        onResetPos={() => setPos({ x: window.innerWidth - 110, y: window.innerHeight - 180 })}
         t={t}
         locale={locale}
       />
@@ -149,15 +152,21 @@ function deriveInitials(name: string) {
 function PetGroup({
   species,
   petName,
+  visible,
   onSpeciesChange,
   onNameChange,
+  onToggleVisible,
+  onResetPos,
   t,
   locale,
 }: {
   species: import("@/components/PetSvg").PetSpecies;
   petName: string;
+  visible: boolean;
   onSpeciesChange: (s: import("@/components/PetSvg").PetSpecies) => void;
   onNameChange: (name: string) => void;
+  onToggleVisible: () => void;
+  onResetPos: () => void;
   t: (k: string) => string;
   locale: string;
 }) {
@@ -167,6 +176,29 @@ function PetGroup({
         {t("settings.pet")}
       </h3>
       <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+        {/* Visibility + reset row */}
+        <div className="px-5 py-3 flex items-center justify-between border-b border-border-faint">
+          <div>
+            <div className="text-[13px] font-medium text-text-primary">{t("settings.pet.show")}</div>
+            <div className="text-[11px] text-text-faint mt-0.5">{t("settings.pet.show.helper")}</div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onResetPos}
+              className="text-[12px] px-3 py-1.5 rounded-lg transition-colors"
+              style={{
+                border: "1px solid var(--border-default)",
+                background: "var(--bg-deep)",
+                color: "var(--text-secondary)",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-deep)"; }}
+            >
+              {t("settings.pet.resetPos")}
+            </button>
+            <Toggle value={visible} onChange={onToggleVisible} />
+          </div>
+        </div>
         {/* Species selector */}
         <div className="px-5 py-4">
           <div className="text-[13px] font-medium text-text-primary mb-3">{t("settings.pet.species")}</div>
