@@ -290,6 +290,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "pet.species.robot.zh": "Lumo 机器人",
 
     "settings.pet": "Companion",
+    "settings.pet.show": "Show companion",
+    "settings.pet.show.helper": "Display the floating pet on screen",
+    "settings.pet.resetPos": "Reset position",
     "settings.pet.species": "Species",
     "settings.pet.name": "Nickname",
     "settings.pet.name.placeholder": "e.g. Buddy",
@@ -728,6 +731,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "pet.species.robot.zh": "Lumo 机器人",
 
     "settings.pet": "宠物伙伴",
+    "settings.pet.show": "显示宠物",
+    "settings.pet.show.helper": "在屏幕上显示浮动宠物",
+    "settings.pet.resetPos": "重置位置",
     "settings.pet.species": "种类",
     "settings.pet.name": "昵称",
     "settings.pet.name.placeholder": "例如：小白",
