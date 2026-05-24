@@ -74,8 +74,8 @@ app.post("/register", authRateLimit, zValidator("json", RegisterBody), async (c)
         stats: { tasks: 0, pomodoros: 0, syncOK: false },
       },
     }, 201);
-  } catch (err: any) {
-    throw err;
+  } catch {
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
   }
 });
 
@@ -112,8 +112,8 @@ app.post("/signin", authRateLimit, zValidator("json", SigninBody), async (c) => 
         stats: { tasks: stats.task_count, pomodoros: stats.pomo_count, syncOK: false },
       },
     });
-  } catch (err: any) {
-    throw err;
+  } catch {
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
   }
 });
 
@@ -132,8 +132,8 @@ app.post("/change-password", authRateLimit, authMiddleware, zValidator("json", C
     db.prepare("UPDATE users SET password_hash = :hash WHERE id = :id").run({ hash: new_hash, id: userId });
 
     return c.json({ ok: true });
-  } catch (err: any) {
-    throw err;
+  } catch {
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
   }
 });
 

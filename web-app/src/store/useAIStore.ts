@@ -40,6 +40,7 @@ interface AIStore {
   }) => Promise<void>;
   sendMessage: (text: string, ctx: ActivityContext) => Promise<void>;
   testConnection: (opts: { provider: AIProvider; key?: string; model?: string | null; baseUrl?: string | null; locale: string; userName: string }) => Promise<boolean>;
+  fetchWrappedInsight: (messages: { role: "user" | "assistant"; content: string }[], context: { page: string; locale: string }) => Promise<string | null>;
   clearHistory: () => void;
   openChat: () => void;
   closeChat: () => void;
@@ -161,6 +162,15 @@ export const useAIStore = create<AIStore>()(
           context: { locale, userName },
         });
         return !res.fallback;
+      },
+
+      async fetchWrappedInsight(messages, context) {
+        try {
+          const res = await api.petChat({ messages, context });
+          return res.reply ?? null;
+        } catch {
+          return null;
+        }
       },
 
       clearHistory: () => set({ messages: [] }),

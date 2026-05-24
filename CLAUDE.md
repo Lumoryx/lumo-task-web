@@ -10,17 +10,17 @@ refactors, and reviews must follow the ECC quality standards below.
 ### Before implementing any feature or fix
 
 1. **Select the relevant ECC skills** and load them before writing code:
-   - New UI component → `/frontend-patterns`
-   - New API endpoint → `/api-design` + `/backend-patterns`
-   - Bug fix with side effects → `/error-handling`
-   - Any new code → `/coding-standards`
-   - Security-sensitive change → `/security-review`
+   - New UI component → `/ecc:frontend-patterns`
+   - New API endpoint → `/ecc:api-design` + `/ecc:backend-patterns`
+   - Bug fix with side effects → `/ecc:error-handling`
+   - Any new code → `/ecc:coding-standards`
+   - Security-sensitive change → `/ecc:security-review`
 
 2. **Follow TDD (Red → Green → Refactor)**:
    - Write the test first (it must FAIL initially)
    - Write the minimum implementation to make it pass
    - Refactor without breaking tests
-   - Reference `/tdd-workflow` for guidance
+   - Reference `/ecc:tdd-workflow` for guidance
 
 3. **Type-check before declaring done**:
    ```bash
@@ -80,17 +80,17 @@ Coverage targets: backend ≥ 80%, frontend new components 100% of public behavi
 
 ## ECC Skill Reference
 
-Skills live in `.agents/skills/` (project) and are invocable as `/skill-name`:
+Skills are provided via the `ecc` plugin and invokable as `/ecc:skill-name`:
 
 | Skill | When to invoke |
 |-------|---------------|
-| `/coding-standards` | Any new file or significant refactor |
-| `/error-handling` | Exception paths, retries, fallbacks |
-| `/frontend-patterns` | React components, hooks, state |
-| `/api-design` | New REST endpoints, request/response schema |
-| `/backend-patterns` | Database queries, middleware, auth |
-| `/tdd-workflow` | All feature work (write tests first) |
-| `/e2e-testing` | Critical user flows, Playwright scenarios |
-| `/security-review` | Auth changes, input handling, secrets |
+| `/ecc:coding-standards` | Any new file or significant refactor |
+| `/ecc:error-handling` | Exception paths, retries, fallbacks |
+| `/ecc:frontend-patterns` | React components, hooks, state |
+| `/ecc:api-design` | New REST endpoints, request/response schema |
+| `/ecc:backend-patterns` | Database queries, middleware, auth |
+| `/ecc:tdd-workflow` | All feature work (write tests first) |
+| `/ecc:e2e-testing` | Critical user flows, Playwright scenarios |
+| `/ecc:security-review` | Auth changes, input handling, secrets |
 
-**If in doubt, apply `/coding-standards` + the domain-specific skill.**
+**If in doubt, apply `/ecc:coding-standards` + the domain-specific skill.**
