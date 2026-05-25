@@ -35,6 +35,7 @@ export interface TaskRow {
   completed: number;
   not_now_json: string;
   recurrence: string;
+  subtasks_json: string | null;
   created_at: string;
   updated_at: string;
 }

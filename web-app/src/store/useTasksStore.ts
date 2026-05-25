@@ -9,7 +9,7 @@
 
 import { create } from "zustand";
 import { api } from "@/api/client";
-import type { CompletedEntry, Task } from "@/types/task";
+import type { CompletedEntry, Subtask, Task } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
 import { usePetStore } from "@/store/usePetStore";
@@ -35,6 +35,9 @@ interface TasksState {
   classifyTasks: () => Promise<Array<{ task_id: string; quadrant: string; confidence: number; reason?: string }>>;
   parseTaskText: (text: string, locale?: string) => Promise<{ title: string; quadrant: string; due: string | null; duration: number | null; confidence: number }>;
   fetchAllCompleted: () => Promise<import("@/types/task").CompletedEntry[]>;
+  addSubtask: (taskId: string, title: string) => Promise<void>;
+  toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
+  deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
 }
 
 export const useTasksStore = create<TasksState>((set, get) => ({
@@ -138,5 +141,51 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
   async fetchAllCompleted() {
     return api.listAllCompleted();
+  },
+
+  async addSubtask(taskId, title) {
+    const task = get().tasks.find((tk) => tk.id === taskId);
+    if (!task) return;
+    const newSubtask: Subtask = {
+      id: `st_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      title: title.trim(),
+      completed: false,
+    };
+    const subtasks = [...(task.subtasks ?? []), newSubtask];
+    set({ tasks: get().tasks.map((tk) => tk.id === taskId ? { ...tk, subtasks } : tk) });
+    try {
+      await api.updateTask(taskId, { subtasks });
+    } catch (e) {
+      set({ tasks: get().tasks.map((tk) => tk.id === taskId ? task : tk) });
+      throw e;
+    }
+  },
+
+  async toggleSubtask(taskId, subtaskId) {
+    const task = get().tasks.find((tk) => tk.id === taskId);
+    if (!task) return;
+    const subtasks = (task.subtasks ?? []).map((s) =>
+      s.id === subtaskId ? { ...s, completed: !s.completed } : s
+    );
+    set({ tasks: get().tasks.map((tk) => tk.id === taskId ? { ...tk, subtasks } : tk) });
+    try {
+      await api.updateTask(taskId, { subtasks });
+    } catch (e) {
+      set({ tasks: get().tasks.map((tk) => tk.id === taskId ? task : tk) });
+      throw e;
+    }
+  },
+
+  async deleteSubtask(taskId, subtaskId) {
+    const task = get().tasks.find((tk) => tk.id === taskId);
+    if (!task) return;
+    const subtasks = (task.subtasks ?? []).filter((s) => s.id !== subtaskId);
+    set({ tasks: get().tasks.map((tk) => tk.id === taskId ? { ...tk, subtasks } : tk) });
+    try {
+      await api.updateTask(taskId, { subtasks });
+    } catch (e) {
+      set({ tasks: get().tasks.map((tk) => tk.id === taskId ? task : tk) });
+      throw e;
+    }
   },
 }));

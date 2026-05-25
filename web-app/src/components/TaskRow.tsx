@@ -92,6 +92,12 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
                 <i key={i} className={i < task.pomos_done ? "on" : ""} />
               ))}
             </span>
+            {(task.subtasks?.length ?? 0) > 0 && (
+              <span className="flex items-center gap-0.5" style={{ color: "var(--text-faint)" }}>
+                <IconCheck size={9} strokeWidth={2} />
+                {task.subtasks!.filter((s) => s.completed).length}/{task.subtasks!.length}
+              </span>
+            )}
           </div>
         </div>
 

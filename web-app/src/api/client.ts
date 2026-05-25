@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, User } from "@/types/task";
+import type { AppSettings, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Subtask, Task, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +94,7 @@ function adaptTask(raw: any): Task {
     completed: raw.completed,
     not_now: raw.not_now ?? [],
     recurrence: raw.recurrence ?? "none",
+    subtasks: raw.subtasks ?? [],
   };
 }
 
@@ -230,6 +231,7 @@ export const api = {
       ai_suggest: input.ai_suggest ?? null,
       not_now: input.not_now ?? [],
       recurrence: input.recurrence ?? "none",
+      subtasks: input.subtasks ?? [],
     });
     return adaptTask(raw);
   },
@@ -250,6 +252,7 @@ export const api = {
       ...(patch.ai_suggest !== undefined && { ai_suggest: patch.ai_suggest }),
       ...(patch.not_now !== undefined && { not_now: patch.not_now }),
       ...(patch.recurrence !== undefined && { recurrence: patch.recurrence }),
+      ...(patch.subtasks !== undefined && { subtasks: patch.subtasks }),
     });
     return adaptTask(raw);
   },

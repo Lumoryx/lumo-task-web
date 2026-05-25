@@ -57,6 +57,11 @@ const TaskCreateBody = z.object({
     id: z.string(),
     reason: LocalizedString,
   })).default([]),
+  subtasks: z.array(z.object({
+    id: z.string(),
+    title: z.string().max(500),
+    completed: z.boolean(),
+  })).default([]),
 });
 
 const TaskUpdateBody = TaskCreateBody.partial();
@@ -84,6 +89,7 @@ function rowToTask(row: TaskRow) {
     completed: Boolean(row.completed),
     not_now: safeParse<any[]>(row.not_now_json, []),
     recurrence: row.recurrence ?? "none",
+    subtasks: safeParse<any[]>(row.subtasks_json, []),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -108,12 +114,12 @@ app.post("/", zValidator("json", TaskCreateBody), (c) => {
       id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
       quadrant, today, due, duration, pomos_done, pomos_total, conviction,
       next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
-      recurrence, created_at, updated_at
+      recurrence, subtasks_json, created_at, updated_at
     ) VALUES (
       :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
       :quadrant, :today, :due, :duration, 0, :pomos_total, :conviction,
       :next_step_en, :next_step_zh, :reason_en, :reason_zh, :ai_suggest, :not_now_json,
-      :recurrence, :now, :now
+      :recurrence, :subtasks_json, :now, :now
     )
   `).run({
     id, user_id: userId,
@@ -131,6 +137,7 @@ app.post("/", zValidator("json", TaskCreateBody), (c) => {
     recurrence: body.recurrence ?? "none",
     ai_suggest: body.ai_suggest ?? null,
     not_now_json: JSON.stringify(body.not_now ?? []),
+    subtasks_json: JSON.stringify(body.subtasks ?? []),
     now,
   });
 
@@ -175,6 +182,7 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
     ai_suggest: "ai_suggest" in body ? (body.ai_suggest ?? null) : existing.ai_suggest,
     not_now_json: "not_now" in body ? JSON.stringify(body.not_now) : existing.not_now_json,
     recurrence: body.recurrence ?? existing.recurrence ?? "none",
+    subtasks_json: "subtasks" in body ? JSON.stringify(body.subtasks) : (existing.subtasks_json ?? "[]"),
   };
 
   db.prepare(`
@@ -184,7 +192,8 @@ app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
       today = :today, due = :due, duration = :duration, pomos_total = :pomos_total,
       conviction = :conviction, next_step_en = :next_step_en, next_step_zh = :next_step_zh,
       reason_en = :reason_en, reason_zh = :reason_zh, ai_suggest = :ai_suggest,
-      not_now_json = :not_now_json, recurrence = :recurrence, updated_at = :now
+      not_now_json = :not_now_json, recurrence = :recurrence,
+      subtasks_json = :subtasks_json, updated_at = :now
     WHERE id = :id AND user_id = :uid
   `).run({ ...merged, id: taskId, uid: userId, now });
 

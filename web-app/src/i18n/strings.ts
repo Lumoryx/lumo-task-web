@@ -188,6 +188,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "detail.start": "Start focus",
     "detail.edit": "Edit",
     "detail.complete": "Mark complete",
+    "detail.subtasks": "Sub-tasks",
+    "detail.subtask.add": "Add a sub-task…",
+    "detail.subtask.add.btn": "Add",
     "row.complete": "Complete task",
     "row.startfocus": "Start focus",
 
@@ -629,6 +632,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "detail.start": "开始专注",
     "detail.edit": "编辑",
     "detail.complete": "完成任务",
+    "detail.subtasks": "子任务",
+    "detail.subtask.add": "添加子任务…",
+    "detail.subtask.add.btn": "添加",
     "row.complete": "完成任务",
     "row.startfocus": "开始专注",
 

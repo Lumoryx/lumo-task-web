@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { IconClose, IconCalendar, IconClock, IconArrowRight, IconCheck } from "@/components/icons";
@@ -9,7 +9,7 @@ import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, getDueLabel } from "@/lib/format";
-import type { Task } from "@/types/task";
+import type { Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
   Q1: "var(--q1-color)",
@@ -46,13 +46,28 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const navigate = useNavigate();
   const locale = useAppStore((s) => s.locale);
   const complete = useTasksStore((s) => s.complete);
+  const addSubtask = useTasksStore((s) => s.addSubtask);
+  const toggleSubtask = useTasksStore((s) => s.toggleSubtask);
+  const deleteSubtask = useTasksStore((s) => s.deleteSubtask);
+  const liveTask = useTasksStore((s) => s.tasks.find((tk) => tk.id === task.id) ?? task);
   const byId = usePeopleStore((s) => s.byId);
   const [editOpen, setEditOpen] = useState(false);
+  const [subtaskInput, setSubtaskInput] = useState("");
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
 
-  const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
-  const due = getDueLabel(task.due, locale);
-  const qColor = Q_COLOR[task.quadrant] ?? "var(--text-faint)";
-  const qLabel = locale === "zh" ? Q_LABEL_ZH[task.quadrant] : Q_LABEL_EN[task.quadrant];
+  const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
+  const due = getDueLabel(liveTask.due, locale);
+  const qColor = Q_COLOR[liveTask.quadrant] ?? "var(--text-faint)";
+  const qLabel = locale === "zh" ? Q_LABEL_ZH[liveTask.quadrant] : Q_LABEL_EN[liveTask.quadrant];
+  const subtasks: Subtask[] = liveTask.subtasks ?? [];
+  const subtasksDone = subtasks.filter((s) => s.completed).length;
+
+  async function handleAddSubtask() {
+    const title = subtaskInput.trim();
+    if (!title) return;
+    setSubtaskInput("");
+    await addSubtask(liveTask.id, title);
+  }
 
   async function handleComplete() {
     await complete(task.id);
@@ -96,7 +111,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
                 style={{ width: 7, height: 7, background: qColor }}
               />
               <span className="text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: qColor }}>
-                {task.quadrant === "unclassified" ? (locale === "zh" ? "未分类" : "Unclassified") : task.quadrant}
+                {liveTask.quadrant === "unclassified" ? (locale === "zh" ? "未分类" : "Unclassified") : liveTask.quadrant}
               </span>
               <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>·</span>
               <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>{qLabel}</span>
@@ -105,7 +120,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
               className="font-semibold leading-snug"
               style={{ fontSize: 17, color: "var(--text-primary)", letterSpacing: "-0.01em" }}
             >
-              {ls(task.title)}
+              {ls(liveTask.title)}
             </h2>
           </div>
           <button
@@ -132,22 +147,22 @@ export function TaskDetailModal({ task, onClose }: Props) {
           <MetaRow
             icon={<IconClock size={13} />}
             label={t("detail.estimate")}
-            value={fmtDuration(task.duration, locale)}
+            value={fmtDuration(liveTask.duration, locale)}
           />
 
           {/* Pomodoro pips */}
-          {task.pomos_total > 0 && (
+          {liveTask.pomos_total > 0 && (
             <div className="col-span-2 flex items-center gap-2">
               <span className="text-[11px] font-medium" style={{ color: "var(--text-faint)", minWidth: 64 }}>
                 Pomodoro
               </span>
               <span className="pip">
-                {Array.from({ length: task.pomos_total }).map((_, i) => (
-                  <i key={i} className={i < task.pomos_done ? "on" : ""} />
+                {Array.from({ length: liveTask.pomos_total }).map((_, i) => (
+                  <i key={i} className={i < liveTask.pomos_done ? "on" : ""} />
                 ))}
               </span>
               <span className="text-[11px] tabular-nums" style={{ color: "var(--text-faint)" }}>
-                {task.pomos_done}/{task.pomos_total}
+                {liveTask.pomos_done}/{liveTask.pomos_total}
               </span>
             </div>
           )}
@@ -171,8 +186,81 @@ export function TaskDetailModal({ task, onClose }: Props) {
 
         </div>
 
+        {/* Subtasks */}
+        {(subtasks.length > 0 || true) && (
+          <div className="mx-5 mb-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--text-faint)" }}>
+                {t("detail.subtasks")}
+                {subtasks.length > 0 && (
+                  <span className="ml-1.5 font-normal" style={{ color: "var(--text-muted)" }}>
+                    {subtasksDone}/{subtasks.length}
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            {subtasks.length > 0 && (
+              <div className="h-[3px] rounded-full mb-3 overflow-hidden" style={{ background: "var(--border-faint)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${(subtasksDone / subtasks.length) * 100}%`,
+                    background: "var(--accent-primary)",
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Subtask list */}
+            {subtasks.map((sub) => (
+              <SubtaskItem
+                key={sub.id}
+                subtask={sub}
+                onToggle={() => toggleSubtask(liveTask.id, sub.id)}
+                onDelete={() => deleteSubtask(liveTask.id, sub.id)}
+              />
+            ))}
+
+            {/* Add subtask input */}
+            <div className="flex items-center gap-2 mt-2">
+              <div
+                className="flex-shrink-0 w-[16px] h-[16px] rounded-full border-[1.5px] flex items-center justify-center"
+                style={{ borderColor: "var(--border-default)", borderStyle: "dashed" }}
+              />
+              <input
+                ref={subtaskInputRef}
+                type="text"
+                value={subtaskInput}
+                onChange={(e) => setSubtaskInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); handleAddSubtask(); }
+                }}
+                placeholder={t("detail.subtask.add")}
+                className="flex-1 text-[13px] bg-transparent outline-none"
+                style={{ color: "var(--text-secondary)" }}
+              />
+              {subtaskInput.trim() && (
+                <button
+                  onClick={handleAddSubtask}
+                  className="text-[11px] px-2 py-0.5 rounded-md"
+                  style={{
+                    background: "var(--accent-fog)",
+                    border: "1px solid var(--accent-edge)",
+                    color: "var(--accent-primary)",
+                  }}
+                >
+                  {t("detail.subtask.add.btn")}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Next step */}
-        {task.next_step && (
+        {liveTask.next_step && (
           <div
             className="mx-5 mb-4 px-3 py-2.5 rounded-lg text-[12px] leading-relaxed"
             style={{
@@ -184,7 +272,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
             <span className="font-medium" style={{ color: "var(--text-faint)" }}>
               {t("detail.nextstep")} ·{" "}
             </span>
-            {ls(task.next_step)}
+            {ls(liveTask.next_step)}
           </div>
         )}
 
@@ -231,6 +319,57 @@ function MetaRow({ icon, label, value }: { icon: React.ReactNode; label: string;
       <span style={{ color: "var(--text-faint)" }}>{icon}</span>
       <span className="text-[11px] font-medium" style={{ color: "var(--text-faint)", minWidth: 40 }}>{label}</span>
       <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>{value}</span>
+    </div>
+  );
+}
+
+function SubtaskItem({
+  subtask,
+  onToggle,
+  onDelete,
+}: {
+  subtask: Subtask;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      className="flex items-center gap-2 py-1.5 rounded-md group"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        onClick={onToggle}
+        className="flex-shrink-0 flex items-center justify-center w-[16px] h-[16px] rounded-full border-[1.5px] transition-all"
+        style={{
+          borderColor: subtask.completed ? "var(--accent-primary)" : "var(--border-strong)",
+          background: subtask.completed ? "var(--accent-fog)" : "transparent",
+        }}
+      >
+        {subtask.completed && <IconCheck size={9} strokeWidth={2.5} style={{ color: "var(--accent-primary)" }} />}
+      </button>
+      <span
+        className="flex-1 text-[13px] leading-snug"
+        style={{
+          color: subtask.completed ? "var(--text-faint)" : "var(--text-secondary)",
+          textDecoration: subtask.completed ? "line-through" : "none",
+        }}
+      >
+        {subtask.title}
+      </span>
+      {hovered && (
+        <button
+          onClick={onDelete}
+          className="flex-shrink-0 flex items-center justify-center w-[16px] h-[16px] rounded transition-colors"
+          style={{ color: "var(--text-faint)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--status-urgent)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-faint)"; }}
+        >
+          <IconClose size={10} />
+        </button>
+      )}
     </div>
   );
 }
