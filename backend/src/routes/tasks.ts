@@ -5,11 +5,15 @@ import { nanoid } from "nanoid";
 import { db } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
+import { createRateLimiter } from "../lib/rateLimit.js";
 import type { Variables } from "../env.js";
 import type { TaskRow } from "../db/rows.js";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
+
+// 60 task mutations per minute per user
+const taskMutateLimit = createRateLimiter<{ Variables: Variables }>(60, 60_000, (c) => c.get("userId") as string);
 
 function calcNextDue(currentDue: string | null, recurrence: string): string | null {
   const base = currentDue ? new Date(currentDue) : new Date();
@@ -105,7 +109,7 @@ app.get("/", (c) => {
 });
 
 // POST /tasks
-app.post("/", zValidator("json", TaskCreateBody), (c) => {
+app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
   const id = "t_" + nanoid(10);
@@ -157,7 +161,7 @@ app.get("/:id", (c) => {
 });
 
 // PATCH /tasks/:id
-app.patch("/:id", zValidator("json", TaskUpdateBody), (c) => {
+app.patch("/:id", taskMutateLimit, zValidator("json", TaskUpdateBody), (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
   const body = c.req.valid("json");

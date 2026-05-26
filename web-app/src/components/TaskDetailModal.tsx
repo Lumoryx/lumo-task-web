@@ -53,6 +53,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const byId = usePeopleStore((s) => s.byId);
   const [editOpen, setEditOpen] = useState(false);
   const [subtaskInput, setSubtaskInput] = useState("");
+  const [subtaskBusy, setSubtaskBusy] = useState(false);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
 
   const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
@@ -64,9 +65,15 @@ export function TaskDetailModal({ task, onClose }: Props) {
 
   async function handleAddSubtask() {
     const title = subtaskInput.trim();
-    if (!title) return;
+    if (!title || subtaskBusy) return;
     setSubtaskInput("");
-    await addSubtask(liveTask.id, title);
+    setSubtaskBusy(true);
+    try {
+      await addSubtask(liveTask.id, title);
+    } finally {
+      setSubtaskBusy(false);
+      subtaskInputRef.current?.focus();
+    }
   }
 
   async function handleComplete() {
@@ -219,8 +226,17 @@ export function TaskDetailModal({ task, onClose }: Props) {
               <SubtaskItem
                 key={sub.id}
                 subtask={sub}
-                onToggle={() => toggleSubtask(liveTask.id, sub.id)}
-                onDelete={() => deleteSubtask(liveTask.id, sub.id)}
+                disabled={subtaskBusy}
+                onToggle={async () => {
+                  if (subtaskBusy) return;
+                  setSubtaskBusy(true);
+                  try { await toggleSubtask(liveTask.id, sub.id); } finally { setSubtaskBusy(false); }
+                }}
+                onDelete={async () => {
+                  if (subtaskBusy) return;
+                  setSubtaskBusy(true);
+                  try { await deleteSubtask(liveTask.id, sub.id); } finally { setSubtaskBusy(false); }
+                }}
               />
             ))}
 
@@ -239,17 +255,20 @@ export function TaskDetailModal({ task, onClose }: Props) {
                   if (e.key === "Enter") { e.preventDefault(); handleAddSubtask(); }
                 }}
                 placeholder={t("detail.subtask.add")}
+                disabled={subtaskBusy}
                 className="flex-1 text-[13px] bg-transparent outline-none"
                 style={{ color: "var(--text-secondary)" }}
               />
               {subtaskInput.trim() && (
                 <button
                   onClick={handleAddSubtask}
+                  disabled={subtaskBusy}
                   className="text-[11px] px-2 py-0.5 rounded-md"
                   style={{
                     background: "var(--accent-fog)",
                     border: "1px solid var(--accent-edge)",
                     color: "var(--accent-primary)",
+                    opacity: subtaskBusy ? 0.5 : 1,
                   }}
                 >
                   {t("detail.subtask.add.btn")}
@@ -325,10 +344,12 @@ function MetaRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 function SubtaskItem({
   subtask,
+  disabled,
   onToggle,
   onDelete,
 }: {
   subtask: Subtask;
+  disabled?: boolean;
   onToggle: () => void;
   onDelete: () => void;
 }) {
@@ -342,10 +363,12 @@ function SubtaskItem({
     >
       <button
         onClick={onToggle}
+        disabled={disabled}
         className="flex-shrink-0 flex items-center justify-center w-[16px] h-[16px] rounded-full border-[1.5px] transition-all"
         style={{
           borderColor: subtask.completed ? "var(--accent-primary)" : "var(--border-strong)",
           background: subtask.completed ? "var(--accent-fog)" : "transparent",
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         {subtask.completed && <IconCheck size={9} strokeWidth={2.5} style={{ color: "var(--accent-primary)" }} />}
@@ -359,7 +382,7 @@ function SubtaskItem({
       >
         {subtask.title}
       </span>
-      {hovered && (
+      {hovered && !disabled && (
         <button
           onClick={onDelete}
           className="flex-shrink-0 flex items-center justify-center w-[16px] h-[16px] rounded transition-colors"

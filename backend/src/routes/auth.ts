@@ -49,92 +49,80 @@ function makeInitials(name: string) {
 app.post("/register", authRateLimit, zValidator("json", RegisterBody), async (c) => {
   const { email, password, name } = c.req.valid("json");
 
-  try {
-    const existing = db.prepare("SELECT id FROM users WHERE email = :email").get({ email });
-    if (existing) return httpError(c, 409, "EMAIL_TAKEN", "Email already registered");
+  const existing = db.prepare("SELECT id FROM users WHERE email = :email").get({ email });
+  if (existing) return httpError(c, 409, "EMAIL_TAKEN", "Email already registered");
 
-    const id = "u_" + nanoid(10);
-    const password_hash = await hashPassword(password);
-    const initials = makeInitials(name);
-    const now = new Date().toISOString();
+  const id = "u_" + nanoid(10);
+  const password_hash = await hashPassword(password);
+  const initials = makeInitials(name);
+  const now = new Date().toISOString();
 
-    db.prepare(`
-      INSERT INTO users (id, email, password_hash, name, initials, local, plan, created_at)
-      VALUES (:id, :email, :password_hash, :name, :initials, 0, 'free', :now)
-    `).run({ id, email, password_hash, name, initials, now });
+  db.prepare(`
+    INSERT INTO users (id, email, password_hash, name, initials, local, plan, created_at)
+    VALUES (:id, :email, :password_hash, :name, :initials, 0, 'free', :now)
+  `).run({ id, email, password_hash, name, initials, now });
 
-    db.prepare("INSERT INTO settings (user_id) VALUES (:user_id)").run({ user_id: id });
+  db.prepare("INSERT INTO settings (user_id) VALUES (:user_id)").run({ user_id: id });
 
-    const token = await signToken(id);
+  const token = await signToken(id);
 
-    return c.json({
-      token,
-      user: {
-        id, email, name, initials, local: false, plan: "free", renewsAt: null,
-        stats: { tasks: 0, pomodoros: 0, syncOK: false },
-      },
-    }, 201);
-  } catch (err: any) {
-    throw err;
-  }
+  return c.json({
+    token,
+    user: {
+      id, email, name, initials, local: false, plan: "free", renewsAt: null,
+      stats: { tasks: 0, pomodoros: 0, syncOK: false },
+    },
+  }, 201);
 });
 
 app.post("/signin", authRateLimit, zValidator("json", SigninBody), async (c) => {
   const { email, password } = c.req.valid("json");
 
-  try {
-    const user = db.prepare("SELECT * FROM users WHERE email = :email").get({ email }) as UserRow | undefined;
-    if (!user) return httpError(c, 401, "INVALID_CREDENTIALS", "Invalid credentials");
+  const user = db.prepare("SELECT * FROM users WHERE email = :email").get({ email }) as UserRow | undefined;
+  if (!user) return httpError(c, 401, "INVALID_CREDENTIALS", "Invalid credentials");
 
-    const ok = await verifyPassword(password, user.password_hash);
-    if (!ok) return httpError(c, 401, "INVALID_CREDENTIALS", "Invalid credentials");
+  const ok = await verifyPassword(password, user.password_hash);
+  if (!ok) return httpError(c, 401, "INVALID_CREDENTIALS", "Invalid credentials");
 
-    // Single query for both task count and pomo count
-    const stats = db.prepare(`
-      SELECT
-        COUNT(CASE WHEN completed = 0 THEN 1 END) as task_count,
-        COALESCE(SUM(pomos_done), 0) as pomo_count
-      FROM tasks WHERE user_id = :uid
-    `).get({ uid: user.id }) as { task_count: number; pomo_count: number };
+  // Single query for both task count and pomo count
+  const stats = db.prepare(`
+    SELECT
+      COUNT(CASE WHEN completed = 0 THEN 1 END) as task_count,
+      COALESCE(SUM(pomos_done), 0) as pomo_count
+    FROM tasks WHERE user_id = :uid
+  `).get({ uid: user.id }) as { task_count: number; pomo_count: number };
 
-    const token = await signToken(user.id);
+  const token = await signToken(user.id);
 
-    return c.json({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        initials: user.initials,
-        local: Boolean(user.local),
-        plan: user.plan ?? "free",
-        renewsAt: user.renews_at ?? null,
-        stats: { tasks: stats.task_count, pomodoros: stats.pomo_count, syncOK: false },
-      },
-    });
-  } catch (err: any) {
-    throw err;
-  }
+  return c.json({
+    token,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      initials: user.initials,
+      local: Boolean(user.local),
+      plan: user.plan ?? "free",
+      renewsAt: user.renews_at ?? null,
+      stats: { tasks: stats.task_count, pomodoros: stats.pomo_count, syncOK: false },
+    },
+  });
 });
 
 app.post("/change-password", authRateLimit, authMiddleware, zValidator("json", ChangePasswordBody), async (c) => {
   const userId = c.get("userId") as string;
   const { current_password, new_password } = c.req.valid("json");
 
-  try {
-    const user = db.prepare("SELECT password_hash FROM users WHERE id = :id").get({ id: userId }) as Pick<UserRow, "password_hash"> | undefined;
-    if (!user) return httpError(c, 404, "NOT_FOUND", "Not found");
+  const user = db.prepare("SELECT password_hash FROM users WHERE id = :id").get({ id: userId }) as Pick<UserRow, "password_hash"> | undefined;
+  if (!user) return httpError(c, 404, "NOT_FOUND", "Not found");
 
-    const ok = await verifyPassword(current_password, user.password_hash);
-    if (!ok) return httpError(c, 400, "WRONG_PASSWORD", "Current password is incorrect");
+  const ok = await verifyPassword(current_password, user.password_hash);
+  if (!ok) return httpError(c, 400, "WRONG_PASSWORD", "Current password is incorrect");
 
-    const new_hash = await hashPassword(new_password);
-    db.prepare("UPDATE users SET password_hash = :hash WHERE id = :id").run({ hash: new_hash, id: userId });
+  const new_hash = await hashPassword(new_password);
+  db.prepare("UPDATE users SET password_hash = :hash WHERE id = :id").run({ hash: new_hash, id: userId });
 
-    return c.json({ ok: true });
-  } catch (err: any) {
-    throw err;
-  }
+  return c.json({ ok: true });
 });
 
 app.post("/signout", authMiddleware, (c) => {

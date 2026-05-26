@@ -25,11 +25,6 @@ import { useIsMobile } from "@/hooks/useIsMobile";
  */
 type ViewMode = "matrix" | "calendar";
 
-function readView(): ViewMode {
-  const v = localStorage.getItem("lumo.matrix.view");
-  return v === "calendar" ? "calendar" : "matrix";
-}
-
 export function MatrixPage() {
   const t = useT();
   const isMobile = useIsMobile();
@@ -37,11 +32,11 @@ export function MatrixPage() {
   const unclassified = tasks.filter((x) => x.quadrant === "unclassified" && !x.completed);
   const allActive = tasks.filter((x) => !x.completed);
   const [classifyOpen, setClassifyOpen] = useState(false);
-  const [view, setView] = useState<ViewMode>(readView);
+  const view = useAppStore((s) => s.matrixView) as ViewMode;
+  const setMatrixView = useAppStore((s) => s.setMatrixView);
 
   function switchView(v: ViewMode) {
-    setView(v);
-    localStorage.setItem("lumo.matrix.view", v);
+    setMatrixView(v);
   }
 
   const quadrants: Array<{ id: Quadrant; label: string; sub: string }> = [

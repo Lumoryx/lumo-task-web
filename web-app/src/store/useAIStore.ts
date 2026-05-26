@@ -40,6 +40,7 @@ interface AIStore {
   }) => Promise<void>;
   sendMessage: (text: string, ctx: ActivityContext) => Promise<void>;
   testConnection: (opts: { provider: AIProvider; key?: string; model?: string | null; baseUrl?: string | null; locale: string; userName: string }) => Promise<boolean>;
+  generateWeeklyInsight: (content: string, locale: string) => Promise<string | null>;
   clearHistory: () => void;
   openChat: () => void;
   closeChat: () => void;
@@ -161,6 +162,18 @@ export const useAIStore = create<AIStore>()(
           context: { locale, userName },
         });
         return !res.fallback;
+      },
+
+      async generateWeeklyInsight(content, locale) {
+        try {
+          const result = await api.petChat({
+            messages: [{ role: "user", content }],
+            context: { page: "stats", locale },
+          });
+          return result.reply || null;
+        } catch {
+          return null;
+        }
       },
 
       clearHistory: () => set({ messages: [] }),
