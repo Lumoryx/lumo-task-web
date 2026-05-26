@@ -95,6 +95,7 @@ function adaptTask(raw: any): Task {
     not_now: raw.not_now ?? [],
     recurrence: raw.recurrence ?? "none",
     subtasks: raw.subtasks ?? [],
+    scheduled_start: raw.scheduled_start ?? null,
   };
 }
 
@@ -232,6 +233,7 @@ export const api = {
       not_now: input.not_now ?? [],
       recurrence: input.recurrence ?? "none",
       subtasks: input.subtasks ?? [],
+      scheduled_start: input.scheduled_start ?? null,
     });
     return adaptTask(raw);
   },
@@ -253,6 +255,7 @@ export const api = {
       ...(patch.not_now !== undefined && { not_now: patch.not_now }),
       ...(patch.recurrence !== undefined && { recurrence: patch.recurrence }),
       ...(patch.subtasks !== undefined && { subtasks: patch.subtasks }),
+      ...(patch.scheduled_start !== undefined && { scheduled_start: patch.scheduled_start }),
     });
     return adaptTask(raw);
   },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
 import { useCalendarStore } from "@/store/useCalendarStore";
@@ -8,9 +8,49 @@ import { fmtDuration, parseDueISO, toISODate } from "@/lib/format";
 import { TaskDetailModal } from "./TaskDetailModal";
 import { OutlookEventCard } from "./OutlookEventCard";
 import { QuickCreate } from "./QuickCreate";
-import { IconCheck } from "./icons";
+import { IconCheck, IconClose } from "./icons";
 
 const DND_MIME = "application/x-lumo-task";
+
+/* ── Time grid constants ─────────────────────────────────────────── */
+
+const START_HOUR = 7;
+const END_HOUR = 22;
+const HOUR_H = 64;       // px per hour
+const SLOT_MINS = 15;    // snap granularity
+const MIN_BLOCK_H = 28;  // minimum block height in px
+const GRID_H = (END_HOUR - START_HOUR) * HOUR_H;
+
+function yToScheduledStart(y: number, dayIso: string): string {
+  const totalMins = Math.round((y / HOUR_H) * 60 / SLOT_MINS) * SLOT_MINS;
+  const clamped = Math.max(0, Math.min((END_HOUR - START_HOUR) * 60 - SLOT_MINS, totalMins));
+  const h = START_HOUR + Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${dayIso}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+}
+
+function scheduledStartToTop(iso: string): number {
+  const t = new Date(iso);
+  return (t.getHours() - START_HOUR + t.getMinutes() / 60) * HOUR_H;
+}
+
+function durationToHeight(mins: number): number {
+  return Math.max((mins / 60) * HOUR_H, MIN_BLOCK_H);
+}
+
+function fmtHourLabel(h: number): string {
+  if (h === 0 || h === 12) return h === 0 ? "12am" : "12pm";
+  return h > 12 ? `${h - 12}pm` : `${h}am`;
+}
+
+function fmtScheduledTime(iso: string): string {
+  const t = new Date(iso);
+  const h = t.getHours();
+  const m = t.getMinutes();
+  const suffix = h >= 12 ? "pm" : "am";
+  const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return m === 0 ? `${displayH}${suffix}` : `${displayH}:${String(m).padStart(2, "0")}${suffix}`;
+}
 
 /* ── Date helpers ────────────────────────────────────────────────── */
 
@@ -24,8 +64,7 @@ function getWeekDays(weekOffset: number): WeekDay[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayISO = toISODate(today);
-  // Week starts on Monday
-  const dow = today.getDay(); // 0=Sun
+  const dow = today.getDay();
   const daysFromMon = (dow + 6) % 7;
   const monday = new Date(today);
   monday.setDate(today.getDate() - daysFromMon + weekOffset * 7);
@@ -56,7 +95,6 @@ function weekRangeLabel(days: WeekDay[], locale: Locale): string {
   return `${EN_MONTHS[first.getMonth()]} ${first.getDate()} – ${EN_MONTHS[last.getMonth()]} ${last.getDate()}, ${first.getFullYear()}`;
 }
 
-// Day abbreviations keyed by getDay() value (0=Sun)
 const DAY_ABBR: Record<number, Record<Locale, string>> = {
   0: { en: "Sun", zh: "日" },
   1: { en: "Mon", zh: "一" },
@@ -67,7 +105,15 @@ const DAY_ABBR: Record<number, Record<Locale, string>> = {
   6: { en: "Sat", zh: "六" },
 };
 
-/* ── Main CalendarView component ─────────────────────────────────── */
+/* ── Drop indicator state ────────────────────────────────────────── */
+
+interface DropIndicator {
+  dayIso: string;
+  top: number;
+  scheduledStart: string;
+}
+
+/* ── Main CalendarView ───────────────────────────────────────────── */
 
 export function CalendarView() {
   const t = useT();
@@ -80,13 +126,22 @@ export function CalendarView() {
   const fetchEvents = useCalendarStore((s) => s.fetchEvents);
 
   const [weekOffset, setWeekOffset] = useState(0);
-  const [overDay, setOverDay] = useState<string | null>(null);
   const [overUnscheduled, setOverUnscheduled] = useState(false);
+  const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const [qcOpen, setQcOpen] = useState(false);
   const [qcTitle, setQcTitle] = useState("");
   const [qcDue, setQcDue] = useState("");
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const days = getWeekDays(weekOffset);
+
+  // Scroll to 8am on first render
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = (8 - START_HOUR) * HOUR_H;
+    }
+  }, []);
 
   useEffect(() => {
     if (!connected) return;
@@ -112,35 +167,70 @@ export function CalendarView() {
     }
   }
 
-  // Partition active tasks into day buckets or unscheduled
-  const dayBuckets = new Map<string, Task[]>();
-  days.forEach((d) => dayBuckets.set(d.iso, []));
+  // Partition active tasks into: scheduled (with time), all-day (due only), unscheduled
+  const scheduledBuckets = new Map<string, Task[]>(); // tasks with scheduled_start
+  const allDayBuckets = new Map<string, Task[]>();    // tasks with due but no scheduled_start
   const unscheduled: Task[] = [];
+  days.forEach((d) => { scheduledBuckets.set(d.iso, []); allDayBuckets.set(d.iso, []); });
 
   for (const task of tasks) {
     if (task.completed) continue;
-    const iso = parseDueISO(task.due);
-    if (iso && dayBuckets.has(iso)) {
-      dayBuckets.get(iso)!.push(task);
+    if (task.scheduled_start) {
+      const dayIso = task.scheduled_start.substring(0, 10);
+      if (scheduledBuckets.has(dayIso)) {
+        scheduledBuckets.get(dayIso)!.push(task);
+      } else {
+        unscheduled.push(task);
+      }
     } else {
-      unscheduled.push(task);
+      const iso = parseDueISO(task.due);
+      if (iso && allDayBuckets.has(iso)) {
+        allDayBuckets.get(iso)!.push(task);
+      } else {
+        unscheduled.push(task);
+      }
     }
   }
 
-  function dayDropHandlers(iso: string) {
+  function makeTimeGridDrop(dayIso: string) {
+    return {
+      onDragOver: (e: React.DragEvent<HTMLDivElement>) => {
+        if (!e.dataTransfer.types.includes(DND_MIME)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const rect = e.currentTarget.getBoundingClientRect();
+        const y = Math.max(0, e.clientY - rect.top);
+        const scheduledStart = yToScheduledStart(y, dayIso);
+        const snapTop = scheduledStartToTop(scheduledStart);
+        setDropIndicator({ dayIso, top: snapTop, scheduledStart });
+      },
+      onDragLeave: (e: React.DragEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setDropIndicator(null);
+        }
+      },
+      onDrop: (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const id = e.dataTransfer.getData(DND_MIME);
+        if (id && dropIndicator?.dayIso === dayIso) {
+          update(id, { due: dayIso, scheduled_start: dropIndicator.scheduledStart });
+        }
+        setDropIndicator(null);
+      },
+    };
+  }
+
+  function makeAllDayDrop(dayIso: string) {
     return {
       onDragOver: (e: React.DragEvent) => {
         if (!e.dataTransfer.types.includes(DND_MIME)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        setOverDay(iso);
       },
-      onDragLeave: () => setOverDay(null),
       onDrop: (e: React.DragEvent) => {
         e.preventDefault();
-        setOverDay(null);
         const id = e.dataTransfer.getData(DND_MIME);
-        if (id) update(id, { due: iso });
+        if (id) update(id, { due: dayIso, scheduled_start: null });
       },
     };
   }
@@ -157,13 +247,13 @@ export function CalendarView() {
       e.preventDefault();
       setOverUnscheduled(false);
       const id = e.dataTransfer.getData(DND_MIME);
-      if (id) update(id, { due: null });
+      if (id) update(id, { due: null, scheduled_start: null });
     },
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Week navigation */}
+    <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
+      {/* ── Week navigation ─────────────────────────────────────── */}
       <div
         className="flex items-center gap-2 px-7 py-2.5 flex-shrink-0 border-b"
         style={{ borderColor: "var(--border-faint)" }}
@@ -175,11 +265,9 @@ export function CalendarView() {
         >
           ← {t("calendar.prev")}
         </button>
-
         <span className="flex-1 text-center text-[13px] font-medium text-text-primary tabular-nums select-none">
           {weekRangeLabel(days, locale)}
         </span>
-
         <button
           onClick={() => setWeekOffset((o) => o + 1)}
           className="btn btn-ghost text-[12px] px-2.5 py-1"
@@ -187,25 +275,22 @@ export function CalendarView() {
         >
           {t("calendar.next")} →
         </button>
-
         {weekOffset !== 0 && (
-          <button
-            onClick={() => setWeekOffset(0)}
-            className="btn btn-secondary text-[11px] px-2.5 py-1"
-          >
+          <button onClick={() => setWeekOffset(0)} className="btn btn-secondary text-[11px] px-2.5 py-1">
             {t("calendar.today.btn")}
           </button>
         )}
       </div>
 
-      {/* Calendar grid: unscheduled panel + 7 day columns */}
-      <div className="flex flex-1 min-h-0 overflow-x-auto">
-        {/* Unscheduled / No-date panel */}
+      {/* ── Main body ────────────────────────────────────────────── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+
+        {/* ── Unscheduled panel ──────────────────────────────────── */}
         <div
           {...unscheduledDrop}
           className="flex flex-col border-r flex-shrink-0 min-h-0 transition-colors"
           style={{
-            width: 152,
+            width: 148,
             borderColor: "var(--border-faint)",
             background: overUnscheduled ? "var(--accent-fog)" : "transparent",
           }}
@@ -221,7 +306,6 @@ export function CalendarView() {
               <span className="ml-1.5 text-[10px] text-text-muted">{unscheduled.length}</span>
             )}
           </div>
-
           <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
             {unscheduled.length === 0 ? (
               <div className="text-[11px] text-text-faint italic px-1 py-2">
@@ -233,68 +317,160 @@ export function CalendarView() {
           </div>
         </div>
 
-        {/* 7 day columns */}
-        {days.map((day) => {
-          const dayTasks = dayBuckets.get(day.iso) ?? [];
-          const abbr = DAY_ABBR[day.date.getDay()][locale];
-          const isOver = overDay === day.iso;
+        {/* ── Right section: day headers + scrollable time grid ──── */}
+        <div className="flex flex-1 flex-col min-h-0 min-w-0">
 
-          return (
-            <div
-              key={day.iso}
-              {...dayDropHandlers(day.iso)}
-              className="flex flex-col flex-1 min-w-0 border-r min-h-0 transition-colors"
-              style={{
-                minWidth: 100,
-                borderColor: "var(--border-faint)",
-                background: isOver
-                  ? "var(--accent-fog)"
-                  : day.isToday
-                  ? "rgba(61,255,160,0.03)"
-                  : "transparent",
-              }}
-            >
-              {/* Day header */}
-              <div
-                className="flex flex-col items-center py-2.5 border-b gap-0.5 flex-shrink-0"
-                style={{ borderColor: "var(--border-faint)" }}
-              >
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-widest"
-                  style={{ color: day.isToday ? "var(--accent-primary)" : "var(--text-faint)" }}
-                >
-                  {abbr}
-                </span>
-                <span
-                  className="flex items-center justify-center rounded-full text-[13px] font-semibold tabular-nums leading-none"
+          {/* Day header row (fixed) */}
+          <div className="flex flex-shrink-0 border-b" style={{ borderColor: "var(--border-faint)" }}>
+            {/* Spacer for time ruler */}
+            <div className="flex-shrink-0" style={{ width: 48 }} />
+            {days.map((day) => {
+              const abbr = DAY_ABBR[day.date.getDay()][locale];
+              const allDayTasks = allDayBuckets.get(day.iso) ?? [];
+              const evts = eventBuckets.get(day.iso) ?? [];
+              return (
+                <div
+                  key={day.iso}
+                  {...makeAllDayDrop(day.iso)}
+                  className="flex-1 flex flex-col border-r min-w-0"
                   style={{
-                    width: 26,
-                    height: 26,
-                    background: day.isToday ? "var(--accent-primary)" : "transparent",
-                    color: day.isToday ? "var(--bg-base)" : "var(--text-primary)",
+                    minWidth: 80,
+                    borderColor: "var(--border-faint)",
+                    background: day.isToday ? "rgba(61,255,160,0.03)" : "transparent",
                   }}
                 >
-                  {day.date.getDate()}
-                </span>
+                  {/* Day label */}
+                  <div className="flex flex-col items-center py-2 gap-0.5 flex-shrink-0">
+                    <span
+                      className="text-[10px] font-semibold uppercase tracking-widest"
+                      style={{ color: day.isToday ? "var(--accent-primary)" : "var(--text-faint)" }}
+                    >
+                      {abbr}
+                    </span>
+                    <span
+                      className="flex items-center justify-center rounded-full text-[13px] font-semibold tabular-nums leading-none"
+                      style={{
+                        width: 26, height: 26,
+                        background: day.isToday ? "var(--accent-primary)" : "transparent",
+                        color: day.isToday ? "var(--bg-base)" : "var(--text-primary)",
+                      }}
+                    >
+                      {day.date.getDate()}
+                    </span>
+                  </div>
+                  {/* All-day chips area */}
+                  {(allDayTasks.length > 0 || evts.length > 0) && (
+                    <div className="px-1 pb-1.5 flex flex-col gap-0.5">
+                      {allDayTasks.map((task) => (
+                        <AllDayChip key={task.id} task={task} />
+                      ))}
+                      {evts.map((evt) => (
+                        <OutlookEventCard key={evt.id} event={evt} onCreateTask={openQCFromEvent} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Scrollable time grid */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0" style={{ position: "relative" }}>
+            <div className="flex" style={{ height: GRID_H }}>
+
+              {/* Time ruler */}
+              <div className="flex-shrink-0 relative" style={{ width: 48 }}>
+                {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-full flex items-start justify-end"
+                    style={{ top: i * HOUR_H - 7, paddingRight: 8 }}
+                  >
+                    <span className="text-[10px] tabular-nums" style={{ color: "var(--text-faint)" }}>
+                      {i === 0 ? "" : fmtHourLabel(START_HOUR + i)}
+                    </span>
+                  </div>
+                ))}
               </div>
 
-              {/* Task list + Outlook events */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-1.5 flex flex-col gap-1">
-                {dayTasks.length === 0 && isOver && (
-                  <div className="text-[11px] text-text-faint italic px-1 py-1">
-                    {t("calendar.drop.here")}
+              {/* Day time columns */}
+              {days.map((day) => {
+                const scheduled = scheduledBuckets.get(day.iso) ?? [];
+                const isDropTarget = dropIndicator?.dayIso === day.iso;
+
+                return (
+                  <div
+                    key={day.iso}
+                    {...makeTimeGridDrop(day.iso)}
+                    className="flex-1 relative border-r min-w-0"
+                    style={{
+                      minWidth: 80,
+                      borderColor: "var(--border-faint)",
+                      background: day.isToday ? "rgba(61,255,160,0.02)" : "transparent",
+                    }}
+                  >
+                    {/* Hour grid lines */}
+                    {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
+                      <div
+                        key={i}
+                        className="absolute left-0 right-0"
+                        style={{
+                          top: i * HOUR_H,
+                          borderTop: `1px solid var(--border-faint)`,
+                        }}
+                      />
+                    ))}
+
+                    {/* Half-hour lines (lighter) */}
+                    {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
+                      <div
+                        key={`h${i}`}
+                        className="absolute left-0 right-0"
+                        style={{
+                          top: i * HOUR_H + HOUR_H / 2,
+                          borderTop: `1px dashed var(--border-faint)`,
+                          opacity: 0.5,
+                        }}
+                      />
+                    ))}
+
+                    {/* Drop indicator line */}
+                    {isDropTarget && dropIndicator && (
+                      <div
+                        className="absolute left-0 right-0 z-20 pointer-events-none"
+                        style={{ top: dropIndicator.top }}
+                      >
+                        <div
+                          className="absolute left-0 right-0 h-[2px]"
+                          style={{ background: "var(--accent-primary)", boxShadow: "0 0 6px var(--accent-glow)" }}
+                        />
+                        <span
+                          className="absolute left-1 top-1 text-[10px] font-semibold px-1 rounded"
+                          style={{
+                            background: "var(--accent-primary)",
+                            color: "var(--bg-base)",
+                            lineHeight: "14px",
+                          }}
+                        >
+                          {fmtScheduledTime(dropIndicator.scheduledStart)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Time blocks */}
+                    {scheduled.map((task) => (
+                      <TimeBlock
+                        key={task.id}
+                        task={task}
+                        onClearTime={() => update(task.id, { scheduled_start: null })}
+                      />
+                    ))}
                   </div>
-                )}
-                {dayTasks.map((task) => (
-                  <CalTaskCard key={task.id} task={task} />
-                ))}
-                {(eventBuckets.get(day.iso) ?? []).map((evt) => (
-                  <OutlookEventCard key={evt.id} event={evt} onCreateTask={openQCFromEvent} />
-                ))}
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        </div>
       </div>
 
       {qcOpen && (
@@ -309,7 +485,7 @@ export function CalendarView() {
   );
 }
 
-/* ── Drag helper shared between chip and card ─────────────────────── */
+/* ── Drag helper ──────────────────────────────────────────────────── */
 
 function makeDragProps(taskId: string) {
   return {
@@ -347,25 +523,63 @@ function UnscheduledChip({ task }: { task: Task }) {
   );
 }
 
-/* ── Task card in day column ─────────────────────────────────────── */
+/* ── All-day chip (in day header) ────────────────────────────────── */
 
-const Q_BAR_COLOR: Record<string, string> = {
-  Q1: "var(--q1-color)",
-  Q2: "var(--q2-color)",
-  Q3: "var(--q3-color)",
-  Q4: "var(--q4-color)",
-  unclassified: "var(--text-faint)",
+function AllDayChip({ task }: { task: Task }) {
+  const ls = useLocaleString();
+  const [detailOpen, setDetailOpen] = useState(false);
+  const complete = useTasksStore((s) => s.complete);
+
+  return (
+    <>
+      <div
+        {...makeDragProps(task.id)}
+        onClick={() => setDetailOpen(true)}
+        className="flex items-center gap-1 px-1.5 py-1 rounded cursor-grab active:cursor-grabbing text-[10px] transition-colors hover:opacity-80 group"
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-default)",
+          color: "var(--text-secondary)",
+        }}
+      >
+        <span className={`qdot qdot-${task.quadrant.toLowerCase()} flex-shrink-0`} />
+        <span className="truncate flex-1">{ls(task.title)}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); complete(task.id); }}
+          className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ color: "var(--accent-primary)" }}
+        >
+          <IconCheck size={10} strokeWidth={2.5} />
+        </button>
+      </div>
+      {detailOpen && <TaskDetailModal task={task} onClose={() => setDetailOpen(false)} />}
+    </>
+  );
+}
+
+/* ── Time block (absolutely positioned in the time grid) ─────────── */
+
+const Q_BLOCK: Record<string, { bg: string; border: string; bar: string }> = {
+  Q1: { bg: "rgba(255,107,107,0.08)", border: "rgba(255,107,107,0.3)", bar: "var(--q1-color)" },
+  Q2: { bg: "rgba(91,200,212,0.08)", border: "rgba(91,200,212,0.3)", bar: "var(--q2-color)" },
+  Q3: { bg: "rgba(255,179,71,0.08)", border: "rgba(255,179,71,0.3)", bar: "var(--q3-color)" },
+  Q4: { bg: "rgba(160,173,176,0.08)", border: "rgba(160,173,176,0.3)", bar: "var(--q4-color)" },
+  unclassified: { bg: "var(--bg-subtle)", border: "var(--border-faint)", bar: "var(--text-faint)" },
 };
 
-function CalTaskCard({ task }: { task: Task }) {
+function TimeBlock({ task, onClearTime }: { task: Task; onClearTime: () => void }) {
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
   const complete = useTasksStore((s) => s.complete);
 
   const [hovered, setHovered] = useState(false);
-  const [circleHover, setCircleHover] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const top = scheduledStartToTop(task.scheduled_start!);
+  const height = durationToHeight(task.duration || 30);
+  const colors = Q_BLOCK[task.quadrant] ?? Q_BLOCK.unclassified;
+  const startLabel = fmtScheduledTime(task.scheduled_start!);
 
   return (
     <>
@@ -373,62 +587,64 @@ function CalTaskCard({ task }: { task: Task }) {
         {...makeDragProps(task.id)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="flex items-stretch gap-1.5 rounded-md cursor-grab active:cursor-grabbing transition-all"
+        className="absolute left-1 right-1 rounded-md overflow-hidden cursor-grab active:cursor-grabbing transition-all z-10"
         style={{
-          background: hovered ? "var(--bg-elevated)" : "var(--bg-subtle)",
-          border: `1px solid ${hovered ? "var(--border-default)" : "var(--border-faint)"}`,
-          minHeight: 38,
-          padding: "5px 6px",
+          top,
+          height,
+          background: colors.bg,
+          border: `1px solid ${hovered ? colors.bar : colors.border}`,
+          boxShadow: hovered ? `0 0 0 1px ${colors.bar}22` : "none",
         }}
       >
         {/* Quadrant accent bar */}
         <div
-          className="flex-shrink-0 rounded-full self-stretch"
-          style={{ width: 3, background: Q_BAR_COLOR[task.quadrant] }}
+          className="absolute left-0 top-0 bottom-0 rounded-l-md"
+          style={{ width: 3, background: colors.bar }}
         />
 
-        {/* Content — click opens detail */}
+        {/* Content */}
         <div
-          className="flex-1 min-w-0 cursor-pointer"
+          className="ml-[7px] pr-1 py-1 h-full flex flex-col cursor-pointer overflow-hidden"
           onClick={() => setDetailOpen(true)}
         >
-          <div
-            className="text-[11px] font-medium text-text-primary leading-snug"
-            style={{ wordBreak: "break-word" }}
+          <span
+            className="text-[11px] font-medium leading-tight"
+            style={{ color: "var(--text-primary)", wordBreak: "break-word" }}
           >
             {ls(task.title)}
-          </div>
-          {task.duration > 0 && (
-            <div className="text-[10px] text-text-faint mt-0.5 tabular-nums">
-              {fmtDuration(task.duration, locale)}
-            </div>
+          </span>
+          {height >= 40 && (
+            <span className="text-[10px] tabular-nums mt-0.5" style={{ color: "var(--text-faint)" }}>
+              {startLabel}
+              {task.duration > 0 && ` · ${fmtDuration(task.duration, locale)}`}
+            </span>
           )}
         </div>
 
-        {/* Complete circle (visible on hover) */}
-        <button
-          onMouseEnter={() => setCircleHover(true)}
-          onMouseLeave={() => setCircleHover(false)}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            complete(task.id);
-          }}
-          aria-label={t("row.complete")}
-          className="flex-shrink-0 flex items-center justify-center w-[14px] h-[14px] rounded-full border self-start mt-0.5 transition-all"
-          style={{
-            opacity: hovered ? 1 : 0,
-            pointerEvents: hovered ? "auto" : "none",
-            borderColor: circleHover ? "var(--accent-primary)" : "var(--border-strong)",
-            background: circleHover ? "var(--accent-fog)" : "transparent",
-            color: "var(--accent-primary)",
-            cursor: "default",
-          }}
-        >
-          {circleHover && <IconCheck size={8} strokeWidth={2.5} />}
-        </button>
+        {/* Action buttons — visible on hover */}
+        {hovered && (
+          <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); complete(task.id); }}
+              title={t("row.complete")}
+              className="flex items-center justify-center w-[16px] h-[16px] rounded transition-colors"
+              style={{ color: "var(--accent-primary)", background: "var(--accent-fog)" }}
+            >
+              <IconCheck size={9} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onClearTime(); }}
+              title={t("calendar.block.clear")}
+              className="flex items-center justify-center w-[16px] h-[16px] rounded transition-colors"
+              style={{ color: "var(--text-faint)", background: "var(--bg-subtle)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-faint)"; }}
+            >
+              <IconClose size={8} />
+            </button>
+          </div>
+        )}
       </div>
-
       {detailOpen && <TaskDetailModal task={task} onClose={() => setDetailOpen(false)} />}
     </>
   );

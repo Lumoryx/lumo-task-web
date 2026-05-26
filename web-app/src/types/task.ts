@@ -66,6 +66,8 @@ export interface Task {
   recurrence?: TaskRecurrence;
   /** Inline sub-tasks for breaking a task into smaller steps. */
   subtasks?: Subtask[];
+  /** ISO datetime (YYYY-MM-DDTHH:MM:SS) for a specific time block on the calendar. */
+  scheduled_start?: string | null;
 }
 
 export interface CompletedEntry {

@@ -442,6 +442,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "calendar.unscheduled": "No date",
     "calendar.unscheduled.hint": "Drop to clear date",
     "calendar.drop.here": "Drop to schedule",
+    "calendar.block.clear": "Remove from time slot",
 
     "settings.integrations": "Integrations",
     "outlook.connect": "Connect Outlook",
@@ -886,6 +887,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "calendar.unscheduled": "无日期",
     "calendar.unscheduled.hint": "拖到这里清除日期",
     "calendar.drop.here": "拖到这里排期",
+    "calendar.block.clear": "移出时间段",
 
     "settings.integrations": "集成",
     "outlook.connect": "连接 Outlook",
