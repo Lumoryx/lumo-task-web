@@ -29,6 +29,12 @@ export interface Person {
 
 export type TaskRecurrence = "none" | "daily" | "weekdays" | "weekly" | "monthly";
 
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: string;
   /** Person IDs — references People in the people list. Multiple allowed. */
@@ -58,6 +64,10 @@ export interface Task {
   not_now?: Array<{ id: string; reason: LocalizedString }>;
   /** Recurrence rule — when task is completed, a copy is spawned for the next occurrence. */
   recurrence?: TaskRecurrence;
+  /** Inline sub-tasks for breaking a task into smaller steps. */
+  subtasks?: Subtask[];
+  /** ISO datetime (YYYY-MM-DDTHH:MM:SS) for a specific time block on the calendar. */
+  scheduled_start?: string | null;
 }
 
 export interface CompletedEntry {

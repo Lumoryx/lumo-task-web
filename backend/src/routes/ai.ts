@@ -93,6 +93,7 @@ function heuristicQuadrant(task: any, today: string): { q: string; confidence: n
 // POST /ai/classify — LLM-powered semantic classification (heuristic fallback)
 app.post("/classify", classifyRateLimit, async (c) => {
   const userId = c.get("userId") as string;
+  try {
   const today = new Date().toISOString().slice(0, 10);
 
   const tasks = db.prepare(
@@ -185,12 +186,16 @@ Return ONLY a JSON array, no markdown:
   }
 
   return c.json({ suggestions });
+  } catch (err: any) {
+    console.error("[ai/classify] unexpected error:", err?.message);
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
+  }
 });
 
 // POST /ai/recommend — LLM-reasoned recommendation (SQL sort fallback)
 app.post("/recommend", classifyRateLimit, async (c) => {
   const userId = c.get("userId") as string;
-
+  try {
   const q1Tasks = db.prepare(`
     SELECT * FROM tasks
     WHERE user_id = :uid AND completed = 0 AND quadrant = 'Q1' AND today = 1
@@ -261,6 +266,10 @@ Choose the single most critical task to work on RIGHT NOW. Return ONLY valid JSO
       conviction,
     },
   });
+  } catch (err: any) {
+    console.error("[ai/recommend] unexpected error:", err?.message);
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
+  }
 });
 
 // POST /ai/parse — natural language task parser

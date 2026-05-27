@@ -44,6 +44,8 @@ export function applyAccentTheme(accent: Accent) {
   r.style.setProperty("--accent-edge", t.edge);
 }
 
+export type MatrixView = "matrix" | "calendar";
+
 interface AppState {
   locale: Locale;
   accent: Accent;
@@ -51,11 +53,13 @@ interface AppState {
   reducedMotion: boolean;
   /** Whether the user has completed (or skipped) onboarding. */
   onboarded: boolean;
+  matrixView: MatrixView;
   setLocale: (l: Locale) => void;
   setAccent: (a: Accent) => void;
   setDensity: (d: Density) => void;
   setReducedMotion: (b: boolean) => void;
   setOnboarded: (b: boolean) => void;
+  setMatrixView: (v: MatrixView) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -66,6 +70,7 @@ export const useAppStore = create<AppState>()(
       density: "comfortable",
       reducedMotion: false,
       onboarded: false,
+      matrixView: "matrix",
       setLocale: (locale) => set({ locale }),
       setAccent: (accent) => {
         applyAccentTheme(accent);
@@ -74,6 +79,7 @@ export const useAppStore = create<AppState>()(
       setDensity: (density) => set({ density }),
       setReducedMotion: (reducedMotion) => set({ reducedMotion }),
       setOnboarded: (onboarded) => set({ onboarded }),
+      setMatrixView: (matrixView) => set({ matrixView }),
     }),
     { name: "lumo.app.v1" }
   )

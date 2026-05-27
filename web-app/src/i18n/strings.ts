@@ -81,6 +81,18 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.resetData": "Reset demo data",
     "settings.replayOnboarding": "Replay onboarding",
 
+    "settings.storage": "Storage",
+    "settings.storage.dbPath": "Database location",
+    "settings.storage.dbPath.helper": "All your tasks are stored in this file. Only on your device — never uploaded.",
+    "settings.storage.dbSize": "Database size",
+    "settings.storage.change": "Change Location",
+    "settings.storage.reveal": "Show in Finder",
+    "settings.storage.reveal.win": "Show in Explorer",
+    "settings.storage.moving": "Moving…",
+    "settings.storage.confirm": "Copy lumo.db to this folder and restart Lumo?",
+    "settings.storage.web.note": "Running as a web app. Set the LUMO_DB_PATH environment variable on the server to customize the database location.",
+    "settings.storage.loading": "Loading…",
+
     "matrix.aiClassify": "AI classify",
     "matrix.aiClassify.title": "Let me sort these for you",
     "matrix.aiClassify.sub": "Review and override any quadrant. We'll apply all changes at once.",
@@ -188,6 +200,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "detail.start": "Start focus",
     "detail.edit": "Edit",
     "detail.complete": "Mark complete",
+    "detail.subtasks": "Sub-tasks",
+    "detail.subtask.add": "Add a sub-task…",
+    "detail.subtask.add.btn": "Add",
     "row.complete": "Complete task",
     "row.startfocus": "Start focus",
 
@@ -439,6 +454,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "calendar.unscheduled": "No date",
     "calendar.unscheduled.hint": "Drop to clear date",
     "calendar.drop.here": "Drop to schedule",
+    "calendar.block.clear": "Remove from time slot",
 
     "settings.integrations": "Integrations",
     "outlook.connect": "Connect Outlook",
@@ -521,6 +537,18 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.language": "语言",
     "settings.resetData": "重置演示数据",
     "settings.replayOnboarding": "重新引导",
+
+    "settings.storage": "存储",
+    "settings.storage.dbPath": "数据库位置",
+    "settings.storage.dbPath.helper": "所有任务数据都存储在你设备上的这个文件里，从不上传。",
+    "settings.storage.dbSize": "数据库大小",
+    "settings.storage.change": "更改位置",
+    "settings.storage.reveal": "在访达中显示",
+    "settings.storage.reveal.win": "在资源管理器中显示",
+    "settings.storage.moving": "移动中…",
+    "settings.storage.confirm": "将 lumo.db 复制到此文件夹并重启 Lumo？",
+    "settings.storage.web.note": "正在以 Web 模式运行。通过在服务器上设置 LUMO_DB_PATH 环境变量来自定义数据库位置。",
+    "settings.storage.loading": "加载中…",
 
     "matrix.aiClassify": "AI 分类",
     "matrix.aiClassify.title": "我来帮你分类",
@@ -629,6 +657,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "detail.start": "开始专注",
     "detail.edit": "编辑",
     "detail.complete": "完成任务",
+    "detail.subtasks": "子任务",
+    "detail.subtask.add": "添加子任务…",
+    "detail.subtask.add.btn": "添加",
     "row.complete": "完成任务",
     "row.startfocus": "开始专注",
 
@@ -880,6 +911,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "calendar.unscheduled": "无日期",
     "calendar.unscheduled.hint": "拖到这里清除日期",
     "calendar.drop.here": "拖到这里排期",
+    "calendar.block.clear": "移出时间段",
 
     "settings.integrations": "集成",
     "outlook.connect": "连接 Outlook",

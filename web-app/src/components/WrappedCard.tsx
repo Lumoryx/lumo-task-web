@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from "react";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
-import { useDogStore } from "@/store/useDogStore";
 import { useAIStore } from "@/store/useAIStore";
+import { useDogStore } from "@/store/useDogStore";
 import { DogSvg } from "@/components/DogSvg";
 import type { PrevWeekStats } from "@/utils/wrapped";
 

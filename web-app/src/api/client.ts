@@ -94,6 +94,8 @@ function adaptTask(raw: any): Task {
     completed: raw.completed,
     not_now: raw.not_now ?? [],
     recurrence: raw.recurrence ?? "none",
+    subtasks: raw.subtasks ?? [],
+    scheduled_start: raw.scheduled_start ?? null,
   };
 }
 
@@ -230,6 +232,8 @@ export const api = {
       ai_suggest: input.ai_suggest ?? null,
       not_now: input.not_now ?? [],
       recurrence: input.recurrence ?? "none",
+      subtasks: input.subtasks ?? [],
+      scheduled_start: input.scheduled_start ?? null,
     });
     return adaptTask(raw);
   },
@@ -250,6 +254,8 @@ export const api = {
       ...(patch.ai_suggest !== undefined && { ai_suggest: patch.ai_suggest }),
       ...(patch.not_now !== undefined && { not_now: patch.not_now }),
       ...(patch.recurrence !== undefined && { recurrence: patch.recurrence }),
+      ...(patch.subtasks !== undefined && { subtasks: patch.subtasks }),
+      ...(patch.scheduled_start !== undefined && { scheduled_start: patch.scheduled_start }),
     });
     return adaptTask(raw);
   },
@@ -323,6 +329,10 @@ export const api = {
     };
   }): Promise<{ reply: string; mood: "idle" | "happy" | "excited"; fallback: boolean; toolsUsed?: string[] }> {
     return req("POST", "/ai/chat", body);
+  },
+
+  async storageInfo(): Promise<{ dbPath: string; dbDir: string; dbSize: number; dbName: string }> {
+    return req("GET", "/storage/info");
   },
 
   async outlookStatus(): Promise<{ configured: boolean; userEmail: string | null }> {

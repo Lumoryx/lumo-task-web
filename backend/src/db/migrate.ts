@@ -150,6 +150,15 @@ export function runMigrations() {
     db.exec("ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
   }
 
+  // Migrate: add subtasks JSON column to tasks
+  const taskColsSubtasks = db.prepare("PRAGMA table_info(tasks)").all() as any[];
+  if (!taskColsSubtasks.some((c: any) => c.name === "subtasks_json")) {
+    db.exec("ALTER TABLE tasks ADD COLUMN subtasks_json TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!taskColsSubtasks.some((c: any) => c.name === "scheduled_start")) {
+    db.exec("ALTER TABLE tasks ADD COLUMN scheduled_start TEXT");
+  }
+
   // Migrate: add Lumo Cloud AI usage tracking to settings
   const settingsColsV2 = db.prepare("PRAGMA table_info(settings)").all() as any[];
   if (!settingsColsV2.some((c: any) => c.name === "ai_cloud_used")) {
