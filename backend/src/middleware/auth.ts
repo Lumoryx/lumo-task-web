@@ -1,7 +1,7 @@
 import type { Context, Next } from "hono";
 import type { Variables } from "../env.js";
 import { verifyToken } from "../lib/jwt.js";
-import { db } from "../db/client.js";
+import { queryOne } from "../db/client.js";
 import { httpError } from "../lib/errors.js";
 
 export async function authMiddleware(c: Context<{ Variables: Variables }>, next: Next) {
@@ -12,7 +12,7 @@ export async function authMiddleware(c: Context<{ Variables: Variables }>, next:
   const token = header.slice(7);
   try {
     const { userId, jti } = await verifyToken(token);
-    const revoked = db.prepare("SELECT 1 FROM revoked_tokens WHERE jti = :jti").get({ jti });
+    const revoked = await queryOne("SELECT 1 FROM revoked_tokens WHERE jti = :jti", { jti });
     if (revoked) return httpError(c, 401, "UNAUTHORIZED", "Unauthorized");
     c.set("userId", userId);
     c.set("jti", jti);

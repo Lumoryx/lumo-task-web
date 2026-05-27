@@ -9,17 +9,21 @@ services:
     startCommand: node dist/bundle.cjs
     healthCheckPath: /health
 
-    # NOTE: No persistent disk on free plan.
-    # SQLite data lives in the ephemeral filesystem and is reset on each deploy
-    # or cold-start. Suitable for demo / development use.
-    # Upgrade to Render Starter ($7/mo) and re-add the disk block to persist data.
+    # Data persistence via Turso (free hosted SQLite).
+    # Sign up at https://turso.tech, create a DB, then add the two env vars below
+    # in the Render dashboard. Without them the backend falls back to a local
+    # file: which IS ephemeral on Render free tier.
 
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "22"            # node:sqlite requires Node >= 22.5
+        value: "22"
       - key: LUMO_JWT_SECRET
         generateValue: true    # Render auto-generates a secure random value
       - key: LUMO_ALLOWED_ORIGINS
         sync: false            # Set manually in Render dashboard after Vercel deploy
+      - key: TURSO_DATABASE_URL
+        sync: false            # libsql://your-db-name-<org>.turso.io
+      - key: TURSO_AUTH_TOKEN
+        sync: false            # token from: turso db tokens create <db-name>

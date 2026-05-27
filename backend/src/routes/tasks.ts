@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { db } from "../db/client.js";
+import { query, queryOne, execute, batch } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import { createRateLimiter } from "../lib/rateLimit.js";
@@ -104,20 +104,23 @@ function rowToTask(row: TaskRow) {
 }
 
 // GET /tasks
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const userId = c.get("userId") as string;
-  const rows = db.prepare("SELECT * FROM tasks WHERE user_id = :uid AND completed = 0 ORDER BY created_at ASC").all({ uid: userId });
-  return c.json((rows as unknown as TaskRow[]).map(rowToTask));
+  const rows = await query<TaskRow>(
+    "SELECT * FROM tasks WHERE user_id = :uid AND completed = 0 ORDER BY created_at ASC",
+    { uid: userId }
+  );
+  return c.json(rows.map(rowToTask));
 });
 
 // POST /tasks
-app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), (c) => {
+app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), async (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
   const id = "t_" + nanoid(10);
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await execute(`
     INSERT INTO tasks (
       id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
       quadrant, today, due, duration, pomos_done, pomos_total, conviction,
@@ -129,7 +132,7 @@ app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), (c) => {
       :next_step_en, :next_step_zh, :reason_en, :reason_zh, :ai_suggest, :not_now_json,
       :recurrence, :subtasks_json, :scheduled_start, :now, :now
     )
-  `).run({
+  `, {
     id, user_id: userId,
     assignee_ids: JSON.stringify(body.assignee_ids ?? []),
     title_en: body.title.en, title_zh: body.title.zh ?? null,
@@ -150,26 +153,32 @@ app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), (c) => {
     now,
   });
 
-  const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ id });
-  return c.json(rowToTask(row as unknown as TaskRow), 201);
+  const row = await queryOne<TaskRow>("SELECT * FROM tasks WHERE id = :id", { id });
+  return c.json(rowToTask(row!), 201);
 });
 
 // GET /tasks/:id
-app.get("/:id", zValidator("param", IdParam), (c) => {
+app.get("/:id", zValidator("param", IdParam), async (c) => {
   const userId = c.get("userId") as string;
-  const row = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: c.req.param("id"), uid: userId });
+  const row = await queryOne<TaskRow>(
+    "SELECT * FROM tasks WHERE id = :id AND user_id = :uid",
+    { id: c.req.param("id"), uid: userId }
+  );
   if (!row) return httpError(c, 404, "NOT_FOUND", "Not found");
-  return c.json(rowToTask(row as unknown as TaskRow));
+  return c.json(rowToTask(row));
 });
 
 // PATCH /tasks/:id
-app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("json", TaskUpdateBody), (c) => {
+app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("json", TaskUpdateBody), async (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
   const body = c.req.valid("json");
   const now = new Date().toISOString();
 
-  const existing = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as unknown as TaskRow | undefined;
+  const existing = await queryOne<TaskRow>(
+    "SELECT * FROM tasks WHERE id = :id AND user_id = :uid",
+    { id: taskId, uid: userId }
+  );
   if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const merged = {
@@ -195,7 +204,7 @@ app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("jso
     scheduled_start: "scheduled_start" in body ? (body.scheduled_start ?? null) : existing.scheduled_start,
   };
 
-  db.prepare(`
+  await execute(`
     UPDATE tasks SET
       assignee_ids = :assignee_ids, title_en = :title_en, title_zh = :title_zh,
       desc_en = :desc_en, desc_zh = :desc_zh, quadrant = :quadrant,
@@ -205,62 +214,72 @@ app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("jso
       not_now_json = :not_now_json, recurrence = :recurrence,
       subtasks_json = :subtasks_json, scheduled_start = :scheduled_start, updated_at = :now
     WHERE id = :id AND user_id = :uid
-  `).run({ ...merged, id: taskId, uid: userId, now });
+  `, { ...merged, id: taskId, uid: userId, now });
 
-  const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ id: taskId });
-  return c.json(rowToTask(row as unknown as TaskRow));
+  const row = await queryOne<TaskRow>("SELECT * FROM tasks WHERE id = :id", { id: taskId });
+  return c.json(rowToTask(row!));
 });
 
 // DELETE /tasks/:id
-app.delete("/:id", zValidator("param", IdParam), (c) => {
+app.delete("/:id", zValidator("param", IdParam), async (c) => {
   const userId = c.get("userId") as string;
-  const result = db.prepare("DELETE FROM tasks WHERE id = :id AND user_id = :uid").run({ id: c.req.param("id"), uid: userId });
-  if (((result as { changes: number }).changes) === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
+  const result = await execute(
+    "DELETE FROM tasks WHERE id = :id AND user_id = :uid",
+    { id: c.req.param("id"), uid: userId }
+  );
+  if (result.changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
   return new Response(null, { status: 204 });
 });
 
 // POST /tasks/:id/complete
-app.post("/:id/complete", zValidator("param", IdParam), (c) => {
+app.post("/:id/complete", zValidator("param", IdParam), async (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
 
-  const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: taskId, uid: userId }) as unknown as TaskRow | undefined;
+  const task = await queryOne<TaskRow>(
+    "SELECT * FROM tasks WHERE id = :id AND user_id = :uid",
+    { id: taskId, uid: userId }
+  );
   if (!task) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const now = new Date().toISOString();
   const entryId = "c_" + nanoid(10);
+  const recurrence = task.recurrence ?? "none";
 
-  db.exec("BEGIN");
-  try {
-    db.prepare(`
-      INSERT INTO completed_entries (id, user_id, task_id, title_en, title_zh, duration, quadrant, started_at, completed_at)
-      VALUES (:id, :user_id, :task_id, :title_en, :title_zh, :duration, :quadrant, :started_at, :completed_at)
-    `).run({
-      id: entryId, user_id: userId, task_id: taskId,
-      title_en: task.title_en, title_zh: task.title_zh,
-      duration: task.duration, quadrant: task.quadrant,
-      started_at: null, completed_at: now,
-    });
-    db.prepare("UPDATE tasks SET completed = 1, updated_at = :now WHERE id = :id").run({ id: taskId, now });
+  const stmts: Parameters<typeof batch>[0] = [
+    {
+      sql: `INSERT INTO completed_entries (id, user_id, task_id, title_en, title_zh, duration, quadrant, started_at, completed_at)
+            VALUES (:id, :user_id, :task_id, :title_en, :title_zh, :duration, :quadrant, :started_at, :completed_at)`,
+      args: {
+        id: entryId, user_id: userId, task_id: taskId,
+        title_en: task.title_en, title_zh: task.title_zh ?? null,
+        duration: task.duration, quadrant: task.quadrant,
+        started_at: null, completed_at: now,
+      },
+    },
+    {
+      sql: "UPDATE tasks SET completed = 1, updated_at = :now WHERE id = :id",
+      args: { id: taskId, now },
+    },
+  ];
 
-    // Auto-spawn next recurrence
-    const recurrence = task.recurrence ?? "none";
-    if (recurrence !== "none") {
-      const nextDue = calcNextDue(task.due, recurrence);
-      const nextId = "t_" + nanoid(10);
-      db.prepare(`
-        INSERT INTO tasks (
-          id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
-          quadrant, today, due, duration, pomos_done, pomos_total, conviction,
-          next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
-          recurrence, created_at, updated_at
-        ) VALUES (
-          :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
-          :quadrant, 0, :due, :duration, 0, :pomos_total, NULL,
-          NULL, NULL, NULL, NULL, NULL, '[]',
-          :recurrence, :now, :now
-        )
-      `).run({
+  // Auto-spawn next recurrence
+  if (recurrence !== "none") {
+    const nextDue = calcNextDue(task.due ?? null, recurrence);
+    const nextId = "t_" + nanoid(10);
+    stmts.push({
+      sql: `INSERT INTO tasks (
+              id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
+              quadrant, today, due, duration, pomos_done, pomos_total, conviction,
+              next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
+              recurrence, created_at, updated_at
+            ) VALUES (
+              :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
+              :quadrant, 0, :due, :duration, 0, :pomos_total, NULL,
+              NULL, NULL, NULL, NULL, NULL, '[]',
+              :recurrence, :now, :now
+            )`,
+      args: {
         id: nextId, user_id: userId,
         assignee_ids: task.assignee_ids ?? "[]",
         title_en: task.title_en, title_zh: task.title_zh ?? null,
@@ -270,39 +289,40 @@ app.post("/:id/complete", zValidator("param", IdParam), (c) => {
         duration: task.duration, pomos_total: task.pomos_total,
         recurrence,
         now,
-      });
-    }
-
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
+      },
+    });
   }
 
+  await batch(stmts);
   return c.json({ ok: true, entry_id: entryId });
 });
 
 // POST /tasks/:id/uncomplete
-app.post("/:id/uncomplete", zValidator("param", IdParam), (c) => {
+app.post("/:id/uncomplete", zValidator("param", IdParam), async (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
 
-  const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid AND completed = 1").get({ id: taskId, uid: userId });
+  const task = await queryOne(
+    "SELECT * FROM tasks WHERE id = :id AND user_id = :uid AND completed = 1",
+    { id: taskId, uid: userId }
+  );
   if (!task) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const now = new Date().toISOString();
-  db.exec("BEGIN");
-  try {
-    db.prepare("UPDATE tasks SET completed = 0, updated_at = :now WHERE id = :id").run({ id: taskId, now });
-    db.prepare("DELETE FROM completed_entries WHERE task_id = :task_id AND user_id = :uid").run({ task_id: taskId, uid: userId });
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
 
-  const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ id: taskId });
-  return c.json(rowToTask(row as unknown as TaskRow));
+  await batch([
+    {
+      sql: "UPDATE tasks SET completed = 0, updated_at = :now WHERE id = :id",
+      args: { id: taskId, now },
+    },
+    {
+      sql: "DELETE FROM completed_entries WHERE task_id = :task_id AND user_id = :uid",
+      args: { task_id: taskId, uid: userId },
+    },
+  ]);
+
+  const row = await queryOne<TaskRow>("SELECT * FROM tasks WHERE id = :id", { id: taskId });
+  return c.json(rowToTask(row!));
 });
 
 export default app;

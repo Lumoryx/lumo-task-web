@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { db } from "../db/client.js";
+import { queryOne, execute } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Variables } from "../env.js";
 import { createRateLimiter } from "../lib/rateLimit.js";
@@ -20,27 +20,32 @@ const FocusSessionBody = z.object({
 });
 
 // POST /focus/sessions
-app.post("/sessions", focusRateLimit, zValidator("json", FocusSessionBody), (c) => {
+app.post("/sessions", focusRateLimit, zValidator("json", FocusSessionBody), async (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
   const now = new Date().toISOString();
   const entryId = "c_" + nanoid(10);
 
-  // If linked to a task, record it as a completed entry and increment pomos_done
   if (body.task_id) {
-    const task = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: body.task_id, uid: userId }) as FocusTaskRow | undefined;
+    const task = await queryOne<FocusTaskRow>(
+      "SELECT * FROM tasks WHERE id = :id AND user_id = :uid",
+      { id: body.task_id, uid: userId }
+    );
     if (task) {
-      db.prepare(`
+      await execute(`
         INSERT INTO completed_entries (id, user_id, task_id, title_en, title_zh, duration, quadrant, started_at, completed_at)
         VALUES (:id, :user_id, :task_id, :title_en, :title_zh, :duration, :quadrant, :started_at, :completed_at)
-      `).run({
+      `, {
         id: entryId, user_id: userId, task_id: body.task_id,
-        title_en: task.title_en, title_zh: task.title_zh,
+        title_en: task.title_en, title_zh: task.title_zh ?? null,
         duration: body.duration, quadrant: task.quadrant,
         started_at: body.started_at ?? null, completed_at: now,
       });
 
-      db.prepare("UPDATE tasks SET pomos_done = pomos_done + 1, updated_at = :now WHERE id = :id").run({ id: body.task_id, now });
+      await execute(
+        "UPDATE tasks SET pomos_done = pomos_done + 1, updated_at = :now WHERE id = :id",
+        { id: body.task_id, now }
+      );
     }
   }
 
