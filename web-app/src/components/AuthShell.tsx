@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { IconArrowLeft, LumoGlyph } from "@/components/icons";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 /**
  * Shared two-column layout for /login and /register.
  *
- * Left: a static product-positioning hero (Lumo glyph + tagline).
- * Right: scrollable form content (whatever children you pass).
+ * Desktop: Left hero (Lumo glyph + tagline) + Right scrollable form.
+ * Mobile (≤639px): Hero hidden, form takes full width with scroll support.
  *
  * Used by `LoginPage` and `RegisterPage`. The Back button (top-left)
  * routes home when no explicit `onBack` is given.
@@ -20,9 +21,13 @@ export function AuthShell({
 }) {
   const t = useT();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   return (
-    <div className="fixed inset-0 flex bg-base overflow-hidden">
+    <div
+      className="fixed inset-0 flex bg-base"
+      style={{ overflowY: isMobile ? "auto" : "hidden" }}
+    >
       <div className="lumo-pulse" />
 
       {/* Back button — floats above both panels */}
@@ -35,10 +40,27 @@ export function AuthShell({
         {t("auth.back")}
       </button>
 
-      <AuthHero />
+      {/* Hero panel: hidden on mobile to give full width to the form */}
+      {!isMobile && <AuthHero />}
 
-      {/* Right pane: form */}
-      <div className="flex-1 flex items-center justify-center min-w-0" style={{ padding: "32px 40px" }}>
+      {/* Form pane */}
+      <div
+        className="flex-1 min-w-0 flex justify-center"
+        style={
+          isMobile
+            ? {
+                alignItems: "flex-start",
+                paddingTop: 72,
+                paddingLeft: 20,
+                paddingRight: 20,
+                paddingBottom: 48,
+              }
+            : {
+                alignItems: "center",
+                padding: "32px 40px",
+              }
+        }
+      >
         <div className="w-full" style={{ maxWidth: 340 }}>
           <div className="flex items-center justify-center gap-2.5 mb-[22px]">
             <LumoGlyph size={20} />
