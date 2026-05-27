@@ -1,10 +1,12 @@
 name: Deploy Landing Page
 
-# Deploys landing/index.html to GitHub Pages whenever it changes on main.
-# Works alongside the Vercel deployment — use whichever you prefer.
+# Pushes landing/index.html to the gh-pages branch whenever it changes on main.
+# Does NOT use the github-pages Actions environment (avoids branch protection rules).
 #
-# To enable GitHub Pages:
-#   Repo Settings → Pages → Source: "GitHub Actions" → Save
+# To enable GitHub Pages (one-time setup):
+#   Repo Settings → Pages → Source: "Deploy from a branch"
+#   Branch: gh-pages  /  Folder: / (root)  → Save
+#   URL: https://lumoryx.github.io/lumo-task-web/
 
 on:
   push:
@@ -14,33 +16,24 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: gh-pages
+  cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Deploy to GitHub Pages
+    name: Push landing/ to gh-pages branch
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload landing/ as Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: landing/
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./landing
+          force_orphan: false
+          commit_message: "deploy: update landing page [skip ci]"
