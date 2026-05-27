@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, utilityProcess, screen } = require("electron");
+const { app, BrowserWindow, shell, ipcMain, utilityProcess, screen, dialog } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -55,6 +55,35 @@ function waitForPort(port, timeout) {
   });
 }
 
+// ── Database path (supports user-customisable location) ───────────────────────
+
+/**
+ * Returns the SQLite database file path.
+ *
+ * Priority:
+ *   1. User's saved preference  → userData/storage.json { dbDir: "/path/..." }
+ *   2. Default                  → userData/lumo.db
+ */
+function getDbPath() {
+  const prefPath = path.join(app.getPath("userData"), "storage.json");
+  if (fs.existsSync(prefPath)) {
+    try {
+      const prefs = JSON.parse(fs.readFileSync(prefPath, "utf8"));
+      if (prefs.dbDir && typeof prefs.dbDir === "string") {
+        return path.join(prefs.dbDir, "lumo.db");
+      }
+    } catch {
+      // Malformed prefs — fall through to default
+    }
+  }
+  return path.join(app.getPath("userData"), "lumo.db");
+}
+
+function saveDbDirPref(dbDir) {
+  const prefPath = path.join(app.getPath("userData"), "storage.json");
+  fs.writeFileSync(prefPath, JSON.stringify({ dbDir }), { encoding: "utf8", mode: 0o600 });
+}
+
 // ── Backend process ───────────────────────────────────────────────────────────
 
 let backendProcess = null;
@@ -62,7 +91,7 @@ let apiPort = 47291;
 
 async function startBackend() {
   apiPort = await findFreePort(47291);
-  const dbPath = path.join(app.getPath("userData"), "lumo.db");
+  const dbPath = getDbPath();
   const jwtSecret = getOrCreateJwtSecret();
 
   const env = {
@@ -149,6 +178,58 @@ function createWindow() {
   ipcMain.on("win:close", () => win.close());
 
   ipcMain.handle("get-api-port", () => apiPort);
+
+  // ── Storage / database path IPC ───────────────────────────────────────────
+
+  /** Returns the absolute path to lumo.db currently in use. */
+  ipcMain.handle("db:getPath", () => getDbPath());
+
+  /**
+   * Opens a native folder-picker dialog.
+   * Returns the selected folder path, or null if the user cancelled.
+   */
+  ipcMain.handle("db:chooseFolder", async () => {
+    const result = await dialog.showOpenDialog(win, {
+      properties: ["openDirectory", "createDirectory"],
+      title: "Choose Lumo Database Location",
+      buttonLabel: "Select Folder",
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+
+  /**
+   * Copies lumo.db to newDir, saves the path preference, then relaunches the app.
+   * The copy is atomic from the user's perspective because the app restarts.
+   */
+  ipcMain.handle("db:moveTo", async (_event, newDir) => {
+    if (!newDir || typeof newDir !== "string") return { ok: false, error: "Invalid path" };
+    const currentDbPath = getDbPath();
+    const newDbPath = path.join(newDir, "lumo.db");
+
+    try {
+      // Ensure destination directory exists
+      fs.mkdirSync(newDir, { recursive: true });
+
+      // Copy current DB to new location (keeps original as safety backup)
+      fs.copyFileSync(currentDbPath, newDbPath);
+
+      // Persist the new preference
+      saveDbDirPref(newDir);
+
+      // Relaunch so the backend starts with the new LUMO_DB_PATH
+      app.relaunch();
+      app.exit(0);
+      return { ok: true };
+    } catch (err) {
+      console.error("[db:moveTo] failed:", err);
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  /** Reveals lumo.db in Finder / Explorer. */
+  ipcMain.on("db:showInFolder", () => {
+    shell.showItemInFolder(getDbPath());
+  });
 
   // ── Pet focus compact mode ────────────────────────────────────────────────
   let savedBounds = null;

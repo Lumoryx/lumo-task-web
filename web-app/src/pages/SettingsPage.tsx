@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
+import { api } from "@/api/client";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { useAIStore } from "@/store/useAIStore";
 import { useCalendarStore } from "@/store/useCalendarStore";
@@ -109,6 +110,8 @@ export function SettingsPage() {
       <AIConfigGroup t={t} locale={locale} />
 
       <IntegrationsGroup t={t} locale={locale} />
+
+      <StorageGroup t={t} locale={locale} />
 
       <Group title="Data">
         <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
@@ -823,6 +826,174 @@ export function PersonAvatar({ person, size = 24 }: { person: Pick<Person, "init
     >
       {person.initials}
     </div>
+  );
+}
+
+/* ── Storage section ─────────────────────────────────────────────── */
+
+function fmtBytes(bytes: number): string {
+  if (bytes === 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+  const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+  const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+  const [info, setInfo] = useState<{ dbPath: string; dbSize: number } | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api.storageInfo().then((d) => setInfo({ dbPath: d.dbPath, dbSize: d.dbSize })).catch(() => {});
+  }, []);
+
+  async function handleCopyPath() {
+    if (!info) return;
+    try {
+      await navigator.clipboard.writeText(info.dbPath);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {}
+  }
+
+  async function handleChangeLocation() {
+    if (!window.electronAPI) return;
+    const newDir = await window.electronAPI.chooseDbFolder();
+    if (!newDir) return;
+    const ok = window.confirm(t("settings.storage.confirm") + "\n\n" + newDir);
+    if (!ok) return;
+    setMoving(true);
+    const result = await window.electronAPI.moveDbTo(newDir);
+    if (!result.ok) {
+      setMoving(false);
+      alert(result.error ?? "Failed to move database.");
+    }
+    // On success the app will relaunch — no further action needed
+  }
+
+  function handleReveal() {
+    window.electronAPI?.showDbInFolder();
+  }
+
+  const revealLabel = isMac ? t("settings.storage.reveal") : t("settings.storage.reveal.win");
+
+  return (
+    <section className="mb-7">
+      <h3
+        className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5"
+      >
+        {t("settings.storage")}
+      </h3>
+      <div
+        className="rounded-[10px] border bg-surface overflow-hidden"
+        style={{ borderColor: "var(--border-default)" }}
+      >
+        {/* Database path */}
+        <div
+          className="grid items-start px-5 py-4 border-b border-border-faint"
+          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
+        >
+          <div>
+            <div className="text-[13px] font-medium text-text-primary leading-snug">
+              {t("settings.storage.dbPath")}
+            </div>
+            <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed max-w-[360px]">
+              {t("settings.storage.dbPath.helper")}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 min-w-0">
+            {info ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <code
+                  className="flex-1 text-[11px] leading-relaxed truncate select-all"
+                  style={{
+                    color: "var(--text-secondary)",
+                    background: "var(--bg-deep)",
+                    border: "1px solid var(--border-faint)",
+                    borderRadius: 6,
+                    padding: "4px 8px",
+                    fontFamily: "monospace",
+                    minWidth: 0,
+                  }}
+                  title={info.dbPath}
+                >
+                  {info.dbPath}
+                </code>
+                <button
+                  onClick={handleCopyPath}
+                  className="flex-shrink-0 text-[11px] px-2.5 py-1.5 rounded-md transition-colors"
+                  style={{
+                    border: "1px solid var(--border-default)",
+                    background: "var(--bg-deep)",
+                    color: copied ? "var(--accent-primary)" : "var(--text-muted)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {copied ? (locale === "zh" ? "已复制" : "Copied!") : (locale === "zh" ? "复制" : "Copy")}
+                </button>
+              </div>
+            ) : (
+              <span className="text-[12px] text-text-muted">{t("settings.storage.loading")}</span>
+            )}
+
+            {/* File size */}
+            {info && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-text-faint">
+                  {t("settings.storage.dbSize")}:
+                </span>
+                <span className="text-[11px] text-text-secondary tabular-nums">
+                  {fmtBytes(info.dbSize)}
+                </span>
+              </div>
+            )}
+
+            {/* Electron actions */}
+            {isElectron && (
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  onClick={handleChangeLocation}
+                  disabled={moving}
+                  className="btn btn-secondary"
+                  style={{ height: 30, fontSize: 12, opacity: moving ? 0.6 : 1 }}
+                >
+                  {moving ? t("settings.storage.moving") : t("settings.storage.change")}
+                </button>
+                <button
+                  onClick={handleReveal}
+                  className="btn btn-secondary"
+                  style={{ height: 30, fontSize: 12 }}
+                >
+                  {revealLabel}
+                </button>
+              </div>
+            )}
+
+            {/* Web mode note */}
+            {!isElectron && (
+              <p className="text-[11px] text-text-faint leading-relaxed max-w-[380px]">
+                {t("settings.storage.web.note")}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Privacy badge */}
+        <div className="px-5 py-3 flex items-center gap-2">
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ background: "var(--accent-primary)" }}
+          />
+          <span className="text-[11.5px] text-text-muted">
+            {locale === "zh"
+              ? "100% 本地存储 · 数据永不离开你的设备"
+              : "100% local · your data never leaves this device"}
+          </span>
+        </div>
+      </div>
+    </section>
   );
 }
 

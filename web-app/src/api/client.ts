@@ -331,6 +331,10 @@ export const api = {
     return req("POST", "/ai/chat", body);
   },
 
+  async storageInfo(): Promise<{ dbPath: string; dbDir: string; dbSize: number; dbName: string }> {
+    return req("GET", "/storage/info");
+  },
+
   async outlookStatus(): Promise<{ configured: boolean; userEmail: string | null }> {
     return req("GET", "/outlook/status");
   },
