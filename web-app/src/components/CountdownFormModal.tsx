@@ -28,13 +28,12 @@ interface CountdownFormModalProps {
 export function CountdownFormModal({ event, onSave, onClose }: CountdownFormModalProps) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
+  const todayRef = useRef(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
-
-  const today = new Date().toISOString().slice(0, 10);
 
   const [form, setForm] = useState<FormValues>({
     title:  event?.title  ?? "",
-    date:   event?.date   ?? today,
+    date:   event?.date   ?? todayRef.current,
     emoji:  event?.emoji  ?? "",
     color:  event?.color  ?? "green",
     repeat: event?.repeat ?? "none",
@@ -45,14 +44,14 @@ export function CountdownFormModal({ event, onSave, onClose }: CountdownFormModa
   useEffect(() => {
     setForm({
       title:  event?.title  ?? "",
-      date:   event?.date   ?? today,
+      date:   event?.date   ?? todayRef.current,
       emoji:  event?.emoji  ?? "",
       color:  event?.color  ?? "green",
       repeat: event?.repeat ?? "none",
       note:   event?.note   ?? "",
     });
     setErrors({});
-  }, [event]); // eslint-disable-line react-hooks/exhaustive-deps -- today is stable
+  }, [event]);
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 60);

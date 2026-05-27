@@ -71,6 +71,8 @@ const TaskCreateBody = z.object({
 
 const TaskUpdateBody = TaskCreateBody.partial();
 
+const IdParam = z.object({ id: z.string().min(1).max(50) });
+
 function safeParse<T>(raw: string | null | undefined, fallback: T): T {
   try { return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
@@ -153,7 +155,7 @@ app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), (c) => {
 });
 
 // GET /tasks/:id
-app.get("/:id", (c) => {
+app.get("/:id", zValidator("param", IdParam), (c) => {
   const userId = c.get("userId") as string;
   const row = db.prepare("SELECT * FROM tasks WHERE id = :id AND user_id = :uid").get({ id: c.req.param("id"), uid: userId });
   if (!row) return httpError(c, 404, "NOT_FOUND", "Not found");
@@ -161,7 +163,7 @@ app.get("/:id", (c) => {
 });
 
 // PATCH /tasks/:id
-app.patch("/:id", taskMutateLimit, zValidator("json", TaskUpdateBody), (c) => {
+app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("json", TaskUpdateBody), (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
   const body = c.req.valid("json");
@@ -210,7 +212,7 @@ app.patch("/:id", taskMutateLimit, zValidator("json", TaskUpdateBody), (c) => {
 });
 
 // DELETE /tasks/:id
-app.delete("/:id", (c) => {
+app.delete("/:id", zValidator("param", IdParam), (c) => {
   const userId = c.get("userId") as string;
   const result = db.prepare("DELETE FROM tasks WHERE id = :id AND user_id = :uid").run({ id: c.req.param("id"), uid: userId });
   if (((result as { changes: number }).changes) === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
@@ -218,7 +220,7 @@ app.delete("/:id", (c) => {
 });
 
 // POST /tasks/:id/complete
-app.post("/:id/complete", (c) => {
+app.post("/:id/complete", zValidator("param", IdParam), (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
 
@@ -281,7 +283,7 @@ app.post("/:id/complete", (c) => {
 });
 
 // POST /tasks/:id/uncomplete
-app.post("/:id/uncomplete", (c) => {
+app.post("/:id/uncomplete", zValidator("param", IdParam), (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
 
