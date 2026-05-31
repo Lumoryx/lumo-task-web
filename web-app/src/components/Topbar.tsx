@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { IconPlus, IconSearch } from "@/components/icons";
 import { useAuthStore } from "@/store/useAuthStore";
+import { WinControls } from "@/components/WinControls";
 
 interface TopbarProps {
   title: string;
@@ -10,57 +11,6 @@ interface TopbarProps {
 }
 
 const isElectron = typeof window !== "undefined" && !!window.electronAPI;
-
-const ctrlBase: React.CSSProperties = {
-  WebkitAppRegion: "no-drag",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 46,
-  height: 56,
-  flexShrink: 0,
-  background: "transparent",
-  border: "none",
-  cursor: "default",
-  fontSize: 11,
-  color: "var(--text-muted)",
-  transition: "background 120ms, color 120ms",
-};
-
-function WinControls() {
-  if (!isElectron) return null;
-  return (
-    <div style={{ display: "flex", marginRight: -28, WebkitAppRegion: "no-drag" }}>
-      <button
-        style={ctrlBase}
-        title="最小化"
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
-        onClick={() => window.electronAPI?.minimize()}
-      >
-        ─
-      </button>
-      <button
-        style={ctrlBase}
-        title="最大化 / 还原"
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
-        onClick={() => window.electronAPI?.maximize()}
-      >
-        ▢
-      </button>
-      <button
-        style={ctrlBase}
-        title="关闭"
-        onMouseEnter={(e) => { e.currentTarget.style.background = "#c42b1c"; e.currentTarget.style.color = "#fff"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
-        onClick={() => window.electronAPI?.close()}
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
 
 export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
   const t = useT();
@@ -126,7 +76,7 @@ export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
         {user.initials}
       </button>
 
-      <WinControls />
+      <WinControls height={56} />
     </div>
   );
 }
