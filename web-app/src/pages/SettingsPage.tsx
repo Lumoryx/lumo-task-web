@@ -113,7 +113,7 @@ export function SettingsPage() {
 
       <StorageGroup t={t} locale={locale} />
 
-      <RemoteSyncGroup t={t} locale={locale} />
+      <SyncGroup t={t} locale={locale} />
 
       <Group title="Data">
         <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
@@ -1014,157 +1014,194 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
   );
 }
 
-/* ── Remote Sync section ─────────────────────────────────────────────── */
+/* ── Cloud sync settings ──────────────────────────────────────────── */
 
-function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+  const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+
+  const [enabled, setEnabled] = useState(false);
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
-  const [status, setStatus] = useState<{ configured: boolean; status: string; error: string | null; lastSyncAt: string | null } | null>(null);
+  const [hasToken, setHasToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [mode, setMode] = useState<"local" | "replica" | "cloud">("local");
 
   useEffect(() => {
-    api.remoteStatus()
-      .then(setStatus)
-      .catch(() => setStatus(null));
-  }, []);
+    api.syncStatus().then((s) => {
+      setMode(s.mode);
+      setLastSyncAt(s.lastSyncAt);
+    }).catch(() => {});
 
-  async function handleSave() {
-    if (saving) return;
-    setSaving(true);
-    try {
-      const res = await api.setRemoteConfig(url.trim(), token.trim());
-      setStatus({ configured: Boolean(url.trim()), status: res.status, error: res.error, lastSyncAt: res.lastSyncAt });
-      setToken("");
-    } catch {
-      toast.error(t("settings.sync.error.save"), "");
-    } finally {
-      setSaving(false);
+    if (isElectron && window.electronAPI) {
+      (window.electronAPI as any).getSyncConfig?.().then((cfg: { enabled: boolean; url: string; hasToken: boolean }) => {
+        setEnabled(cfg.enabled);
+        setUrl(cfg.url ?? "");
+        setHasToken(cfg.hasToken);
+      }).catch(() => {});
     }
+  }, [isElectron]);
+
+  function badgeContent() {
+    if (!isElectron) return { label: t("settings.sync.webBadge"), color: "var(--text-muted)" };
+    if (mode === "replica") return { label: t("settings.sync.replicaBadge"), color: "var(--accent-primary)" };
+    return { label: t("settings.sync.localBadge"), color: "var(--accent-primary)" };
   }
 
-  async function handleDisconnect() {
-    if (saving) return;
+  async function handleSave() {
+    if (!window.electronAPI) return;
     setSaving(true);
-    try {
-      const res = await api.setRemoteConfig("", "");
-      setStatus({ configured: false, status: res.status, error: null, lastSyncAt: null });
-      setUrl("");
-      setToken("");
-    } catch {
-      toast.error(t("settings.sync.error.save"), "");
-    } finally {
-      setSaving(false);
-    }
+    await (window.electronAPI as any).setSyncConfig?.({ enabled, url, token });
+    // App will relaunch; no further action needed
   }
 
   async function handleSyncNow() {
-    if (syncing) return;
     setSyncing(true);
     try {
-      const res = await api.triggerSync();
-      if (res.ok) setStatus((s) => s ? { ...s, lastSyncAt: res.lastSyncAt, status: "ok", error: null } : s);
+      const res = await api.syncNow();
+      setLastSyncAt(res.syncedAt);
     } catch {
-      toast.error(t("settings.sync.error.trigger"), "");
+      // error shown by global error boundary
     } finally {
       setSyncing(false);
     }
   }
 
-  const statusLabel: Record<string, string> = {
-    disabled: t("settings.sync.status.disabled"),
-    connecting: t("settings.sync.status.connecting"),
-    ok: t("settings.sync.status.ok"),
-    error: t("settings.sync.status.error"),
-  };
-  const statusColor: Record<string, string> = {
-    disabled: "var(--text-faint)",
-    connecting: "var(--text-muted)",
-    ok: "var(--accent-primary)",
-    error: "var(--status-urgent)",
-  };
-  const st = status?.status ?? "disabled";
+  function fmtRelative(iso: string | null) {
+    if (!iso) return t("settings.sync.never");
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return locale === "zh" ? "刚刚" : "just now";
+    if (diff < 3600) return locale === "zh" ? `${Math.floor(diff / 60)} 分钟前` : `${Math.floor(diff / 60)} min ago`;
+    return locale === "zh" ? `${Math.floor(diff / 3600)} 小时前` : `${Math.floor(diff / 3600)} hr ago`;
+  }
+
+  const { label: badgeLabel, color: badgeColor } = badgeContent();
 
   return (
     <section className="mb-7">
       <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {t("settings.sync.title")}
+        {t("settings.sync")}
       </h3>
-      <div className="rounded-[10px] border overflow-hidden bg-surface" style={{ borderColor: "var(--border-default)" }}>
-        {/* Status row */}
-        <div className="grid items-center px-5 py-4" style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
-          <div>
-            <div className="text-[13px] font-medium text-text-primary">{t("settings.sync.title")}</div>
-            <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed">{t("settings.sync.helper")}</div>
+      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+
+        {/* Status badge row */}
+        <div className="px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: badgeColor }} />
+            <span className="text-[12px]" style={{ color: badgeColor }}>{badgeLabel}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[12px] font-medium" style={{ color: statusColor[st] ?? "var(--text-faint)" }}>
-              {statusLabel[st] ?? st}
+          {mode === "replica" && (
+            <span className="text-[11px] text-text-faint">
+              {t("settings.sync.lastSync")}: {fmtRelative(lastSyncAt)}
             </span>
-            {status?.configured && st === "ok" && (
-              <button
-                onClick={handleSyncNow}
-                disabled={syncing}
-                className="btn btn-ghost"
-                style={{ height: 28, fontSize: 11, padding: "0 10px" }}
-              >
-                {syncing ? t("settings.sync.syncing") : t("settings.sync.trigger")}
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Last sync time */}
-        {status?.lastSyncAt && (
-          <div className="px-5 pb-3 text-[11px]" style={{ color: "var(--text-faint)" }}>
-            {t("settings.sync.lastSync")}: {new Date(status.lastSyncAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US")}
-          </div>
-        )}
-
-        {/* Error */}
-        {status?.error && (
-          <div className="px-5 pb-3 text-[11px]" style={{ color: "var(--status-urgent)" }}>{status.error}</div>
-        )}
-
-        {/* Config inputs */}
-        <div className="px-5 py-4 border-t flex flex-col gap-3" style={{ borderColor: "var(--border-faint)" }}>
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder={t("settings.sync.url.placeholder")}
-            className="w-full text-[13px] rounded-md px-3 py-2 border bg-transparent outline-none"
-            style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-          />
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder={t("settings.sync.token.placeholder")}
-            className="w-full text-[13px] rounded-md px-3 py-2 border bg-transparent outline-none"
-            style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }}
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving || !url.trim()}
-              className="btn btn-primary"
-              style={{ height: 32, fontSize: 12 }}
+        {isElectron ? (
+          <>
+            {/* Enable toggle */}
+            <div
+              className="grid items-center px-5 py-4 border-t border-border-faint"
+              style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
             >
-              {saving ? t("settings.sync.saving") : t("settings.sync.save")}
-            </button>
-            {status?.configured && (
-              <button
-                onClick={handleDisconnect}
-                disabled={saving}
-                className="btn btn-ghost"
-                style={{ height: 32, fontSize: 12 }}
-              >
-                {t("settings.sync.disconnect")}
-              </button>
+              <div>
+                <div className="text-[13px] font-medium text-text-primary leading-snug">{t("settings.sync.enable")}</div>
+                <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed">{t("settings.sync.enable.helper")}</div>
+              </div>
+              <Toggle value={enabled} onChange={setEnabled} />
+            </div>
+
+            {/* URL + token inputs (only when enabled) */}
+            {enabled && (
+              <>
+                <div
+                  className="grid items-start px-5 py-4 border-t border-border-faint"
+                  style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
+                >
+                  <div className="text-[13px] font-medium text-text-primary leading-snug pt-1">{t("settings.sync.url")}</div>
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder={t("settings.sync.url.placeholder")}
+                    className="w-full text-[12px] rounded-lg px-3 py-2 outline-none focus:ring-1"
+                    style={{
+                      background: "var(--bg-deep)",
+                      border: "1px solid var(--border-default)",
+                      color: "var(--text-primary)",
+                      fontFamily: "monospace",
+                    }}
+                  />
+                </div>
+                <div
+                  className="grid items-start px-5 py-4 border-t border-border-faint"
+                  style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
+                >
+                  <div>
+                    <div className="text-[13px] font-medium text-text-primary leading-snug">{t("settings.sync.token")}</div>
+                    {hasToken && (
+                      <div className="text-[11px] text-text-faint mt-0.5">
+                        {locale === "zh" ? "已保存（输入新值可替换）" : "Saved — enter a new value to replace"}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder={hasToken ? "••••••••" : t("settings.sync.token.placeholder")}
+                    className="w-full text-[12px] rounded-lg px-3 py-2 outline-none focus:ring-1"
+                    style={{
+                      background: "var(--bg-deep)",
+                      border: "1px solid var(--border-default)",
+                      color: "var(--text-primary)",
+                      fontFamily: "monospace",
+                    }}
+                  />
+                </div>
+
+                {/* How-to hint */}
+                <div className="px-5 pb-3">
+                  <p className="text-[11px] text-text-faint">
+                    {t("settings.sync.howto")}
+                  </p>
+                </div>
+              </>
             )}
+
+            {/* Action buttons */}
+            <div className="px-5 py-3 border-t border-border-faint flex items-center gap-2">
+              <button
+                onClick={handleSave}
+                disabled={saving || (enabled && !url)}
+                className="btn btn-primary"
+                style={{ height: 30, fontSize: 12, opacity: saving || (enabled && !url) ? 0.6 : 1 }}
+              >
+                {saving ? t("settings.sync.saving") : t("settings.sync.save")}
+              </button>
+              {mode === "replica" && (
+                <button
+                  onClick={handleSyncNow}
+                  disabled={syncing}
+                  className="btn btn-secondary"
+                  style={{ height: 30, fontSize: 12, opacity: syncing ? 0.6 : 1 }}
+                >
+                  {syncing ? t("settings.sync.syncing") : t("settings.sync.syncNow")}
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Web mode — informational only */
+          <div className="px-5 py-4 border-t border-border-faint">
+            <p className="text-[11.5px] text-text-muted leading-relaxed">
+              {locale === "zh"
+                ? "网页版数据存储在我们的服务器上。下载桌面版可获得本地优先 + 可选云同步体验。"
+                : "Web app data is stored on our servers. Download the desktop app for local-first storage with optional cloud sync."}
+            </p>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );
