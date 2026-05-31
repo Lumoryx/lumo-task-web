@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { IconArrowLeft, LumoGlyph } from "@/components/icons";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { WinControls } from "@/components/WinControls";
 
 /**
  * Shared two-column layout for /login and /register.
@@ -39,6 +40,11 @@ export function AuthShell({
         <IconArrowLeft size={14} />
         {t("auth.back")}
       </button>
+
+      {/* Windows title-bar controls — only rendered in Electron */}
+      <div className="absolute top-0 right-0 z-[5]">
+        <WinControls height={48} />
+      </div>
 
       {/* Hero panel: hidden on mobile to give full width to the form */}
       {!isMobile && <AuthHero />}
