@@ -4,6 +4,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import type { Variables } from "../env.js";
 import { httpError } from "../lib/errors.js";
 import type { UserRow } from "../db/rows.js";
+import { getSyncStatus } from "../lib/sync.js";
 
 const app = new Hono<{ Variables: Variables }>();
 
@@ -31,7 +32,7 @@ app.get("/", authMiddleware, async (c) => {
     stats: {
       tasks: taskStats?.task_count ?? 0,
       pomodoros: taskStats?.pomo_count ?? 0,
-      syncOK: false,
+      syncOK: getSyncStatus().status === "ok",
     },
   });
 });

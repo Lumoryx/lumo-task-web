@@ -113,6 +113,8 @@ export function SettingsPage() {
 
       <StorageGroup t={t} locale={locale} />
 
+      <RemoteSyncGroup t={t} locale={locale} />
+
       <Group title="Data">
         <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
           <button className="btn btn-secondary" onClick={() => reset()}>
@@ -1006,6 +1008,162 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
               ? "100% 本地存储 · 数据永不离开你的设备"
               : "100% local · your data never leaves this device"}
           </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Remote Sync section ─────────────────────────────────────────────── */
+
+function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
+  const [status, setStatus] = useState<{ configured: boolean; status: string; error: string | null; lastSyncAt: string | null } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    api.remoteStatus()
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  }, []);
+
+  async function handleSave() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await api.setRemoteConfig(url.trim(), token.trim());
+      setStatus({ configured: Boolean(url.trim()), status: res.status, error: res.error, lastSyncAt: res.lastSyncAt });
+      setToken("");
+    } catch {
+      toast.error(t("settings.sync.error.save"), "");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await api.setRemoteConfig("", "");
+      setStatus({ configured: false, status: res.status, error: null, lastSyncAt: null });
+      setUrl("");
+      setToken("");
+    } catch {
+      toast.error(t("settings.sync.error.save"), "");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSyncNow() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await api.triggerSync();
+      if (res.ok) setStatus((s) => s ? { ...s, lastSyncAt: res.lastSyncAt, status: "ok", error: null } : s);
+    } catch {
+      toast.error(t("settings.sync.error.trigger"), "");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  const statusLabel: Record<string, string> = {
+    disabled: t("settings.sync.status.disabled"),
+    connecting: t("settings.sync.status.connecting"),
+    ok: t("settings.sync.status.ok"),
+    error: t("settings.sync.status.error"),
+  };
+  const statusColor: Record<string, string> = {
+    disabled: "var(--text-faint)",
+    connecting: "var(--text-muted)",
+    ok: "var(--accent-primary)",
+    error: "var(--status-urgent)",
+  };
+  const st = status?.status ?? "disabled";
+
+  return (
+    <section className="mb-7">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
+        {t("settings.sync.title")}
+      </h3>
+      <div className="rounded-[10px] border overflow-hidden bg-surface" style={{ borderColor: "var(--border-default)" }}>
+        {/* Status row */}
+        <div className="grid items-center px-5 py-4" style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+          <div>
+            <div className="text-[13px] font-medium text-text-primary">{t("settings.sync.title")}</div>
+            <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed">{t("settings.sync.helper")}</div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] font-medium" style={{ color: statusColor[st] ?? "var(--text-faint)" }}>
+              {statusLabel[st] ?? st}
+            </span>
+            {status?.configured && st === "ok" && (
+              <button
+                onClick={handleSyncNow}
+                disabled={syncing}
+                className="btn btn-ghost"
+                style={{ height: 28, fontSize: 11, padding: "0 10px" }}
+              >
+                {syncing ? t("settings.sync.syncing") : t("settings.sync.trigger")}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Last sync time */}
+        {status?.lastSyncAt && (
+          <div className="px-5 pb-3 text-[11px]" style={{ color: "var(--text-faint)" }}>
+            {t("settings.sync.lastSync")}: {new Date(status.lastSyncAt).toLocaleString(locale === "zh" ? "zh-CN" : "en-US")}
+          </div>
+        )}
+
+        {/* Error */}
+        {status?.error && (
+          <div className="px-5 pb-3 text-[11px]" style={{ color: "var(--status-urgent)" }}>{status.error}</div>
+        )}
+
+        {/* Config inputs */}
+        <div className="px-5 py-4 border-t flex flex-col gap-3" style={{ borderColor: "var(--border-faint)" }}>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={t("settings.sync.url.placeholder")}
+            className="w-full text-[13px] rounded-md px-3 py-2 border bg-transparent outline-none"
+            style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+          />
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder={t("settings.sync.token.placeholder")}
+            className="w-full text-[13px] rounded-md px-3 py-2 border bg-transparent outline-none"
+            style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving || !url.trim()}
+              className="btn btn-primary"
+              style={{ height: 32, fontSize: 12 }}
+            >
+              {saving ? t("settings.sync.saving") : t("settings.sync.save")}
+            </button>
+            {status?.configured && (
+              <button
+                onClick={handleDisconnect}
+                disabled={saving}
+                className="btn btn-ghost"
+                style={{ height: 32, fontSize: 12 }}
+              >
+                {t("settings.sync.disconnect")}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </section>

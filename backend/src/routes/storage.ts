@@ -1,13 +1,10 @@
-/**
- * GET /v1/storage/info — returns the database file path and size.
- *
- * Used by the frontend Storage settings panel to display where Lumo keeps its
- * data and let users see the current location before changing it via the
- * Electron native folder picker.
- */
-
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { authMiddleware } from "../middleware/auth.js";
+import { httpError } from "../lib/errors.js";
+import { getSyncStatus, triggerSync, stopSync, initSync } from "../lib/sync.js";
+import { queryOne, execute } from "../db/client.js";
 import type { Variables } from "../env.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -30,6 +27,54 @@ app.get("/info", (c) => {
     dbSize,
     dbName: path.basename(dbPath),
   });
+});
+
+// GET /storage/remote-status
+app.get("/remote-status", async (c) => {
+  const userId = c.get("userId") as string;
+  const row = await queryOne<{ remote_url: string | null }>(
+    "SELECT remote_url FROM settings WHERE user_id = :uid",
+    { uid: userId }
+  );
+  const { status, error, lastSyncAt } = getSyncStatus();
+  return c.json({
+    configured: Boolean(row?.remote_url || (process.env.LUMO_REMOTE_URL ?? "").trim()),
+    status,
+    error,
+    lastSyncAt,
+  });
+});
+
+const RemoteConfigBody = z.object({
+  remoteUrl: z.string().url().max(500).or(z.literal("")).optional(),
+  remoteToken: z.string().max(500).optional(),
+});
+
+// PATCH /storage/remote-config — save remote URL + token, restart sync
+app.patch("/remote-config", zValidator("json", RemoteConfigBody), async (c) => {
+  const userId = c.get("userId") as string;
+  const { remoteUrl, remoteToken } = c.req.valid("json");
+
+  const existing = await queryOne("SELECT user_id FROM settings WHERE user_id = :uid", { uid: userId });
+  if (!existing) return httpError(c, 404, "NOT_FOUND", "Settings not found");
+
+  await execute(
+    "UPDATE settings SET remote_url = :url, remote_token = :token WHERE user_id = :uid",
+    { url: remoteUrl ?? null, token: remoteToken ?? null, uid: userId }
+  );
+
+  stopSync();
+  if (remoteUrl) await initSync();
+
+  const { status, error, lastSyncAt } = getSyncStatus();
+  return c.json({ ok: true, status, error, lastSyncAt });
+});
+
+// POST /storage/remote-sync — manual sync trigger
+app.post("/remote-sync", async (c) => {
+  const result = await triggerSync();
+  if (!result.ok) return httpError(c, 503, "SYNC_ERROR", result.error ?? "sync failed");
+  return c.json({ ok: true, lastSyncAt: getSyncStatus().lastSyncAt });
 });
 
 export default app;
