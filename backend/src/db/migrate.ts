@@ -1,23 +1,24 @@
-import { db } from "./client.js";
+import { db, query, queryOne, execute, execRaw } from "./client.js";
 import bcrypt from "bcryptjs";
 
-export function ensureDefaultUser() {
-  const existing = db.prepare("SELECT id FROM users WHERE id = 'u1'").get();
+export async function ensureDefaultUser() {
+  const existing = await queryOne("SELECT id FROM users WHERE id = 'u1'");
   if (existing) return;
 
   const password_hash = bcrypt.hashSync("demo1234", 10);
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await execute(`
     INSERT OR IGNORE INTO users (id, email, password_hash, name, initials, local, plan, renews_at, created_at)
     VALUES ('u1', 'alex@stride.studio', :password_hash, 'Alex Stride', 'AS', 0, 'pro', '2026-08-12', :now)
-  `).run({ password_hash, now });
+  `, { password_hash, now });
 
-  db.prepare("INSERT OR IGNORE INTO settings (user_id) VALUES ('u1')").run();
+  await execute("INSERT OR IGNORE INTO settings (user_id) VALUES ('u1')");
 }
 
-export function runMigrations() {
-  db.exec(`
+export async function runMigrations() {
+  // ── Core tables ──────────────────────────────────────────────────────────────
+  await execRaw(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -28,8 +29,10 @@ export function runMigrations() {
       plan TEXT DEFAULT 'free',
       renews_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+    )
+  `);
 
+  await execRaw(`
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -54,8 +57,10 @@ export function runMigrations() {
       not_now_json TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+    )
+  `);
 
+  await execRaw(`
     CREATE TABLE IF NOT EXISTS completed_entries (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -66,8 +71,10 @@ export function runMigrations() {
       quadrant TEXT,
       started_at TEXT,
       completed_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+    )
+  `);
 
+  await execRaw(`
     CREATE TABLE IF NOT EXISTS people (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -76,8 +83,10 @@ export function runMigrations() {
       color TEXT NOT NULL,
       email TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+    )
+  `);
 
+  await execRaw(`
     CREATE TABLE IF NOT EXISTS settings (
       user_id TEXT PRIMARY KEY REFERENCES users(id),
       locale TEXT NOT NULL DEFAULT 'en',
@@ -92,82 +101,86 @@ export function runMigrations() {
       auto_start_breaks INTEGER NOT NULL DEFAULT 0,
       notifications_enabled INTEGER NOT NULL DEFAULT 1,
       onboarding_complete INTEGER NOT NULL DEFAULT 0
-    );
+    )
   `);
 
-  // Migrate: rename assignee_id → assignee_ids (JSON array) for existing DBs
-  const cols = db.prepare("PRAGMA table_info(tasks)").all() as any[];
-  const hasOldCol = cols.some((c: any) => c.name === "assignee_id");
-  const hasNewCol = cols.some((c: any) => c.name === "assignee_ids");
+  // ── Incremental migrations ───────────────────────────────────────────────────
+
+  // Migrate: rename assignee_id → assignee_ids (JSON array)
+  const taskCols = await query<{ name: string }>("PRAGMA table_info(tasks)");
+  const hasOldCol = taskCols.some((c) => c.name === "assignee_id");
+  const hasNewCol = taskCols.some((c) => c.name === "assignee_ids");
   if (hasOldCol && !hasNewCol) {
-    db.exec("ALTER TABLE tasks ADD COLUMN assignee_ids TEXT NOT NULL DEFAULT '[]'");
-    db.exec("UPDATE tasks SET assignee_ids = json_array(assignee_id) WHERE assignee_id IS NOT NULL AND assignee_id != ''");
+    await execRaw("ALTER TABLE tasks ADD COLUMN assignee_ids TEXT NOT NULL DEFAULT '[]'");
+    await execRaw("UPDATE tasks SET assignee_ids = json_array(assignee_id) WHERE assignee_id IS NOT NULL AND assignee_id != ''");
   } else if (!hasNewCol) {
-    db.exec("ALTER TABLE tasks ADD COLUMN assignee_ids TEXT NOT NULL DEFAULT '[]'");
+    await execRaw("ALTER TABLE tasks ADD COLUMN assignee_ids TEXT NOT NULL DEFAULT '[]'");
   }
 
   // Migrate: add AI config columns to settings
-  const settingsCols = db.prepare("PRAGMA table_info(settings)").all() as any[];
-  if (!settingsCols.some((c: any) => c.name === "ai_provider")) {
-    db.exec("ALTER TABLE settings ADD COLUMN ai_provider TEXT NOT NULL DEFAULT 'openai'");
-    db.exec("ALTER TABLE settings ADD COLUMN ai_api_key TEXT");
-    db.exec("ALTER TABLE settings ADD COLUMN ai_base_url TEXT");
-    db.exec("ALTER TABLE settings ADD COLUMN ai_model TEXT");
+  const settingsCols = await query<{ name: string }>("PRAGMA table_info(settings)");
+  if (!settingsCols.some((c) => c.name === "ai_provider")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN ai_provider TEXT NOT NULL DEFAULT 'openai'");
+    await execRaw("ALTER TABLE settings ADD COLUMN ai_api_key TEXT");
+    await execRaw("ALTER TABLE settings ADD COLUMN ai_base_url TEXT");
+    await execRaw("ALTER TABLE settings ADD COLUMN ai_model TEXT");
   }
 
-  // Migrate: per-provider AI configs (replaces single ai_api_key/ai_model/ai_base_url)
-  if (!settingsCols.some((c: any) => c.name === "ai_configs")) {
-    db.exec("ALTER TABLE settings ADD COLUMN ai_configs TEXT NOT NULL DEFAULT '{}'");
-    // Migrate existing single-provider key into the new JSON structure
-    const rows = db.prepare(
+  // Migrate: per-provider AI configs
+  if (!settingsCols.some((c) => c.name === "ai_configs")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN ai_configs TEXT NOT NULL DEFAULT '{}'");
+    const rows = await query<any>(
       "SELECT user_id, ai_provider, ai_api_key, ai_model, ai_base_url FROM settings WHERE ai_api_key IS NOT NULL AND ai_api_key != ''"
-    ).all() as any[];
+    );
     for (const row of rows) {
       const provider = row.ai_provider ?? "openai";
       const cfg: Record<string, unknown> = {};
       cfg[provider] = { key: row.ai_api_key, model: row.ai_model ?? "", baseUrl: row.ai_base_url ?? "" };
-      db.prepare("UPDATE settings SET ai_configs = :cfg WHERE user_id = :uid").run({
+      await execute("UPDATE settings SET ai_configs = :cfg WHERE user_id = :uid", {
         cfg: JSON.stringify(cfg),
         uid: row.user_id,
       });
     }
   }
 
-  // Revoked tokens table for proper session invalidation on logout
-  db.exec(`
+  // Revoked tokens table
+  await execRaw(`
     CREATE TABLE IF NOT EXISTS revoked_tokens (
       jti  TEXT PRIMARY KEY,
       expires_at TEXT NOT NULL
-    );
+    )
   `);
 
-  // Prune tokens whose JWT expiry has already passed — they're invalid regardless
-  db.exec("DELETE FROM revoked_tokens WHERE expires_at < datetime('now')");
+  // Prune expired tokens
+  await execRaw("DELETE FROM revoked_tokens WHERE expires_at < datetime('now')");
 
-  // Migrate: add recurrence column to tasks
-  const taskCols = db.prepare("PRAGMA table_info(tasks)").all() as any[];
-  if (!taskCols.some((c: any) => c.name === "recurrence")) {
-    db.exec("ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
+  // Migrate: add recurrence column
+  const taskColsV2 = await query<{ name: string }>("PRAGMA table_info(tasks)");
+  if (!taskColsV2.some((c) => c.name === "recurrence")) {
+    await execRaw("ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
   }
 
-  // Migrate: add subtasks JSON column to tasks
-  const taskColsSubtasks = db.prepare("PRAGMA table_info(tasks)").all() as any[];
-  if (!taskColsSubtasks.some((c: any) => c.name === "subtasks_json")) {
-    db.exec("ALTER TABLE tasks ADD COLUMN subtasks_json TEXT NOT NULL DEFAULT '[]'");
+  // Migrate: subtasks + scheduled_start
+  const taskColsV3 = await query<{ name: string }>("PRAGMA table_info(tasks)");
+  if (!taskColsV3.some((c) => c.name === "subtasks_json")) {
+    await execRaw("ALTER TABLE tasks ADD COLUMN subtasks_json TEXT NOT NULL DEFAULT '[]'");
   }
-  if (!taskColsSubtasks.some((c: any) => c.name === "scheduled_start")) {
-    db.exec("ALTER TABLE tasks ADD COLUMN scheduled_start TEXT");
+  if (!taskColsV3.some((c) => c.name === "scheduled_start")) {
+    await execRaw("ALTER TABLE tasks ADD COLUMN scheduled_start TEXT");
   }
 
-  // Migrate: add Lumo Cloud AI usage tracking to settings
-  const settingsColsV2 = db.prepare("PRAGMA table_info(settings)").all() as any[];
-  if (!settingsColsV2.some((c: any) => c.name === "ai_cloud_used")) {
-    db.exec("ALTER TABLE settings ADD COLUMN ai_cloud_used INTEGER NOT NULL DEFAULT 0");
-    db.exec("ALTER TABLE settings ADD COLUMN ai_cloud_month TEXT NOT NULL DEFAULT ''");
+  // Migrate: cloud AI usage tracking
+  const settingsColsV2 = await query<{ name: string }>("PRAGMA table_info(settings)");
+  if (!settingsColsV2.some((c) => c.name === "ai_cloud_used")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN ai_cloud_used INTEGER NOT NULL DEFAULT 0");
+    await execRaw("ALTER TABLE settings ADD COLUMN ai_cloud_month TEXT NOT NULL DEFAULT ''");
   }
 }
 
-// When run directly
-runMigrations();
-ensureDefaultUser();
-console.log("Migrations complete.");
+// When run directly as a script
+if (process.argv[1]?.endsWith("migrate.ts") || process.argv[1]?.endsWith("migrate.js")) {
+  runMigrations()
+    .then(() => ensureDefaultUser())
+    .then(() => { console.log("Migrations complete."); process.exit(0); })
+    .catch((err) => { console.error(err); process.exit(1); });
+}
