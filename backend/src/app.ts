@@ -10,6 +10,7 @@ import settingsRoutes from "./routes/settings.js";
 import aiRoutes from "./routes/ai.js";
 import outlookRoutes from "./routes/outlook.js";
 import storageRoutes from "./routes/storage.js";
+import syncRoutes from "./routes/sync.js";
 import docsRoutes from "./routes/docs.js";
 
 const allowedOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
@@ -50,6 +51,7 @@ v1.route("/settings", settingsRoutes);
 v1.route("/ai", aiRoutes);
 v1.route("/outlook", outlookRoutes);
 v1.route("/storage", storageRoutes);
+v1.route("/sync", syncRoutes);
 
 app.route("/v1", v1);
 app.route("/docs", docsRoutes);
