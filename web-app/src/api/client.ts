@@ -53,11 +53,17 @@ async function req<T>(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${base}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkErr) {
+    const detail = networkErr instanceof Error ? networkErr.message : String(networkErr);
+    throw new Error(`无法连接到服务器 (${base})：${detail}`);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -65,7 +71,7 @@ async function req<T>(
     const errMsg =
       typeof errBody === "string"
         ? errBody
-        : errBody?.message ?? `HTTP ${res.status}`;
+        : errBody?.message ?? `HTTP ${res.status} ${res.statusText}`;
     throw new Error(errMsg);
   }
 
