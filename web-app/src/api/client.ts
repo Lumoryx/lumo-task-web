@@ -53,11 +53,17 @@ async function req<T>(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${base}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkErr) {
+    const detail = networkErr instanceof Error ? networkErr.message : String(networkErr);
+    throw new Error(`无法连接到服务器 (${base})：${detail}`);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -65,7 +71,7 @@ async function req<T>(
     const errMsg =
       typeof errBody === "string"
         ? errBody
-        : errBody?.message ?? `HTTP ${res.status}`;
+        : errBody?.message ?? `HTTP ${res.status} ${res.statusText}`;
     throw new Error(errMsg);
   }
 
@@ -353,6 +359,14 @@ export const api = {
 
   async outlookCalendar(start: string, end: string): Promise<{ events: unknown[] }> {
     return req("GET", `/outlook/calendar?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+  },
+
+  async syncStatus(): Promise<{ mode: "local" | "replica" | "cloud"; syncUrl: string | null; lastSyncAt: string | null }> {
+    return req("GET", "/sync/status");
+  },
+
+  async syncNow(): Promise<{ ok: boolean; syncedAt: string }> {
+    return req("POST", "/sync");
   },
 };
 

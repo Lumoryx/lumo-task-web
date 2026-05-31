@@ -12,17 +12,18 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function LoginPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { signIn, loading } = useAuthStore();
+  const { signIn, loading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
+    clearError();
     try {
       await signIn(email, password);
       navigate("/today");
     } catch {
-      /* error surfaces via store */
+      // error is set in the store and displayed below
     }
   }
 
@@ -57,6 +58,12 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
+
+          {error && (
+            <div className="rounded-md px-3 py-2.5 text-[12px] leading-relaxed" style={{ background: "var(--color-danger-bg, #fef2f2)", color: "var(--color-danger, #dc2626)", border: "1px solid var(--color-danger-border, #fca5a5)" }}>
+              <span className="font-medium">登录失败：</span>{error}
+            </div>
+          )}
 
           <button
             type="submit"

@@ -53,6 +53,7 @@
   "build": {
     "appId": "com.lumo.task",
     "productName": "Lumo Task",
+    "artifactName": "LumoTask-Setup-${version}.${ext}",
     "directories": {
       "output": "dist-electron"
     },
