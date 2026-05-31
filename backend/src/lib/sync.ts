@@ -50,9 +50,10 @@ async function getCursor(table: string): Promise<{ lastPushedAt: string; lastPul
 }
 
 async function updateCursor(table: string, pushed: string | null, pulled: string | null): Promise<void> {
+  const epoch = "1970-01-01T00:00:00.000Z";
   await execute(
-    "INSERT INTO sync_cursors (table_name, last_pushed_at, last_pulled_at) VALUES (:t, :pushed, :pulled) ON CONFLICT(table_name) DO UPDATE SET last_pushed_at = COALESCE(:pushed, last_pushed_at), last_pulled_at = COALESCE(:pulled, last_pulled_at)",
-    { t: table, pushed, pulled }
+    "INSERT INTO sync_cursors (table_name, last_pushed_at, last_pulled_at) VALUES (:t, COALESCE(:pushed, :epoch), COALESCE(:pulled, :epoch)) ON CONFLICT(table_name) DO UPDATE SET last_pushed_at = COALESCE(:pushed, last_pushed_at), last_pulled_at = COALESCE(:pulled, last_pulled_at)",
+    { t: table, pushed, pulled, epoch }
   );
 }
 

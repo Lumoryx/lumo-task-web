@@ -1019,22 +1019,27 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
 function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
-  const [status, setStatus] = useState<{ configured: boolean; status: string; error: string | null; lastSyncAt: string | null } | null>(null);
+  const [status, setStatus] = useState<{ configured: boolean; remoteUrl: string; status: string; error: string | null; lastSyncAt: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
+  function refreshStatus() {
     api.remoteStatus()
-      .then(setStatus)
+      .then((s) => {
+        setStatus(s);
+        if (s.remoteUrl) setUrl((prev) => prev || s.remoteUrl);
+      })
       .catch(() => setStatus(null));
-  }, []);
+  }
+
+  useEffect(() => { refreshStatus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSave() {
     if (saving) return;
     setSaving(true);
     try {
       const res = await api.setRemoteConfig(url.trim(), token.trim());
-      setStatus({ configured: Boolean(url.trim()), status: res.status, error: res.error, lastSyncAt: res.lastSyncAt });
+      setStatus((s) => ({ ...(s ?? { remoteUrl: url.trim() }), configured: Boolean(url.trim()), remoteUrl: url.trim(), status: res.status, error: res.error, lastSyncAt: res.lastSyncAt }));
       setToken("");
     } catch {
       toast.error(t("settings.sync.error.save"), "");
@@ -1047,8 +1052,8 @@ function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: stri
     if (saving) return;
     setSaving(true);
     try {
-      const res = await api.setRemoteConfig("", "");
-      setStatus({ configured: false, status: res.status, error: null, lastSyncAt: null });
+      await api.setRemoteConfig("", "");
+      setStatus({ configured: false, remoteUrl: "", status: "disabled", error: null, lastSyncAt: null });
       setUrl("");
       setToken("");
     } catch {
@@ -1063,9 +1068,14 @@ function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: stri
     setSyncing(true);
     try {
       const res = await api.triggerSync();
-      if (res.ok) setStatus((s) => s ? { ...s, lastSyncAt: res.lastSyncAt, status: "ok", error: null } : s);
+      if (res.ok) {
+        setStatus((s) => s ? { ...s, lastSyncAt: res.lastSyncAt, status: "ok", error: null } : s);
+      } else {
+        refreshStatus();
+      }
     } catch {
       toast.error(t("settings.sync.error.trigger"), "");
+      refreshStatus();
     } finally {
       setSyncing(false);
     }
@@ -1084,6 +1094,7 @@ function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: stri
     error: "var(--status-urgent)",
   };
   const st = status?.status ?? "disabled";
+  const canRetry = status?.configured && (st === "ok" || st === "error");
 
   return (
     <section className="mb-7">
@@ -1101,7 +1112,7 @@ function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: stri
             <span className="text-[12px] font-medium" style={{ color: statusColor[st] ?? "var(--text-faint)" }}>
               {statusLabel[st] ?? st}
             </span>
-            {status?.configured && st === "ok" && (
+            {canRetry && (
               <button
                 onClick={handleSyncNow}
                 disabled={syncing}
@@ -1121,12 +1132,12 @@ function RemoteSyncGroup({ t, locale }: { t: (k: string) => string; locale: stri
           </div>
         )}
 
-        {/* Error */}
+        {/* Error message — always visible so user knows what to fix */}
         {status?.error && (
           <div className="px-5 pb-3 text-[11px]" style={{ color: "var(--status-urgent)" }}>{status.error}</div>
         )}
 
-        {/* Config inputs */}
+        {/* Config inputs — always editable so user can correct a bad URL */}
         <div className="px-5 py-4 border-t flex flex-col gap-3" style={{ borderColor: "var(--border-faint)" }}>
           <input
             type="url"
