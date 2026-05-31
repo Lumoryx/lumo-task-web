@@ -84,6 +84,22 @@ function saveDbDirPref(dbDir) {
   fs.writeFileSync(prefPath, JSON.stringify({ dbDir }), { encoding: "utf8", mode: 0o600 });
 }
 
+// ── Cloud sync config ─────────────────────────────────────────────────────────
+
+function getSyncConfig() {
+  const syncPath = path.join(app.getPath("userData"), "sync.json");
+  try {
+    return JSON.parse(fs.readFileSync(syncPath, "utf8"));
+  } catch {
+    return { enabled: false, url: "", token: "" };
+  }
+}
+
+function saveSyncConfig(cfg) {
+  const syncPath = path.join(app.getPath("userData"), "sync.json");
+  fs.writeFileSync(syncPath, JSON.stringify(cfg), { encoding: "utf8", mode: 0o600 });
+}
+
 // ── Backend process ───────────────────────────────────────────────────────────
 
 let backendProcess = null;
@@ -94,11 +110,15 @@ async function startBackend() {
   const dbPath = getDbPath();
   const jwtSecret = getOrCreateJwtSecret();
 
+  const syncCfg = getSyncConfig();
   const env = {
     ...process.env,
     LUMO_PORT: String(apiPort),
     LUMO_DB_PATH: dbPath,
     LUMO_JWT_SECRET: jwtSecret,
+    ...(syncCfg.enabled && syncCfg.url && syncCfg.token
+      ? { TURSO_SYNC_URL: syncCfg.url, TURSO_SYNC_TOKEN: syncCfg.token }
+      : {}),
   };
 
   if (app.isPackaged) {
@@ -229,6 +249,30 @@ function createWindow() {
   /** Reveals lumo.db in Finder / Explorer. */
   ipcMain.on("db:showInFolder", () => {
     shell.showItemInFolder(getDbPath());
+  });
+
+  // ── Cloud sync IPC ────────────────────────────────────────────────────────
+
+  /** Returns the current sync config (without the token value for security). */
+  ipcMain.handle("sync:getConfig", () => {
+    const cfg = getSyncConfig();
+    return { enabled: cfg.enabled ?? false, url: cfg.url ?? "", hasToken: !!(cfg.token) };
+  });
+
+  /**
+   * Saves sync config and relaunches the app so the backend restarts with
+   * the new TURSO_SYNC_URL / TURSO_SYNC_TOKEN env vars.
+   */
+  ipcMain.handle("sync:setConfig", (_event, cfg) => {
+    if (typeof cfg !== "object" || cfg === null) return { ok: false, error: "Invalid config" };
+    saveSyncConfig({
+      enabled: !!cfg.enabled,
+      url: typeof cfg.url === "string" ? cfg.url.trim() : "",
+      token: typeof cfg.token === "string" ? cfg.token.trim() : "",
+    });
+    app.relaunch();
+    app.exit(0);
+    return { ok: true };
   });
 
   // ── Pet focus compact mode ────────────────────────────────────────────────
