@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { runMigrations, ensureDefaultUser } from "./db/migrate.js";
 import { app } from "./app.js";
+import { initSync } from "./lib/sync.js";
 
 const port = parseInt(process.env.LUMO_PORT ?? "47291");
 
@@ -8,6 +9,7 @@ const port = parseInt(process.env.LUMO_PORT ?? "47291");
 runMigrations()
   .then(() => ensureDefaultUser())
   .then(() => {
+    initSync().catch((e) => console.error("[sync] startup error:", e.message));
     console.log(`Lumo backend starting on port ${port}`);
     serve({ fetch: app.fetch, port });
   })

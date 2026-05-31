@@ -1,4 +1,4 @@
-import { db, query, queryOne, execute, execRaw } from "./client.js";
+import { query, queryOne, execute, execRaw } from "./client.js";
 import bcrypt from "bcryptjs";
 
 export async function ensureDefaultUser() {
@@ -154,6 +154,15 @@ export async function runMigrations() {
   // Prune expired tokens
   await execRaw("DELETE FROM revoked_tokens WHERE expires_at < datetime('now')");
 
+  // Sync cursor tracking for remote LibSQL replication
+  await execRaw(`
+    CREATE TABLE IF NOT EXISTS sync_cursors (
+      table_name     TEXT PRIMARY KEY,
+      last_pushed_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z',
+      last_pulled_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z'
+    )
+  `);
+
   // Migrate: add recurrence column
   const taskColsV2 = await query<{ name: string }>("PRAGMA table_info(tasks)");
   if (!taskColsV2.some((c) => c.name === "recurrence")) {
@@ -174,6 +183,13 @@ export async function runMigrations() {
   if (!settingsColsV2.some((c) => c.name === "ai_cloud_used")) {
     await execRaw("ALTER TABLE settings ADD COLUMN ai_cloud_used INTEGER NOT NULL DEFAULT 0");
     await execRaw("ALTER TABLE settings ADD COLUMN ai_cloud_month TEXT NOT NULL DEFAULT ''");
+  }
+
+  // Migrate: remote sync credentials per user
+  const settingsColsV3 = await query<{ name: string }>("PRAGMA table_info(settings)");
+  if (!settingsColsV3.some((c) => c.name === "remote_url")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN remote_url TEXT");
+    await execRaw("ALTER TABLE settings ADD COLUMN remote_token TEXT");
   }
 }
 
