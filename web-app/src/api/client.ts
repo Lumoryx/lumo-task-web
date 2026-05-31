@@ -360,6 +360,14 @@ export const api = {
   async outlookCalendar(start: string, end: string): Promise<{ events: unknown[] }> {
     return req("GET", `/outlook/calendar?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
   },
+
+  async syncStatus(): Promise<{ mode: "local" | "replica" | "cloud"; syncUrl: string | null; lastSyncAt: string | null }> {
+    return req("GET", "/sync/status");
+  },
+
+  async syncNow(): Promise<{ ok: boolean; syncedAt: string }> {
+    return req("POST", "/sync");
+  },
 };
 
 // ── Countdown localStorage API ────────────────────────────────────────────────

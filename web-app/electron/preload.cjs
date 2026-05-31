@@ -24,4 +24,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   moveDbTo: (newDir) => ipcRenderer.invoke("db:moveTo", newDir),
   /** Reveals lumo.db in Finder / Explorer (fire-and-forget). */
   showDbInFolder: () => ipcRenderer.send("db:showInFolder"),
+
+  // ── Cloud sync ──────────────────────────────────────────────────────────────
+  /** Returns { enabled, url, hasToken } — token value is never exposed. */
+  getSyncConfig: () => ipcRenderer.invoke("sync:getConfig"),
+  /** Saves sync config and relaunches the app. @param {object} cfg */
+  setSyncConfig: (cfg) => ipcRenderer.invoke("sync:setConfig", cfg),
 });

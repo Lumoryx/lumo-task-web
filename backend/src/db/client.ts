@@ -1,25 +1,45 @@
-import { createClient, type InStatement } from "@libsql/client";
+import { createClient, type InStatement, type Client } from "@libsql/client";
 
 /**
- * Database client.
+ * Three operating modes, selected by environment variables:
  *
- * Local dev  (no TURSO_DATABASE_URL): SQLite file at file:local.db
- * Production (TURSO_DATABASE_URL set): connects to Turso over HTTP —
- *   zero file I/O, data persists across Render deploys and cold-starts.
+ * 1. Local only (Electron default, no env vars):
+ *      url = file:{LUMO_DB_PATH}   — reads/writes local SQLite, offline-capable
  *
- * Setup (one-time):
- *   1. Sign up at https://turso.tech (free, no credit card)
- *   2. turso db create lumo-task
- *   3. turso db show lumo-task        → copy the libsql:// URL
- *   4. turso db tokens create lumo-task → copy the auth token
- *   5. Add to Render env vars:
- *        TURSO_DATABASE_URL = libsql://lumo-task-<org>.turso.io
- *        TURSO_AUTH_TOKEN   = <token>
+ * 2. Embedded replica (Electron + cloud sync enabled):
+ *      url = file:{LUMO_DB_PATH}   — local first
+ *      syncUrl = TURSO_SYNC_URL    — periodic background sync to user's Turso DB
+ *      authToken = TURSO_SYNC_TOKEN
+ *
+ * 3. Direct cloud (Render/web deployment):
+ *      url = TURSO_DATABASE_URL    — connects directly to hosted Turso DB
+ *      authToken = TURSO_AUTH_TOKEN
  */
-export const db = createClient({
-  url: process.env.TURSO_DATABASE_URL ?? "file:local.db",
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+const directUrl  = process.env.TURSO_DATABASE_URL;
+const syncUrl    = process.env.TURSO_SYNC_URL;
+const syncToken  = process.env.TURSO_SYNC_TOKEN;
+const localPath  = process.env.LUMO_DB_PATH;
+const localUrl   = localPath ? `file:${localPath}` : "file:local.db";
+
+export const db: Client = syncUrl
+  ? createClient({ url: localUrl, syncUrl, authToken: syncToken, syncInterval: 60 })
+  : directUrl
+  ? createClient({ url: directUrl, authToken: process.env.TURSO_AUTH_TOKEN })
+  : createClient({ url: localUrl });
+
+/** Trigger an immediate sync (only has effect in embedded-replica mode). */
+export async function syncDb(): Promise<void> {
+  if (typeof (db as any).sync === "function") {
+    await (db as any).sync();
+  }
+}
+
+/** Returns which mode the client is operating in. */
+export function dbMode(): "local" | "replica" | "cloud" {
+  if (syncUrl) return "replica";
+  if (directUrl) return "cloud";
+  return "local";
+}
 
 /** SELECT multiple rows */
 export async function query<T = Record<string, unknown>>(
