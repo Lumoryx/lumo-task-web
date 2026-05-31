@@ -91,7 +91,7 @@ function heuristicQuadrant(task: any, today: string): { q: string; confidence: n
 }
 
 // POST /ai/classify — LLM-powered semantic classification (heuristic fallback)
-app.post("/classify", classifyRateLimit, async (c) => {
+app.post("/classify", classifyRateLimit, zValidator("json", z.object({}).strict()), async (c) => {
   const userId = c.get("userId") as string;
   try {
   const today = new Date().toISOString().slice(0, 10);
@@ -193,7 +193,7 @@ Return ONLY a JSON array, no markdown:
 });
 
 // POST /ai/recommend — LLM-reasoned recommendation (SQL sort fallback)
-app.post("/recommend", classifyRateLimit, async (c) => {
+app.post("/recommend", classifyRateLimit, zValidator("json", z.object({}).strict()), async (c) => {
   const userId = c.get("userId") as string;
   try {
   const q1Tasks = db.prepare(`
