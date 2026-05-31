@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { db } from "../db/client.js";
+import { query, queryOne, execute } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
@@ -30,42 +30,48 @@ function rowToPerson(row: PersonRow) {
 }
 
 // GET /people
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const userId = c.get("userId") as string;
-  const rows = db.prepare("SELECT * FROM people WHERE user_id = :uid ORDER BY created_at ASC").all({ uid: userId });
-  return c.json((rows as unknown as PersonRow[]).map(rowToPerson));
+  const rows = await query<PersonRow>(
+    "SELECT * FROM people WHERE user_id = :uid ORDER BY created_at ASC",
+    { uid: userId }
+  );
+  return c.json(rows.map(rowToPerson));
 });
 
 // POST /people
-app.post("/", zValidator("json", PersonBody), (c) => {
+app.post("/", zValidator("json", PersonBody), async (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
   const id = "p_" + nanoid(10);
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await execute(`
     INSERT INTO people (id, user_id, name, initials, color, email, created_at)
     VALUES (:id, :user_id, :name, :initials, :color, :email, :now)
-  `).run({ id, user_id: userId, name: body.name, initials: body.initials, color: body.color, email: body.email ?? null, now });
+  `, { id, user_id: userId, name: body.name, initials: body.initials, color: body.color, email: body.email ?? null, now });
 
-  const row = db.prepare("SELECT * FROM people WHERE id = :id").get({ id });
-  return c.json(rowToPerson(row as unknown as PersonRow), 201);
+  const row = await queryOne<PersonRow>("SELECT * FROM people WHERE id = :id", { id });
+  return c.json(rowToPerson(row!), 201);
 });
 
 // PATCH /people/:id
-app.patch("/:id", zValidator("json", PersonBody.partial()), (c) => {
+app.patch("/:id", zValidator("json", PersonBody.partial()), async (c) => {
   const userId = c.get("userId") as string;
   const personId = c.req.param("id");
   const body = c.req.valid("json");
 
-  const existing = db.prepare("SELECT * FROM people WHERE id = :id AND user_id = :uid").get({ id: personId, uid: userId }) as unknown as PersonRow | undefined;
+  const existing = await queryOne<PersonRow>(
+    "SELECT * FROM people WHERE id = :id AND user_id = :uid",
+    { id: personId, uid: userId }
+  );
   if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
-  db.prepare(`
+  await execute(`
     UPDATE people SET
       name = :name, initials = :initials, color = :color, email = :email
     WHERE id = :id AND user_id = :uid
-  `).run({
+  `, {
     name: body.name ?? existing.name,
     initials: body.initials ?? existing.initials,
     color: body.color ?? existing.color,
@@ -73,20 +79,23 @@ app.patch("/:id", zValidator("json", PersonBody.partial()), (c) => {
     id: personId, uid: userId,
   });
 
-  const row = db.prepare("SELECT * FROM people WHERE id = :id").get({ id: personId });
-  return c.json(rowToPerson(row as unknown as PersonRow));
+  const row = await queryOne<PersonRow>("SELECT * FROM people WHERE id = :id", { id: personId });
+  return c.json(rowToPerson(row!));
 });
 
 // DELETE /people/:id
-app.delete("/:id", (c) => {
+app.delete("/:id", async (c) => {
   const userId = c.get("userId") as string;
   const personId = c.req.param("id");
 
-  const result = db.prepare("DELETE FROM people WHERE id = :id AND user_id = :uid").run({ id: personId, uid: userId });
+  const result = await execute(
+    "DELETE FROM people WHERE id = :id AND user_id = :uid",
+    { id: personId, uid: userId }
+  );
   if (result.changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   // Remove this person from assignee_ids JSON array on all affected tasks
-  db.prepare(`
+  await execute(`
     UPDATE tasks
     SET assignee_ids = (
       SELECT COALESCE(json_group_array(value), '[]')
@@ -94,7 +103,7 @@ app.delete("/:id", (c) => {
       WHERE value != :pid
     )
     WHERE user_id = :uid AND assignee_ids LIKE :pattern
-  `).run({ pid: personId, uid: userId, pattern: `%${personId}%` });
+  `, { pid: personId, uid: userId, pattern: `%${personId}%` });
 
   return new Response(null, { status: 204 });
 });

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "../db/client.js";
+import { query, queryOne, execute } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import { createRateLimiter } from "../lib/rateLimit.js";
@@ -27,10 +27,11 @@ interface ProviderResult {
   limitReached: boolean;
 }
 
-function getProviderConfig(userId: string): ProviderResult {
-  const settings = db.prepare(
-    "SELECT ai_provider, ai_configs, ai_cloud_used, ai_cloud_month FROM settings WHERE user_id = :uid"
-  ).get({ uid: userId }) as any;
+async function getProviderConfig(userId: string): Promise<ProviderResult> {
+  const settings = await queryOne<any>(
+    "SELECT ai_provider, ai_configs, ai_cloud_used, ai_cloud_month FROM settings WHERE user_id = :uid",
+    { uid: userId }
+  );
 
   const activeProvider = (settings?.ai_provider ?? "openai") as "openai" | "deepseek" | "claude" | "custom";
   let configs: Record<string, any> = {};
@@ -52,7 +53,7 @@ function getProviderConfig(userId: string): ProviderResult {
   const cloudKey = (process.env.LUMO_AI_KEY ?? "").trim() || null;
   if (!cloudKey) return { apiKey: null, llmConfig: null, usingCloud: false, limitReached: false };
 
-  const user = db.prepare("SELECT plan FROM users WHERE id = :uid").get({ uid: userId }) as any;
+  const user = await queryOne<any>("SELECT plan FROM users WHERE id = :uid", { uid: userId });
   const limit = user?.plan === "pro" ? 999_999 : CLOUD_FREE_LIMIT;
   const currentMonth = new Date().toISOString().slice(0, 7);
   const storedMonth = settings?.ai_cloud_month ?? "";
@@ -70,13 +71,17 @@ function getProviderConfig(userId: string): ProviderResult {
   };
 }
 
-function incrementCloudUsage(userId: string) {
+async function incrementCloudUsage(userId: string) {
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const s = db.prepare("SELECT ai_cloud_used, ai_cloud_month FROM settings WHERE user_id = :uid")
-    .get({ uid: userId }) as any;
+  const s = await queryOne<any>(
+    "SELECT ai_cloud_used, ai_cloud_month FROM settings WHERE user_id = :uid",
+    { uid: userId }
+  );
   const used = (s?.ai_cloud_month ?? "") === currentMonth ? (s?.ai_cloud_used ?? 0) : 0;
-  db.prepare("UPDATE settings SET ai_cloud_used = :used, ai_cloud_month = :month WHERE user_id = :uid")
-    .run({ used: used + 1, month: currentMonth, uid: userId });
+  await execute(
+    "UPDATE settings SET ai_cloud_used = :used, ai_cloud_month = :month WHERE user_id = :uid",
+    { used: used + 1, month: currentMonth, uid: userId }
+  );
 }
 
 function heuristicQuadrant(task: any, today: string): { q: string; confidence: number } {
@@ -96,23 +101,24 @@ app.post("/classify", classifyRateLimit, zValidator("json", z.object({}).strict(
   try {
   const today = new Date().toISOString().slice(0, 10);
 
-  const tasks = db.prepare(
-    "SELECT * FROM tasks WHERE user_id = :uid AND completed = 0 AND quadrant = 'unclassified'"
-  ).all({ uid: userId }) as any[];
+  const tasks = await query<any>(
+    "SELECT * FROM tasks WHERE user_id = :uid AND completed = 0 AND quadrant = 'unclassified'",
+    { uid: userId }
+  );
 
   type Suggestion = { task_id: string; quadrant: string; confidence: number; reason?: string };
   const suggestions: Suggestion[] = [];
 
   if (tasks.length === 0) return c.json({ suggestions });
 
-  const { llmConfig, usingCloud, limitReached } = getProviderConfig(userId);
+  const { llmConfig, usingCloud, limitReached } = await getProviderConfig(userId);
 
   if (limitReached) {
     // Quota exhausted — fall through to heuristic, surface the flag
     for (const task of tasks) {
       const h = heuristicQuadrant(task, today);
-      db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
-        .run({ q: h.q, now: new Date().toISOString(), id: task.id });
+      await execute("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id",
+          { q: h.q, now: new Date().toISOString(), id: task.id });
       suggestions.push({ task_id: task.id, quadrant: h.q, confidence: h.confidence });
     }
     return c.json({ suggestions, cloudLimitReached: true });
@@ -153,8 +159,8 @@ Return ONLY a JSON array, no markdown:
           const q = ["Q1","Q2","Q3","Q4"].includes(item.quadrant) ? item.quadrant : "Q3";
           const confidence = typeof item.confidence === "number" ? Math.min(1, Math.max(0, item.confidence)) : 0.7;
           const reason = typeof item.reason === "string" ? item.reason.slice(0, 200) : undefined;
-          db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
-            .run({ q, now: new Date().toISOString(), id: item.task_id });
+          await execute("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id",
+            { q, now: new Date().toISOString(), id: item.task_id });
           suggestions.push({ task_id: item.task_id, quadrant: q, confidence, reason });
           covered.add(item.task_id);
         }
@@ -163,13 +169,13 @@ Return ONLY a JSON array, no markdown:
         for (const task of tasks) {
           if (!covered.has(task.id)) {
             const h = heuristicQuadrant(task, today);
-            db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
-              .run({ q: h.q, now: new Date().toISOString(), id: task.id });
+            await execute("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id",
+          { q: h.q, now: new Date().toISOString(), id: task.id });
             suggestions.push({ task_id: task.id, quadrant: h.q, confidence: h.confidence });
           }
         }
 
-        if (usingCloud) incrementCloudUsage(userId);
+        if (usingCloud) await incrementCloudUsage(userId);
         return c.json({ suggestions });
       }
     } catch (err: any) {
@@ -180,8 +186,8 @@ Return ONLY a JSON array, no markdown:
   // Pure heuristic (no API key or LLM failed)
   for (const task of tasks) {
     const h = heuristicQuadrant(task, today);
-    db.prepare("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id")
-      .run({ q: h.q, now: new Date().toISOString(), id: task.id });
+    await execute("UPDATE tasks SET ai_suggest = :q, updated_at = :now WHERE id = :id",
+          { q: h.q, now: new Date().toISOString(), id: task.id });
     suggestions.push({ task_id: task.id, quadrant: h.q, confidence: h.confidence });
   }
 
@@ -196,16 +202,17 @@ Return ONLY a JSON array, no markdown:
 app.post("/recommend", classifyRateLimit, zValidator("json", z.object({}).strict()), async (c) => {
   const userId = c.get("userId") as string;
   try {
-  const q1Tasks = db.prepare(`
-    SELECT * FROM tasks
+  const q1Tasks = await query<any>(
+    `SELECT * FROM tasks
     WHERE user_id = :uid AND completed = 0 AND quadrant = 'Q1' AND today = 1
-    ORDER BY conviction DESC NULLS LAST, due ASC NULLS LAST
-  `).all({ uid: userId }) as any[];
+    ORDER BY conviction DESC NULLS LAST, due ASC NULLS LAST`,
+    { uid: userId }
+  );
 
   if (q1Tasks.length === 0) return c.json({ task: null });
 
   const topTask = q1Tasks[0];
-  const { llmConfig, usingCloud } = getProviderConfig(userId);
+  const { llmConfig, usingCloud } = await getProviderConfig(userId);
 
   if (llmConfig && q1Tasks.length >= 1) {
     const today = new Date().toISOString().slice(0, 10);
@@ -233,10 +240,10 @@ Choose the single most critical task to work on RIGHT NOW. Return ONLY valid JSO
         const reason = typeof parsed.reason === "string" ? parsed.reason.slice(0, 300) : null;
         const nextStep = typeof parsed.next_step === "string" ? parsed.next_step.slice(0, 300) : null;
 
-        db.prepare("UPDATE tasks SET conviction = :c, reason_en = :r, next_step_en = :ns, updated_at = :now WHERE id = :id")
-          .run({ c: conviction, r: reason, ns: nextStep, now: new Date().toISOString(), id: picked.id });
+        await execute("UPDATE tasks SET conviction = :c, reason_en = :r, next_step_en = :ns, updated_at = :now WHERE id = :id",
+          { c: conviction, r: reason, ns: nextStep, now: new Date().toISOString(), id: picked.id });
 
-        if (usingCloud) incrementCloudUsage(userId);
+        if (usingCloud) await incrementCloudUsage(userId);
         return c.json({
           task: {
             id: picked.id,
@@ -255,8 +262,8 @@ Choose the single most critical task to work on RIGHT NOW. Return ONLY valid JSO
 
   // Heuristic fallback
   const conviction = 0.85;
-  db.prepare("UPDATE tasks SET conviction = :c, updated_at = :now WHERE id = :id")
-    .run({ c: conviction, now: new Date().toISOString(), id: topTask.id });
+  await execute("UPDATE tasks SET conviction = :c, updated_at = :now WHERE id = :id",
+    { c: conviction, now: new Date().toISOString(), id: topTask.id });
 
   return c.json({
     task: {
@@ -282,7 +289,7 @@ app.post("/parse", classifyRateLimit, zValidator("json", ParseBody), async (c) =
   const userId = c.get("userId") as string;
   const { text, locale } = c.req.valid("json");
 
-  const { llmConfig, usingCloud } = getProviderConfig(userId);
+  const { llmConfig, usingCloud } = await getProviderConfig(userId);
 
   if (!llmConfig) {
     return c.json({ title: text.trim(), quadrant: "unclassified", due: null, duration: null, confidence: 0 });
@@ -305,7 +312,7 @@ Input: "${text}"`;
         const parsed = JSON.parse(m ? m[0] : result.text);
         const dueRaw = typeof parsed.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.due) ? parsed.due : null;
         const durationRaw = typeof parsed.duration === "number" && parsed.duration >= 0 && parsed.duration <= 1440 ? Math.round(parsed.duration) : null;
-        if (usingCloud) incrementCloudUsage(userId);
+        if (usingCloud) await incrementCloudUsage(userId);
         return c.json({
           title: typeof parsed.title === "string" ? parsed.title.trim() || text.trim() : text.trim(),
           quadrant: ["Q1","Q2","Q3","Q4","unclassified"].includes(parsed.quadrant) ? parsed.quadrant : "unclassified",
@@ -596,9 +603,9 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
   // Extract JWT for tool execution (reuse user's own auth token)
   const jwt = (c.req.header("Authorization") ?? "").replace(/^Bearer\s+/i, "");
 
-  const { llmConfig, usingCloud, limitReached } = getProviderConfig(userId);
+  const { llmConfig, usingCloud, limitReached } = await getProviderConfig(userId);
   // Resolve active provider for appendToolResults (needs provider name)
-  const settingsRow = db.prepare("SELECT ai_provider FROM settings WHERE user_id = :uid").get({ uid: userId }) as any;
+  const settingsRow = await queryOne<any>("SELECT ai_provider FROM settings WHERE user_id = :uid", { uid: userId });
   const activeProvider = (settingsRow?.ai_provider ?? (llmConfig?.provider ?? "openai")) as "openai" | "deepseek" | "claude" | "custom";
 
   const locale = context?.locale ?? "en";
@@ -642,12 +649,12 @@ app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
             const intent = await tryParseIntent(lastUserMsg, locale, jwt);
             if (intent) {
               const combined = intent.reply + "\n\n" + result.text;
-              if (usingCloud) incrementCloudUsage(userId);
+              if (usingCloud) await incrementCloudUsage(userId);
               return c.json({ reply: combined, mood: "happy", fallback: false, toolsUsed: intent.toolsUsed });
             }
           } catch {}
         }
-        if (usingCloud) incrementCloudUsage(userId);
+        if (usingCloud) await incrementCloudUsage(userId);
         return c.json({
           reply: result.text,
           mood: inferMood(result.text, context?.q1Count ?? 0),

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "../db/client.js";
+import { queryOne, execute } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import type { Variables } from "../env.js";
@@ -26,19 +26,15 @@ const SettingsPatch = z.object({
   auto_start_breaks: z.boolean().optional(),
   notifications_enabled: z.boolean().optional(),
   onboarding_complete: z.boolean().optional(),
-  // Active provider selection
   ai_provider: z.enum(PROVIDERS).optional(),
-  // Per-provider config update — key only written if non-empty
   ai_configs_update: z.object({
     provider: z.enum(PROVIDERS),
     key: z.string().max(500).nullable().optional(),
     model: z.string().max(100).nullable().optional(),
-    // baseUrl must be a valid URL or empty/null (Claude provider has no custom URL)
     baseUrl: z.union([z.string().url().max(500), z.literal(""), z.null()]).optional(),
   }).optional(),
 });
 
-/** Parse ai_configs JSON, guaranteeing all 4 providers exist */
 function parseAiConfigs(raw: string | null): Record<Provider, { key: string; model: string; baseUrl: string }> {
   let parsed: Record<string, any> = {};
   try { parsed = JSON.parse(raw ?? "{}"); } catch {}
@@ -93,24 +89,25 @@ function rowToSettings(row: SettingsRow) {
 }
 
 // GET /settings
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const userId = c.get("userId") as string;
-  const row = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId });
+  const row = await queryOne<SettingsRow>("SELECT * FROM settings WHERE user_id = :uid", { uid: userId });
   if (!row) return httpError(c, 404, "NOT_FOUND", "Not found");
-  return c.json(rowToSettings(row as unknown as SettingsRow));
+  return c.json(rowToSettings(row));
 });
 
 // PATCH /settings
-app.patch("/", zValidator("json", SettingsPatch), (c) => {
+app.patch("/", zValidator("json", SettingsPatch), async (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
 
-  const existing = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId }) as unknown as SettingsRow | undefined;
+  const existing = await queryOne<SettingsRow>(
+    "SELECT * FROM settings WHERE user_id = :uid", { uid: userId }
+  );
   if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const { ai_configs_update, ...rest } = body;
 
-  // Explicit allowlist prevents unintended columns from reaching the query
   const ALLOWED_COLUMNS = new Set([
     "locale", "accent", "density", "reduced_motion", "ai_enabled",
     "pomodoro_duration", "short_break", "long_break", "long_break_interval",
@@ -127,7 +124,6 @@ app.patch("/", zValidator("json", SettingsPatch), (c) => {
     params[key] = dbVal;
   }
 
-  // Merge per-provider config into ai_configs JSON
   if (ai_configs_update) {
     const { provider, key, model, baseUrl } = ai_configs_update;
     const configs = parseAiConfigs(existing.ai_configs);
@@ -139,11 +135,11 @@ app.patch("/", zValidator("json", SettingsPatch), (c) => {
   }
 
   if (updates.length > 0) {
-    db.prepare(`UPDATE settings SET ${updates.join(", ")} WHERE user_id = :uid`).run(params);
+    await execute(`UPDATE settings SET ${updates.join(", ")} WHERE user_id = :uid`, params);
   }
 
-  const row = db.prepare("SELECT * FROM settings WHERE user_id = :uid").get({ uid: userId });
-  return c.json(rowToSettings(row as unknown as SettingsRow));
+  const row = await queryOne<SettingsRow>("SELECT * FROM settings WHERE user_id = :uid", { uid: userId });
+  return c.json(rowToSettings(row!));
 });
 
 export default app;

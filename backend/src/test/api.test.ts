@@ -64,8 +64,8 @@ async function req(
 // ── Global setup ──────────────────────────────────────────────────────────────
 
 before(async () => {
-  runMigrations();
-  ensureDefaultUser();
+  await runMigrations();
+  await ensureDefaultUser();
 
   // Pre-auth the demo user so all suites can use demoToken immediately
   const { body } = await req("POST", "/v1/auth/signin", {

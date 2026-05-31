@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { db } from "../db/client.js";
+import { query, queryOne, execute } from "../db/client.js";
 import { signToken } from "../lib/jwt.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -49,7 +49,7 @@ function makeInitials(name: string) {
 app.post("/register", authRateLimit, zValidator("json", RegisterBody), async (c) => {
   const { email, password, name } = c.req.valid("json");
 
-  const existing = db.prepare("SELECT id FROM users WHERE email = :email").get({ email });
+  const existing = await queryOne("SELECT id FROM users WHERE email = :email", { email });
   if (existing) return httpError(c, 409, "EMAIL_TAKEN", "Email already registered");
 
   const id = "u_" + nanoid(10);
@@ -57,12 +57,12 @@ app.post("/register", authRateLimit, zValidator("json", RegisterBody), async (c)
   const initials = makeInitials(name);
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await execute(`
     INSERT INTO users (id, email, password_hash, name, initials, local, plan, created_at)
     VALUES (:id, :email, :password_hash, :name, :initials, 0, 'free', :now)
-  `).run({ id, email, password_hash, name, initials, now });
+  `, { id, email, password_hash, name, initials, now });
 
-  db.prepare("INSERT INTO settings (user_id) VALUES (:user_id)").run({ user_id: id });
+  await execute("INSERT INTO settings (user_id) VALUES (:user_id)", { user_id: id });
 
   const token = await signToken(id);
 
@@ -78,19 +78,18 @@ app.post("/register", authRateLimit, zValidator("json", RegisterBody), async (c)
 app.post("/signin", authRateLimit, zValidator("json", SigninBody), async (c) => {
   const { email, password } = c.req.valid("json");
 
-  const user = db.prepare("SELECT * FROM users WHERE email = :email").get({ email }) as UserRow | undefined;
+  const user = await queryOne<UserRow>("SELECT * FROM users WHERE email = :email", { email });
   if (!user) return httpError(c, 401, "INVALID_CREDENTIALS", "Invalid credentials");
 
   const ok = await verifyPassword(password, user.password_hash);
   if (!ok) return httpError(c, 401, "INVALID_CREDENTIALS", "Invalid credentials");
 
-  // Single query for both task count and pomo count
-  const stats = db.prepare(`
+  const stats = await queryOne<{ task_count: number; pomo_count: number }>(`
     SELECT
       COUNT(CASE WHEN completed = 0 THEN 1 END) as task_count,
       COALESCE(SUM(pomos_done), 0) as pomo_count
     FROM tasks WHERE user_id = :uid
-  `).get({ uid: user.id }) as { task_count: number; pomo_count: number };
+  `, { uid: user.id });
 
   const token = await signToken(user.id);
 
@@ -104,7 +103,7 @@ app.post("/signin", authRateLimit, zValidator("json", SigninBody), async (c) => 
       local: Boolean(user.local),
       plan: user.plan ?? "free",
       renewsAt: user.renews_at ?? null,
-      stats: { tasks: stats.task_count, pomodoros: stats.pomo_count, syncOK: false },
+      stats: { tasks: stats?.task_count ?? 0, pomodoros: stats?.pomo_count ?? 0, syncOK: false },
     },
   });
 });
@@ -113,23 +112,27 @@ app.post("/change-password", authRateLimit, authMiddleware, zValidator("json", C
   const userId = c.get("userId") as string;
   const { current_password, new_password } = c.req.valid("json");
 
-  const user = db.prepare("SELECT password_hash FROM users WHERE id = :id").get({ id: userId }) as Pick<UserRow, "password_hash"> | undefined;
+  const user = await queryOne<Pick<UserRow, "password_hash">>(
+    "SELECT password_hash FROM users WHERE id = :id", { id: userId }
+  );
   if (!user) return httpError(c, 404, "NOT_FOUND", "Not found");
 
   const ok = await verifyPassword(current_password, user.password_hash);
   if (!ok) return httpError(c, 400, "WRONG_PASSWORD", "Current password is incorrect");
 
   const new_hash = await hashPassword(new_password);
-  db.prepare("UPDATE users SET password_hash = :hash WHERE id = :id").run({ hash: new_hash, id: userId });
+  await execute("UPDATE users SET password_hash = :hash WHERE id = :id", { hash: new_hash, id: userId });
 
   return c.json({ ok: true });
 });
 
-app.post("/signout", authMiddleware, (c) => {
+app.post("/signout", authMiddleware, async (c) => {
   const jti = c.get("jti") as string;
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare("INSERT OR IGNORE INTO revoked_tokens (jti, expires_at) VALUES (:jti, :expires_at)")
-    .run({ jti, expires_at: expiresAt });
+  await execute(
+    "INSERT OR IGNORE INTO revoked_tokens (jti, expires_at) VALUES (:jti, :expires_at)",
+    { jti, expires_at: expiresAt }
+  );
   return c.json({ ok: true });
 });
 
