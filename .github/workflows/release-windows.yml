@@ -1,15 +1,14 @@
 name: Release (Windows)
 
-# Triggered manually. Tag is auto-generated as v{YYYY.MM.DD}-{sha} to comply
-# with repository tag-creation rules. An optional version_label (e.g. "v1.0.1")
-# is embedded in the release name for human readability.
+# Triggered manually. Supply a version like "1.2.3" or "v1.2.3".
+# The version is written into package.json before packaging so the
+# installer filename becomes LumoTask-Setup-{version}.exe.
 on:
   workflow_dispatch:
     inputs:
       version_label:
-        description: 'Version label shown in release name, e.g. v1.0.1 (optional)'
-        required: false
-        default: ''
+        description: 'Release version, e.g. 1.2.3 or v1.2.3 (required)'
+        required: true
 
 # GITHUB_TOKEN needs write access to create releases and tags.
 permissions:
@@ -45,6 +44,16 @@ jobs:
         run: npm run build
         working-directory: web-app
 
+      # ── Stamp version into package.json ───────────────────────────────────
+      - name: Set version in package.json
+        shell: pwsh
+        run: |
+          $ver = "${{ github.event.inputs.version_label }}".TrimStart("v")
+          $json = Get-Content "web-app/package.json" -Raw | ConvertFrom-Json
+          $json.version = $ver
+          $json | ConvertTo-Json -Depth 100 | Set-Content "web-app/package.json"
+          Write-Host "Package version set to $ver"
+
       # ── Electron packaging ─────────────────────────────────────────────────
       - name: Package Windows installer (NSIS x64)
         run: npx electron-builder --win --x64 --publish never
@@ -60,16 +69,14 @@ jobs:
           "path=$($file.FullName)"  | Out-File -Append $env:GITHUB_OUTPUT
           "name=$($file.Name)"      | Out-File -Append $env:GITHUB_OUTPUT
 
-      # ── Generate release tag (v{YYYY.MM.DD}-{short-sha}) ──────────────────
+      # ── Generate release tag and name ─────────────────────────────────────
       - name: Generate release tag and name
         id: release-meta
         shell: pwsh
         run: |
-          $date  = Get-Date -Format "yyyy.MM.dd"
-          $sha   = "${{ github.sha }}".Substring(0, 7)
-          $tag   = "v${date}-${sha}"
-          $label = "${{ github.event.inputs.version_label }}".Trim()
-          $name  = if ($label) { "Lumo Task ${label} (${tag})" } else { "Lumo Task ${tag}" }
+          $ver  = "${{ github.event.inputs.version_label }}".Trim()
+          $tag  = if ($ver.StartsWith("v")) { $ver } else { "v${ver}" }
+          $name = "Lumo Task ${tag}"
           "tag=$tag"   | Out-File -Append $env:GITHUB_OUTPUT
           "name=$name" | Out-File -Append $env:GITHUB_OUTPUT
 
