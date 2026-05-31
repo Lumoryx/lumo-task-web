@@ -363,7 +363,11 @@ function MembersGroup({
                 <button
                   className="text-[11px] text-text-muted hover:text-status-urgent transition-colors"
                   style={{ "--hover-color": "var(--status-urgent)" } as React.CSSProperties}
-                  onClick={() => onRemove(person.id)}
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    try { await onRemove(person.id); } finally { setBusy(false); }
+                  }}
                 >
                   {t("settings.members.delete")}
                 </button>
@@ -416,6 +420,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   const [showKey, setShowKey] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "ok" | "fail" | "loading">("idle");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const currentCfg = providerConfigs[viewProvider];
   const hasKey = currentCfg?.hasKey || apiKey.trim().length > 0;
@@ -432,6 +437,8 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   }
 
   async function handleSave() {
+    if (saving) return;
+    setSaving(true);
     try {
       await saveConfig({
         provider: viewProvider,
@@ -445,6 +452,8 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
       setTimeout(() => setSaved(false), 2000);
     } catch {
       // toast already fired inside saveConfig
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -630,6 +639,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           <div style={{ flex: 1 }} />
           <button
             onClick={handleSave}
+            disabled={saving}
             className="btn btn-primary"
             style={{ height: 32, fontSize: 12 }}
           >
@@ -846,7 +856,9 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    api.storageInfo().then((d) => setInfo({ dbPath: d.dbPath, dbSize: d.dbSize })).catch(() => {});
+    api.storageInfo()
+      .then((d) => setInfo({ dbPath: d.dbPath, dbSize: d.dbSize }))
+      .catch(() => setInfo(null));
   }, []);
 
   async function handleCopyPath() {
@@ -865,12 +877,15 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
     const ok = window.confirm(t("settings.storage.confirm") + "\n\n" + newDir);
     if (!ok) return;
     setMoving(true);
-    const result = await window.electronAPI.moveDbTo(newDir);
-    if (!result.ok) {
+    try {
+      const result = await window.electronAPI.moveDbTo(newDir);
+      if (!result.ok) {
+        toast.error(t("settings.storage.move.error"), result.error ?? t("error.unknown"));
+      }
+      // On success the app will relaunch — no further action needed
+    } finally {
       setMoving(false);
-      alert(result.error ?? "Failed to move database.");
     }
-    // On success the app will relaunch — no further action needed
   }
 
   function handleReveal() {

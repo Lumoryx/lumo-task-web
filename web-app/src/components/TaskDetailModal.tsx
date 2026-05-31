@@ -194,8 +194,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
         </div>
 
         {/* Subtasks */}
-        {(subtasks.length > 0 || true) && (
-          <div className="mx-5 mb-4">
+        <div className="mx-5 mb-4">
             {/* Header */}
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--text-faint)" }}>
@@ -276,7 +275,6 @@ export function TaskDetailModal({ task, onClose }: Props) {
               )}
             </div>
           </div>
-        )}
 
         {/* Next step */}
         {liveTask.next_step && (

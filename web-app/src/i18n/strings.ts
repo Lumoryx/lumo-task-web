@@ -92,6 +92,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.storage.confirm": "Copy lumo.db to this folder and restart Lumo?",
     "settings.storage.web.note": "Running as a web app. Set the LUMO_DB_PATH environment variable on the server to customize the database location.",
     "settings.storage.loading": "Loading…",
+    "settings.storage.move.error": "Failed to move database",
+    "error.unknown": "An unexpected error occurred",
 
     "matrix.aiClassify": "AI classify",
     "matrix.aiClassify.title": "Let me sort these for you",
@@ -549,6 +551,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.storage.confirm": "将 lumo.db 复制到此文件夹并重启 Lumo？",
     "settings.storage.web.note": "正在以 Web 模式运行。通过在服务器上设置 LUMO_DB_PATH 环境变量来自定义数据库位置。",
     "settings.storage.loading": "加载中…",
+    "settings.storage.move.error": "数据库迁移失败",
+    "error.unknown": "发生了意外错误",
 
     "matrix.aiClassify": "AI 分类",
     "matrix.aiClassify.title": "我来帮你分类",
