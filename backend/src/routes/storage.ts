@@ -1,18 +1,10 @@
-/**
- * GET /v1/storage/info — returns the database file path and size.
- *
- * Used by the frontend Storage settings panel to display where Lumo keeps its
- * data and let users see the current location before changing it via the
- * Electron native folder picker.
- */
-
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
 import { getSyncStatus, triggerSync, stopSync, initSync } from "../lib/sync.js";
-import { db } from "../db/client.js";
+import { queryOne, execute } from "../db/client.js";
 import type { Variables } from "../env.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -38,9 +30,12 @@ app.get("/info", (c) => {
 });
 
 // GET /storage/remote-status
-app.get("/remote-status", (c) => {
+app.get("/remote-status", async (c) => {
   const userId = c.get("userId") as string;
-  const row = db.prepare("SELECT remote_url FROM settings WHERE user_id = :uid").get({ uid: userId }) as any;
+  const row = await queryOne<{ remote_url: string | null }>(
+    "SELECT remote_url FROM settings WHERE user_id = :uid",
+    { uid: userId }
+  );
   const { status, error, lastSyncAt } = getSyncStatus();
   return c.json({
     configured: Boolean(row?.remote_url || (process.env.LUMO_REMOTE_URL ?? "").trim()),
@@ -60,14 +55,14 @@ app.patch("/remote-config", zValidator("json", RemoteConfigBody), async (c) => {
   const userId = c.get("userId") as string;
   const { remoteUrl, remoteToken } = c.req.valid("json");
 
-  const existing = db.prepare("SELECT user_id FROM settings WHERE user_id = :uid").get({ uid: userId });
+  const existing = await queryOne("SELECT user_id FROM settings WHERE user_id = :uid", { uid: userId });
   if (!existing) return httpError(c, 404, "NOT_FOUND", "Settings not found");
 
-  db.prepare(`
-    UPDATE settings SET remote_url = :url, remote_token = :token WHERE user_id = :uid
-  `).run({ url: remoteUrl ?? null, token: remoteToken ?? null, uid: userId });
+  await execute(
+    "UPDATE settings SET remote_url = :url, remote_token = :token WHERE user_id = :uid",
+    { url: remoteUrl ?? null, token: remoteToken ?? null, uid: userId }
+  );
 
-  // Restart sync with new credentials
   stopSync();
   if (remoteUrl) await initSync();
 

@@ -32,8 +32,8 @@ app.get("/", authMiddleware, async (c) => {
     stats: {
       tasks: taskStats?.task_count ?? 0,
       pomodoros: taskStats?.pomo_count ?? 0,
-      syncOK: false,
-    stats: { tasks: taskCount, pomodoros: pomoCount, syncOK: getSyncStatus().status === "ok" },
+      syncOK: getSyncStatus().status === "ok",
+    },
   });
 });
 
