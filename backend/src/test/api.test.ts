@@ -875,7 +875,7 @@ describe("POST /v1/ai/classify", () => {
       body: { title: { en: "Classify me" }, quadrant: "unclassified" },
     });
 
-    const { status, body } = await req("POST", "/v1/ai/classify", { token: demoToken });
+    const { status, body } = await req("POST", "/v1/ai/classify", { token: demoToken, body: {} });
     assert.equal(status, 200);
     assert.ok(Array.isArray(body.suggestions), "suggestions should be an array");
     assert.ok(body.suggestions.length >= 1, "at least one suggestion expected");
@@ -896,7 +896,7 @@ describe("POST /v1/ai/classify", () => {
   test("200 → returns empty array when no unclassified tasks", async () => {
     // After cleanup, no unclassified tasks should remain for demo user
     // (Classify any remaining ones first)
-    const { body } = await req("POST", "/v1/ai/classify", { token: demoToken });
+    const { body } = await req("POST", "/v1/ai/classify", { token: demoToken, body: {} });
     assert.equal(typeof body.suggestions, "object");
     assert.ok(Array.isArray(body.suggestions));
   });
@@ -913,7 +913,7 @@ describe("POST /v1/ai/recommend", () => {
     const { body: regBody } = await req("POST", "/v1/auth/register", {
       body: { email: "aitest@example.com", password: "password123", name: "AI Test" },
     });
-    const { body } = await req("POST", "/v1/ai/recommend", { token: regBody.token });
+    const { body } = await req("POST", "/v1/ai/recommend", { token: regBody.token, body: {} });
     assert.equal(body.task, null);
   });
 
@@ -924,7 +924,7 @@ describe("POST /v1/ai/recommend", () => {
       body: { title: { en: "Priority task" }, quadrant: "Q1", today: true },
     });
 
-    const { status, body } = await req("POST", "/v1/ai/recommend", { token: demoToken });
+    const { status, body } = await req("POST", "/v1/ai/recommend", { token: demoToken, body: {} });
     assert.equal(status, 200);
     assert.ok(body.task !== null, "should return a task");
     assert.equal(body.task.id, task.id);
