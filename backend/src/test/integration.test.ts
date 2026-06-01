@@ -267,15 +267,15 @@ describe("Task CRUD and Eisenhower matrix", () => {
     assert.equal(body.id, task.id);
   });
 
-  test("update task title and notes", async () => {
+  test("update task title and desc", async () => {
     const task = created[1];
     const { status, body } = await api("PATCH", `/v1/tasks/${task.id}`, {
       token: aliceToken,
-      body: { title: { en: "Updated title", zh: "更新的标题" }, notes: "Updated notes" },
+      body: { title: { en: "Updated title", zh: "更新的标题" }, desc: { en: "Updated desc" } },
     });
     assert.equal(status, 200);
     assert.equal(body.title.en, "Updated title");
-    assert.equal(body.notes, "Updated notes");
+    assert.equal(body.desc?.en, "Updated desc");
   });
 
   test("PATCH non-existent task → 404", async () => {
@@ -298,14 +298,14 @@ describe("Task CRUD and Eisenhower matrix", () => {
     assert.equal(gs, 404);
   });
 
-  test("create task with deadline and pomos_total", async () => {
-    const deadline = new Date(Date.now() + 86400 * 1000).toISOString().slice(0, 10);
+  test("create task with due date and pomos_total", async () => {
+    const due = new Date(Date.now() + 86400 * 1000).toISOString().slice(0, 10);
     const { status, body } = await api("POST", "/v1/tasks", {
       token: aliceToken,
-      body: { title: { en: "Deadline task" }, quadrant: "Q1", deadline, pomos_total: 4 },
+      body: { title: { en: "Due date task" }, quadrant: "Q1", due, pomos_total: 4 },
     });
     assert.equal(status, 201);
-    assert.equal(body.deadline, deadline);
+    assert.equal(body.due, due);
     assert.equal(body.pomos_total, 4);
     assert.equal(body.pomos_done, 0);
     created.push(body);
@@ -345,17 +345,19 @@ describe("Today list management", () => {
     assert.equal(body.today, true);
   });
 
-  test("GET /v1/tasks?today=1 returns the task", async () => {
-    const { status, body } = await api("GET", "/v1/tasks?today=1", { token: aliceToken });
+  test("GET /v1/tasks includes the today-flagged task", async () => {
+    const { status, body } = await api("GET", "/v1/tasks", { token: aliceToken });
     assert.equal(status, 200);
     assert.ok(Array.isArray(body));
-    assert.ok(body.some((t: any) => t.id === taskId), "today task missing from today list");
+    const t = body.find((t: any) => t.id === taskId);
+    assert.ok(t, "today task missing from task list");
+    assert.equal(t.today, true, "task should have today=true");
   });
 
-  test("PATCH today=false removes from today list", async () => {
+  test("PATCH today=false persists on the task", async () => {
     await api("PATCH", `/v1/tasks/${taskId}`, { token: aliceToken, body: { today: false } });
-    const { body: tasks } = await api("GET", "/v1/tasks?today=1", { token: aliceToken });
-    assert.ok(!tasks.some((t: any) => t.id === taskId), "task should be removed from today");
+    const { body: task } = await api("GET", `/v1/tasks/${taskId}`, { token: aliceToken });
+    assert.equal(task.today, false, "task should have today=false after patch");
   });
 });
 
@@ -465,8 +467,9 @@ describe("Task complete → reopen lifecycle", () => {
     const { body: entries } = await api("GET", "/v1/completed", { token: aliceToken });
     const entry = entries.find((e: any) => e.id === completedEntryId);
     assert.ok(entry, "entry not found");
-    assert.ok(entry.completed_at, "completed_at missing");
-    assert.ok(entry.task_title, "task_title missing");
+    assert.ok(entry.completedAt, "completedAt missing");
+    assert.ok(entry.title, "title missing");
+    assert.ok(entry.title.en, "title.en missing");
   });
 
   test("uncomplete task → 200, completed=false, today=true", async () => {
@@ -778,7 +781,7 @@ describe("Multi-user data isolation", () => {
     // We verify by checking alice can still see her entry
     const { body: aliceCompleted } = await api("GET", "/v1/completed", { token: aliceToken });
     const aliceEntry = aliceCompleted.find((e: any) =>
-      e.task_title?.en === "Alice private task" || e.task_title === "Alice private task",
+      e.title?.en === "Alice private task",
     );
     assert.ok(aliceEntry, "alice should see her own completed entry");
 
