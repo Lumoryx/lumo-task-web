@@ -155,12 +155,21 @@ async function startBackend() {
 
   const syncCfg = getSyncConfig();
 
-  log(`[main] Starting backend on port ${apiPort}, db=${dbPath}`);
+  // On Windows, backslashes in file paths break libsql's "file:" URL scheme.
+  // Normalise to forward slashes for cross-platform SQLite URLs.
+  const dbPathNormalised = dbPath.replace(/\\/g, "/");
+
+  log(`[main] Starting backend on port ${apiPort}, db=${dbPathNormalised}`);
   const env = {
     ...process.env,
     LUMO_PORT: String(apiPort),
-    LUMO_DB_PATH: dbPath,
+    LUMO_DB_PATH: dbPathNormalised,
     LUMO_JWT_SECRET: jwtSecret,
+    // In packaged builds, @libsql/* native modules live in extraResources.
+    // NODE_PATH lets the forked bundle resolve them at runtime.
+    ...(app.isPackaged
+      ? { NODE_PATH: path.join(process.resourcesPath, "backend", "node_modules") }
+      : {}),
     ...(syncCfg.enabled && syncCfg.url && syncCfg.token
       ? { TURSO_SYNC_URL: syncCfg.url, TURSO_SYNC_TOKEN: syncCfg.token }
       : {}),
@@ -210,7 +219,9 @@ async function startBackend() {
   }
 
   try {
-    await waitForPort(apiPort, 15000);
+    // Allow more time on Windows where process startup can be slower.
+    const startupTimeout = process.platform === "win32" ? 30000 : 15000;
+    await waitForPort(apiPort, startupTimeout);
     log(`[main] Backend ready on port ${apiPort}`);
   } catch (err) {
     log(`[main] ERROR: Backend did not become ready — ${err?.message ?? err}`);
@@ -356,12 +367,32 @@ app.whenReady().then(async () => {
   log(`[main] App ready — version ${app.getVersion()}, userData=${app.getPath("userData")}`);
   log(`[main] Log file: ${logFile}`);
 
+  let backendReady = false;
   try {
     await startBackend();
+    backendReady = true;
   } catch (err) {
     log(`[main] FATAL: Failed to start backend — ${err?.stack ?? err}`);
+    const { response } = await dialog.showMessageBox({
+      type: "error",
+      title: "Lumo Task — Backend Error",
+      message: "The backend service failed to start.",
+      detail:
+        `Port ${apiPort} did not become ready.\n\n` +
+        `Log file: ${logFile}\n\n` +
+        "Please check the log file for details, then restart the app. " +
+        "If the problem persists, reinstall Lumo Task.",
+      buttons: ["Quit", "Open Log Folder"],
+      defaultId: 0,
+    });
+    if (response === 1) {
+      shell.showItemInFolder(logFile);
+    }
+    app.quit();
+    return;
   }
-  createWindow();
+
+  if (backendReady) createWindow();
 });
 
 app.on("window-all-closed", () => {
