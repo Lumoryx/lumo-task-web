@@ -15,7 +15,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const KEEP = 15;
+            const KEEP = 10;
 
             // Fetch all releases sorted by published_at descending (GitHub default)
             const releases = await github.paginate(github.rest.repos.listReleases, {
