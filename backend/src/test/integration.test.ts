@@ -286,13 +286,13 @@ describe("Task CRUD and Eisenhower matrix", () => {
     assert.equal(status, 404);
   });
 
-  test("DELETE task → 200, then GET returns 404", async () => {
+  test("DELETE task → 204, then GET returns 404", async () => {
     const { body: task } = await api("POST", "/v1/tasks", {
       token: aliceToken,
       body: { title: { en: "To delete" }, quadrant: "Q4" },
     });
     const { status: ds } = await api("DELETE", `/v1/tasks/${task.id}`, { token: aliceToken });
-    assert.equal(ds, 200);
+    assert.equal(ds, 204);
 
     const { status: gs } = await api("GET", `/v1/tasks/${task.id}`, { token: aliceToken });
     assert.equal(gs, 404);
@@ -472,16 +472,15 @@ describe("Task complete → reopen lifecycle", () => {
     assert.ok(entry.title.en, "title.en missing");
   });
 
-  test("uncomplete task → 200, completed=false, today=true", async () => {
+  test("uncomplete task → 200, response is task with completed=false", async () => {
+    // /uncomplete returns the full task object (not { ok: true }).
+    // It only clears completed; it does NOT restore today (use /reopen for that).
     const { status, body } = await api("POST", `/v1/tasks/${taskId}/uncomplete`, {
       token: aliceToken,
     });
     assert.equal(status, 200);
-    assert.equal(body.ok, true);
-
-    const { body: task } = await api("GET", `/v1/tasks/${taskId}`, { token: aliceToken });
-    assert.equal(task.completed, false);
-    assert.equal(task.today, true, "uncompleted task should return to today");
+    assert.equal(body.completed, false, "task should be active again");
+    assert.equal(body.today, false, "uncomplete does not restore today flag");
   });
 
   test("reopen via completed log → task active again", async () => {
