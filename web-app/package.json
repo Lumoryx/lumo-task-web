@@ -75,6 +75,16 @@
         "from": "../backend/node_modules/libsql",
         "to": "backend/node_modules/libsql",
         "filter": ["**/*"]
+      },
+      {
+        "from": "../backend/node_modules/js-base64",
+        "to": "backend/node_modules/js-base64",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../backend/node_modules/promise-limit",
+        "to": "backend/node_modules/promise-limit",
+        "filter": ["**/*"]
       }
     ],
     "asarUnpack": [
@@ -95,7 +105,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": null,
-      "uninstallerIcon": null
+      "uninstallerIcon": null,
+      "include": "build/installer.nsh"
     }
   }
 }
