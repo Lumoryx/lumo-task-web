@@ -105,7 +105,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": null,
-      "uninstallerIcon": null
+      "uninstallerIcon": null,
+      "include": "build/installer.nsh"
     }
   }
 }
