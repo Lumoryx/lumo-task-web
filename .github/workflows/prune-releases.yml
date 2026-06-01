@@ -6,7 +6,7 @@ on:
 
 jobs:
   prune:
-    name: Keep latest 15 releases
+    name: Keep latest 10 releases
     runs-on: ubuntu-latest
     permissions:
       contents: write
