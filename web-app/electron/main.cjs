@@ -331,8 +331,8 @@ function createWindow() {
     if (typeof cfg !== "object" || cfg === null) return { ok: false, error: "Invalid config" };
     saveSyncConfig({
       enabled: !!cfg.enabled,
-      url: typeof cfg.url === "string" ? cfg.url.trim() : "",
-      token: typeof cfg.token === "string" ? cfg.token.trim() : "",
+      url: typeof cfg.url === "string" ? cfg.url.trim().slice(0, 512) : "",
+      token: typeof cfg.token === "string" ? cfg.token.trim().slice(0, 512) : "",
     });
     app.relaunch();
     app.exit(0);
