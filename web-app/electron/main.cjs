@@ -4,6 +4,7 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const crypto = require("crypto");
 const net = require("net");
+const os = require("os");
 
 // ── File logger ───────────────────────────────────────────────────────────────
 
@@ -287,6 +288,12 @@ function createWindow() {
    */
   ipcMain.handle("db:moveTo", async (_event, newDir) => {
     if (!newDir || typeof newDir !== "string") return { ok: false, error: "Invalid path" };
+    // Reject network paths (\\server\share, //server/share) and anything
+    // that doesn't resolve to the user's home directory or userData.
+    const resolved = path.resolve(newDir);
+    const allowedRoots = [os.homedir(), app.getPath("userData"), app.getPath("documents")];
+    const isAllowed = allowedRoots.some((r) => resolved.startsWith(r));
+    if (!isAllowed) return { ok: false, error: "Path must be within your home directory" };
     const currentDbPath = getDbPath();
     const newDbPath = path.join(newDir, "lumo.db");
 
