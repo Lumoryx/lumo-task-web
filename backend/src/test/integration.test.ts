@@ -22,44 +22,41 @@
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createServer, type Server } from "node:http";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import type { AddressInfo } from "node:net";
 import { rmSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { runMigrations } from "../db/migrate.js";
 import { app } from "../app.js";
 
 // ── Server lifecycle ──────────────────────────────────────────────────────────
+// LUMO_DB_PATH is set via --env-file before module load so the db client picks
+// it up at import time.  We just capture the value here for cleanup.
 
+const DB_PATH = process.env.LUMO_DB_PATH ?? "";
 let BASE_URL = "";
 let server: ReturnType<typeof serve> | null = null;
-const dbPath = join(tmpdir(), `lumo-integration-${Date.now()}.db`);
-
-function getPort(s: Server): number {
-  const addr = s.address();
-  if (!addr || typeof addr === "string") throw new Error("Cannot determine server port");
-  return addr.port;
-}
 
 before(async () => {
-  // Point the db client at a real temp file before migrations run.
-  process.env.LUMO_DB_PATH = dbPath;
-  process.env.LUMO_DISABLE_RATE_LIMIT = "1";
-
   await runMigrations();
   // No ensureDefaultUser — integration tests create their own users.
 
-  const nodeServer = serve({ fetch: app.fetch, port: 0 }) as unknown as Server;
-  await new Promise<void>((resolve) => nodeServer.once("listening", resolve));
-
-  server = nodeServer as any;
-  BASE_URL = `http://127.0.0.1:${getPort(nodeServer)}`;
+  // Use @hono/node-server's listeningListener callback (second argument) to
+  // get the actual port after the OS assigns one (port: 0).
+  await new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("Server did not start within 10 s")), 10_000);
+    server = serve({ fetch: app.fetch, port: 0 }, (info: AddressInfo) => {
+      clearTimeout(t);
+      BASE_URL = `http://127.0.0.1:${info.port}`;
+      resolve();
+    });
+  });
 });
 
 after(() => {
   try { (server as any)?.close?.(); } catch {}
-  try { rmSync(dbPath); } catch {}
+  if (DB_PATH) {
+    try { rmSync(DB_PATH); } catch {}
+  }
 });
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
