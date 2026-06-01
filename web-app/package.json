@@ -65,7 +65,21 @@
       {
         "from": "../backend/dist/bundle.cjs",
         "to": "backend/bundle.cjs"
+      },
+      {
+        "from": "../backend/node_modules/@libsql",
+        "to": "backend/node_modules/@libsql",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../backend/node_modules/libsql",
+        "to": "backend/node_modules/libsql",
+        "filter": ["**/*"]
       }
+    ],
+    "asarUnpack": [
+      "resources/backend/node_modules/**/*.node",
+      "resources/backend/node_modules/**/*.wasm"
     ],
     "win": {
       "target": [
