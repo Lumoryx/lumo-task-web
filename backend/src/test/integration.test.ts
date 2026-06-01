@@ -562,7 +562,8 @@ describe("Settings persistence", () => {
     const { status, body } = await api("GET", "/v1/settings", { token: aliceToken });
     assert.equal(status, 200);
     assert.ok("locale" in body, "locale missing");
-    assert.ok("theme" in body, "theme missing");
+    assert.ok("accent" in body, "accent missing");
+    assert.ok("density" in body, "density missing");
   });
 
   test("PATCH locale=zh → persists across requests", async () => {
