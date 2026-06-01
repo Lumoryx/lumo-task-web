@@ -77,13 +77,13 @@
         "filter": ["**/*"]
       },
       {
-        "from": "../backend/node_modules/js-base64",
-        "to": "backend/node_modules/js-base64",
+        "from": "../backend/node_modules/@neon-rs",
+        "to": "backend/node_modules/@neon-rs",
         "filter": ["**/*"]
       },
       {
-        "from": "../backend/node_modules/promise-limit",
-        "to": "backend/node_modules/promise-limit",
+        "from": "../backend/node_modules/detect-libc",
+        "to": "backend/node_modules/detect-libc",
         "filter": ["**/*"]
       }
     ],
