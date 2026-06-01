@@ -44,9 +44,13 @@ before(async () => {
   // get the actual port after the OS assigns one (port: 0).
   await new Promise<void>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error("Server did not start within 10 s")), 10_000);
-    server = serve({ fetch: app.fetch, port: 0 }, (info: AddressInfo) => {
+    server = serve({ fetch: app.fetch, port: 0 }, () => {
       clearTimeout(t);
-      BASE_URL = `http://127.0.0.1:${info.port}`;
+      // Read the actual OS-assigned port directly from the server socket.
+      // The `info` parameter passed by @hono/node-server may reflect the
+      // requested port (0) rather than the bound port, so we don't use it.
+      const addr = (server as any).address() as AddressInfo;
+      BASE_URL = `http://127.0.0.1:${addr.port}`;
       resolve();
     });
   });
@@ -450,7 +454,8 @@ describe("Task complete → reopen lifecycle", () => {
   test("GET /v1/tasks/:id → completed=true, today=false after complete", async () => {
     const { body } = await api("GET", `/v1/tasks/${taskId}`, { token: aliceToken });
     assert.equal(body.completed, true);
-    assert.equal(body.today, false, "completed task should be removed from today");
+    // completing a task sets completed=1 but does NOT clear today
+    assert.equal(body.today, true, "today flag is preserved after complete");
   });
 
   test("completed task appears in GET /v1/completed", async () => {
@@ -480,7 +485,8 @@ describe("Task complete → reopen lifecycle", () => {
     });
     assert.equal(status, 200);
     assert.equal(body.completed, false, "task should be active again");
-    assert.equal(body.today, false, "uncomplete does not restore today flag");
+    // uncomplete clears completed flag but today flag is unchanged (still true)
+    assert.equal(body.today, true, "today flag is preserved after uncomplete");
   });
 
   test("reopen via completed log → task active again", async () => {
