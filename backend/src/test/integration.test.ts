@@ -192,13 +192,25 @@ describe("Auth lifecycle", () => {
     aliceToken = rb.token;
   });
 
-  test("sign out → 200 { ok: true }", async () => {
-    const { status, body } = await api("POST", "/v1/auth/signout", { token: aliceToken });
+  test("sign out → 200 { ok: true }, token is revoked", async () => {
+    // Sign in with a SEPARATE session to test sign-out without revoking aliceToken,
+    // which is needed by subsequent test suites.
+    const { body: rb } = await api("POST", "/v1/auth/signin", {
+      body: { email: "alice@lumo.test", password: "NewSecret99!" },
+    });
+    const tempToken = rb.token;
+
+    const { status, body } = await api("POST", "/v1/auth/signout", { token: tempToken });
     assert.equal(status, 200);
     assert.equal(body.ok, true);
 
-    // Token is still valid for stateless JWTs (signout is advisory), just verify
-    // the endpoint returns the right shape.
+    // The signed-out token should now be rejected (added to revoked_tokens).
+    const { status: s } = await api("GET", "/v1/user", { token: tempToken });
+    assert.equal(s, 401, "revoked token should be rejected");
+
+    // aliceToken itself is still valid — subsequent suites depend on it.
+    const { status: s2 } = await api("GET", "/v1/user", { token: aliceToken });
+    assert.equal(s2, 200, "aliceToken should still be valid");
   });
 });
 
@@ -562,15 +574,15 @@ describe("Settings persistence", () => {
     assert.equal(body.locale, "zh", "locale should persist");
   });
 
-  test("PATCH theme → persists", async () => {
+  test("PATCH accent + locale together → both persist", async () => {
     const { status } = await api("PATCH", "/v1/settings", {
       token: aliceToken,
-      body: { theme: "dark", locale: "en" },
+      body: { accent: "cyan", locale: "en" },
     });
     assert.equal(status, 200);
 
     const { body } = await api("GET", "/v1/settings", { token: aliceToken });
-    assert.equal(body.theme, "dark");
+    assert.equal(body.accent, "cyan");
     assert.equal(body.locale, "en");
   });
 
