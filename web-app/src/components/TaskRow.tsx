@@ -111,7 +111,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
         >
           {/* Start focus — labeled accent pill */}
           <button
-            onClick={(e) => { e.stopPropagation(); navigate("/focus"); }}
+            onClick={(e) => { e.stopPropagation(); navigate("/focus", { state: { taskId: task.id } }); }}
             title={t("row.startfocus")}
             aria-label={t("row.startfocus")}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors"

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { IconArrowLeft, IconCheck, IconPause, IconPlay } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
@@ -9,7 +9,7 @@ import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 
-const TOTAL = 25 * 60;
+const DEFAULT_DURATION = 25 * 60;
 
 /**
  * Pomodoro focus session — full-bleed timer, top strip with the current
@@ -17,20 +17,31 @@ const TOTAL = 25 * 60;
  */
 export function FocusPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
 
-  // Priority: Q1-today → any-today → Q1-any → any incomplete
-  const task =
-    tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
-    tasks.find((x) => x.today && !x.completed) ??
-    tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
-    tasks.find((x) => !x.completed);
+  // Use the task the user explicitly started focus on (passed via router state).
+  // Fall back to priority order only when navigating to /focus directly.
+  const requestedId = (location.state as { taskId?: string } | null)?.taskId;
+  const task = requestedId
+    ? (tasks.find((x) => x.id === requestedId && !x.completed) ??
+        tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => x.today && !x.completed) ??
+        tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => !x.completed))
+    : (tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => x.today && !x.completed) ??
+        tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => !x.completed));
 
   const isFallbackTask = !!task && !task.today;
+
+  // Use the task's own duration (minutes → seconds). Fall back to 25 min.
+  const TOTAL = task && task.duration > 0 ? task.duration * 60 : DEFAULT_DURATION;
 
   const [remaining, setRemaining] = useState(TOTAL);
   const [paused, setPaused] = useState(false);
@@ -38,10 +49,11 @@ export function FocusPage() {
   const [petBounce, setPetBounce] = useState(false);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const workerRef = useRef<Worker | null>(null);
-  // Keep a stable ref to locale so the worker message handler always sees the latest value
-  // without needing locale in the effect's dependency array.
+  // Stable refs so effects with empty deps always see latest values.
   const localeRef = useRef(locale);
   localeRef.current = locale;
+  const totalRef = useRef(TOTAL);
+  totalRef.current = TOTAL;
 
   // Boot the Web Worker timer on mount; tear it down on unmount.
   useEffect(() => {
@@ -74,7 +86,7 @@ export function FocusPage() {
       }
     };
 
-    worker.postMessage({ type: "start", duration: TOTAL });
+    worker.postMessage({ type: "start", duration: totalRef.current });
 
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission();
