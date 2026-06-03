@@ -366,7 +366,7 @@ function MatrixTaskCard({ task }: { task: Task }) {
         >
           <button
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); navigate("/focus"); }}
+            onClick={(e) => { e.stopPropagation(); navigate("/focus", { state: { taskId: task.id } }); }}
             title={t("row.startfocus")}
             aria-label={t("row.startfocus")}
             className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors"

@@ -300,7 +300,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
         <footer className="flex items-center gap-2 px-5 py-3">
           <button
             className="btn btn-primary flex items-center gap-2"
-            onClick={() => { onClose(); navigate("/focus"); }}
+            onClick={() => { onClose(); navigate("/focus", { state: { taskId: task.id } }); }}
           >
             {t("detail.start")}
             <IconArrowRight size={13} />
