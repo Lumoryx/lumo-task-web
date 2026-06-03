@@ -560,7 +560,7 @@ export function FocusPage() {
             </span>
             <span>
               {locale === "zh" ? "实际 " : "Actual "}
-              {fmtMMSS(TOTAL - remaining)}
+              {fmtMMSS(taskDuration - remaining)}
             </span>
           </div>
         </div>
