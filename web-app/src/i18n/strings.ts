@@ -46,6 +46,7 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "focus.title": "Focus",
     "focus.sub": "One thing. 25 minutes.",
+    "focus.sub.prefix": "One thing.",
     "focus.complete": "Mark complete",
     "focus.pause": "Pause",
     "focus.resume": "Resume",
@@ -523,6 +524,7 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "focus.title": "专注",
     "focus.sub": "一件事。25 分钟。",
+    "focus.sub.prefix": "一件事。",
     "focus.complete": "完成任务",
     "focus.pause": "暂停",
     "focus.resume": "继续",

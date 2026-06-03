@@ -40,22 +40,21 @@ export function FocusPage() {
 
   const isFallbackTask = !!task && !task.today;
 
-  // Use the task's own duration (minutes → seconds). Fall back to 25 min.
-  const TOTAL = task && task.duration > 0 ? task.duration * 60 : DEFAULT_DURATION;
+  // Task duration in seconds — only computed once the task is known.
+  const taskDuration = task && task.duration > 0 ? task.duration * 60 : DEFAULT_DURATION;
 
-  const [remaining, setRemaining] = useState(TOTAL);
+  const [remaining, setRemaining] = useState(DEFAULT_DURATION);
   const [paused, setPaused] = useState(false);
   const [compact, setCompact] = useState(false);
   const [petBounce, setPetBounce] = useState(false);
+  // Track whether the timer has been started with the correct task duration.
+  const timerStartedForRef = useRef<string | null>(null);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const workerRef = useRef<Worker | null>(null);
-  // Stable refs so effects with empty deps always see latest values.
   const localeRef = useRef(locale);
   localeRef.current = locale;
-  const totalRef = useRef(TOTAL);
-  totalRef.current = TOTAL;
 
-  // Boot the Web Worker timer on mount; tear it down on unmount.
+  // ── Create worker once on mount; tear it down on unmount ─────────────────
   useEffect(() => {
     const worker = new Worker("/timer-worker.js");
     workerRef.current = worker;
@@ -73,10 +72,8 @@ export function FocusPage() {
             icon: "/favicon.ico",
           });
         }
-        // Bounce the compact pet
         setPetBounce(true);
         setTimeout(() => setPetBounce(false), 1200);
-        // Check streak milestones
         useTasksStore.getState().fetchAllCompleted().then((entries) => {
           const { currentStreak } = computeAllTimeStats(entries);
           if (currentStreak === 7 || currentStreak === 14 || currentStreak === 30) {
@@ -86,8 +83,6 @@ export function FocusPage() {
       }
     };
 
-    worker.postMessage({ type: "start", duration: totalRef.current });
-
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission();
     }
@@ -96,9 +91,22 @@ export function FocusPage() {
       worker.terminate();
       workerRef.current = null;
     };
-  }, []); // intentionally empty: localeRef is a stable ref; worker lifecycle is mount/unmount only
+  }, []);
 
-  // Sync pause/resume state changes to the worker
+  // ── Start/restart timer when the task (and its duration) becomes known ────
+  // This runs after tasks load from the API, ensuring the correct duration.
+  useEffect(() => {
+    if (!task || !workerRef.current) return;
+    // Avoid restarting if we already started for this exact task+duration.
+    const key = `${task.id}:${taskDuration}`;
+    if (timerStartedForRef.current === key) return;
+    timerStartedForRef.current = key;
+
+    setRemaining(taskDuration);
+    workerRef.current.postMessage({ type: "start", duration: taskDuration });
+  }, [task?.id, taskDuration]);
+
+  // ── Sync pause/resume ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!workerRef.current) return;
     workerRef.current.postMessage({ type: paused ? "pause" : "resume" });
@@ -218,7 +226,7 @@ export function FocusPage() {
     );
   }
 
-  const progress = (TOTAL - remaining) / TOTAL;
+  const progress = taskDuration > 0 ? (taskDuration - remaining) / taskDuration : 0;
   const turns = -90 + progress * 360;
 
   async function onComplete() {
@@ -431,7 +439,11 @@ export function FocusPage() {
             )}
           </div>
           <div className="text-[11px] text-text-muted mt-0.5">
-            {task.next_step ? ls(task.next_step) : t("focus.sub")}
+            {task.next_step
+              ? ls(task.next_step)
+              : task.duration > 0
+              ? `${t("focus.sub.prefix")} ${fmtDuration(task.duration, locale)}`
+              : t("focus.sub")}
           </div>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-text-faint">
