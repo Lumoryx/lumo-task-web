@@ -43,10 +43,11 @@ export function FocusPage() {
   // Task duration in seconds — only computed once the task is known.
   const taskDuration = task && task.duration > 0 ? task.duration * 60 : DEFAULT_DURATION;
 
-  const [remaining, setRemaining] = useState(DEFAULT_DURATION);
+  const [remaining, setRemaining] = useState(taskDuration);
   const [paused, setPaused] = useState(false);
   const [compact, setCompact] = useState(false);
   const [petBounce, setPetBounce] = useState(false);
+  const [timerReady, setTimerReady] = useState(false);
   // Track whether the timer has been started with the correct task duration.
   const timerStartedForRef = useRef<string | null>(null);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
@@ -104,6 +105,7 @@ export function FocusPage() {
 
     setRemaining(taskDuration);
     workerRef.current.postMessage({ type: "start", duration: taskDuration });
+    setTimerReady(true);
   }, [task?.id, taskDuration]);
 
   // ── Sync pause/resume ─────────────────────────────────────────────────────
@@ -503,7 +505,7 @@ export function FocusPage() {
               transform="rotate(-90 190 190)"
               style={{
                 filter: "drop-shadow(0 0 8px var(--accent-primary))",
-                transition: "stroke-dashoffset 1s linear",
+                transition: timerReady ? "stroke-dashoffset 1s linear" : "none",
               }}
             />
             <circle
