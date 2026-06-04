@@ -20,11 +20,8 @@ const ACCENT_SWATCHES: Array<{ id: Accent; hex: string; label: string }> = [
   { id: "graphite", hex: "#A0ADB0", label: "Graphite" },
 ];
 
-/**
- * Settings — appearance / language / data reset.
- *
- * Each row uses the same grid pattern: label left, control right.
- */
+type TabId = "appearance" | "language" | "pet" | "members" | "ai" | "integrations" | "storage" | "sync" | "data";
+
 export function SettingsPage() {
   const t = useT();
   const navigate = useNavigate();
@@ -34,127 +31,218 @@ export function SettingsPage() {
   const { people, create: createPerson, update: updatePerson, remove: removePerson } = usePeopleStore();
   const { species, petName, setSpecies, setPetName, visible, toggleVisible, setPos } = usePetStore();
 
+  const [activeTab, setActiveTab] = useState<TabId>("appearance");
+
+  const tabs: Array<{ id: TabId; label: string }> = [
+    { id: "appearance", label: t("settings.appearance") },
+    { id: "language",   label: t("settings.language") },
+    { id: "pet",        label: t("settings.pet") },
+    { id: "members",    label: t("settings.members") },
+    { id: "ai",         label: t("ai.config.title") },
+    { id: "integrations", label: t("settings.integrations") },
+    { id: "storage",    label: t("settings.storage") },
+    { id: "sync",       label: t("settings.sync") },
+    { id: "data",       label: locale === "zh" ? "数据" : "Data" },
+  ];
+
   return (
-    <div className="fade-in px-8 py-8 max-w-[760px] mx-auto">
-      <Group title={t("settings.appearance")}>
-        <Row label={t("settings.accent")}>
-          <div className="flex gap-2">
-            {ACCENT_SWATCHES.map((sw) => (
-              <button
-                key={sw.id}
-                onClick={() => setAccent(sw.id)}
-                title={sw.label}
-                className="flex items-center justify-center rounded-full transition-transform"
-                style={{
-                  width: 28,
-                  height: 28,
-                  background: sw.hex,
-                  outline: accent === sw.id ? "2px solid var(--text-primary)" : "1px solid var(--border-default)",
-                  outlineOffset: 2,
-                  transform: accent === sw.id ? "scale(1.05)" : "scale(1)",
-                }}
-              />
-            ))}
-          </div>
-        </Row>
+    <div className="fade-in flex h-full" style={{ minHeight: 0 }}>
+      {/* ── Left tab nav ─────────────────────────────────────────────── */}
+      <nav
+        className="flex-shrink-0 flex flex-col py-6 px-3 gap-0.5 border-r overflow-y-auto"
+        style={{
+          width: 180,
+          borderColor: "var(--border-default)",
+          background: "var(--bg-deep)",
+        }}
+      >
+        {tabs.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="w-full text-left px-3 py-2 rounded-lg text-[13px] transition-colors"
+              style={{
+                background: active ? "var(--accent-fog)" : "transparent",
+                color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+                fontWeight: active ? 600 : 400,
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
 
-        <Row label={t("settings.density")}>
-          <Segmented<Density>
-            value={density}
-            options={[
-              { value: "comfortable", label: t("settings.density.comfy") },
-              { value: "compact", label: t("settings.density.compact") },
-            ]}
-            onChange={setDensity}
-          />
-        </Row>
+      {/* ── Right content panel ──────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-8 py-8" style={{ minWidth: 0 }}>
+        <div style={{ maxWidth: 640 }}>
 
-        <Row label={t("settings.reducedMotion")}>
-          <Toggle value={reducedMotion} onChange={setReducedMotion} />
-        </Row>
-      </Group>
+          {activeTab === "appearance" && (
+            <Panel title={t("settings.appearance")}>
+              <Row label={t("settings.accent")}>
+                <div className="flex gap-2">
+                  {ACCENT_SWATCHES.map((sw) => (
+                    <button
+                      key={sw.id}
+                      onClick={() => setAccent(sw.id)}
+                      title={sw.label}
+                      className="flex items-center justify-center rounded-full transition-transform"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        background: sw.hex,
+                        outline: accent === sw.id ? "2px solid var(--text-primary)" : "1px solid var(--border-default)",
+                        outlineOffset: 2,
+                        transform: accent === sw.id ? "scale(1.05)" : "scale(1)",
+                      }}
+                    />
+                  ))}
+                </div>
+              </Row>
+              <Row label={t("settings.density")}>
+                <Segmented<Density>
+                  value={density}
+                  options={[
+                    { value: "comfortable", label: t("settings.density.comfy") },
+                    { value: "compact",     label: t("settings.density.compact") },
+                  ]}
+                  onChange={setDensity}
+                />
+              </Row>
+              <Row label={t("settings.reducedMotion")}>
+                <Toggle value={reducedMotion} onChange={setReducedMotion} />
+              </Row>
+            </Panel>
+          )}
 
-      <Group title={t("settings.language")}>
-        <Row label={t("settings.language")}>
-          <Segmented<Locale>
-            value={locale}
-            options={[
-              { value: "en", label: "English" },
-              { value: "zh", label: "中文" },
-            ]}
-            onChange={setLocale}
-          />
-        </Row>
-      </Group>
+          {activeTab === "language" && (
+            <Panel title={t("settings.language")}>
+              <Row label={t("settings.language")}>
+                <Segmented<Locale>
+                  value={locale}
+                  options={[
+                    { value: "en", label: "English" },
+                    { value: "zh", label: "中文" },
+                  ]}
+                  onChange={setLocale}
+                />
+              </Row>
+            </Panel>
+          )}
 
-      <PetGroup
-        species={species}
-        petName={petName}
-        visible={visible}
-        onSpeciesChange={setSpecies}
-        onNameChange={setPetName}
-        onToggleVisible={toggleVisible}
-        onResetPos={() => setPos({ x: window.innerWidth - 110, y: window.innerHeight - 180 })}
-        t={t}
-        locale={locale}
-      />
+          {activeTab === "pet" && (
+            <PetPanel
+              species={species}
+              petName={petName}
+              visible={visible}
+              onSpeciesChange={setSpecies}
+              onNameChange={setPetName}
+              onToggleVisible={toggleVisible}
+              onResetPos={() => setPos({ x: window.innerWidth - 110, y: window.innerHeight - 180 })}
+              t={t}
+              locale={locale}
+            />
+          )}
 
-      <MembersGroup
-        people={people}
-        onCreate={createPerson}
-        onUpdate={updatePerson}
-        onRemove={removePerson}
-        t={t}
-      />
+          {activeTab === "members" && (
+            <MembersPanel
+              people={people}
+              onCreate={createPerson}
+              onUpdate={updatePerson}
+              onRemove={removePerson}
+              t={t}
+            />
+          )}
 
-      <AIConfigGroup t={t} locale={locale} />
+          {activeTab === "ai" && (
+            <AIConfigPanel t={t} locale={locale} />
+          )}
 
-      <IntegrationsGroup t={t} locale={locale} />
+          {activeTab === "integrations" && (
+            <IntegrationsPanel t={t} locale={locale} />
+          )}
 
-      <StorageGroup t={t} locale={locale} />
+          {activeTab === "storage" && (
+            <StoragePanel t={t} locale={locale} />
+          )}
 
-      <SyncGroup t={t} locale={locale} />
+          {activeTab === "sync" && (
+            <SyncPanel t={t} locale={locale} />
+          )}
 
-      <Group title="Data">
-        <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
-          <button className="btn btn-secondary" onClick={() => reset()}>
-            Reset
-          </button>
-        </Row>
-        <Row
-          label={t("settings.replayOnboarding")}
-          helper="Walk through the welcome flow again."
-        >
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              setOnboarded(false);
-              navigate("/onboarding");
-            }}
-          >
-            Replay
-          </button>
-        </Row>
-      </Group>
+          {activeTab === "data" && (
+            <Panel title={locale === "zh" ? "数据" : "Data"}>
+              <Row label={t("settings.resetData")} helper="Restores the seed tasks. Clears your local edits.">
+                <button className="btn btn-secondary" onClick={() => reset()}>
+                  Reset
+                </button>
+              </Row>
+              <Row label={t("settings.replayOnboarding")} helper="Walk through the welcome flow again.">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setOnboarded(false);
+                    navigate("/onboarding");
+                  }}
+                >
+                  Replay
+                </button>
+              </Row>
+            </Panel>
+          )}
+
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ── Members management ───────────────────────────────────────────── */
+/* ── Shared layout primitives ─────────────────────────────────────── */
 
-type PersonDraft = { name: string; email: string; initials: string; color: string };
-
-function emptyDraft(): PersonDraft {
-  return { name: "", email: "", initials: "", color: PERSON_COLORS[0] };
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="text-[15px] font-semibold text-text-primary mb-5">{title}</h2>
+      <div
+        className="rounded-[10px] border bg-surface overflow-hidden"
+        style={{ borderColor: "var(--border-default)" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
 }
 
-function deriveInitials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
+function Row({
+  label,
+  helper,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="grid items-center px-5 py-4 border-t border-border-faint first:border-t-0"
+      style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}
+    >
+      <div>
+        <div className="text-[13px] font-medium text-text-primary leading-snug">{label}</div>
+        {helper && (
+          <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed max-w-[300px]">{helper}</div>
+        )}
+      </div>
+      <div>{children}</div>
+    </div>
+  );
 }
 
-function PetGroup({
+/* ── Pet panel ────────────────────────────────────────────────────── */
+
+function PetPanel({
   species,
   petName,
   visible,
@@ -176,12 +264,10 @@ function PetGroup({
   locale: string;
 }) {
   return (
-    <section className="mb-7">
-      <h3 className="text-[11px] font-semibold uppercase mb-2 pl-0.5 text-text-faint" style={{ letterSpacing: "0.1em" }}>
-        {t("settings.pet")}
-      </h3>
+    <div>
+      <h2 className="text-[15px] font-semibold text-text-primary mb-5">{t("settings.pet")}</h2>
       <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
-        {/* Visibility + reset row */}
+        {/* Visibility + reset */}
         <div className="px-5 py-3 flex items-center justify-between border-b border-border-faint">
           <div>
             <div className="text-[13px] font-medium text-text-primary">{t("settings.pet.show")}</div>
@@ -205,7 +291,7 @@ function PetGroup({
           </div>
         </div>
         {/* Species selector */}
-        <div className="px-5 py-4">
+        <div className="px-5 py-4 border-b border-border-faint">
           <div className="text-[13px] font-medium text-text-primary mb-3">{t("settings.pet.species")}</div>
           <div className="flex gap-3 flex-wrap">
             {PET_SPECIES_LIST.map((s) => (
@@ -227,8 +313,8 @@ function PetGroup({
             ))}
           </div>
         </div>
-        {/* Pet name input */}
-        <div className="px-5 py-4 border-t border-border-faint">
+        {/* Pet name */}
+        <div className="px-5 py-4">
           <label className="text-[13px] font-medium text-text-primary block mb-1.5">
             {t("settings.pet.name")}
           </label>
@@ -249,11 +335,25 @@ function PetGroup({
           </p>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-function MembersGroup({
+/* ── Members panel ────────────────────────────────────────────────── */
+
+type PersonDraft = { name: string; email: string; initials: string; color: string };
+
+function emptyDraft(): PersonDraft {
+  return { name: "", email: "", initials: "", color: PERSON_COLORS[0] };
+}
+
+function deriveInitials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function MembersPanel({
   people,
   onCreate,
   onUpdate,
@@ -275,10 +375,6 @@ function MembersGroup({
   function startEdit(person: Person) {
     setEditId(person.id);
     setEditDraft({ name: person.name, email: person.email ?? "", initials: person.initials, color: person.color });
-  }
-
-  function cancelEdit() {
-    setEditId(null);
   }
 
   async function saveEdit() {
@@ -315,14 +411,12 @@ function MembersGroup({
   }
 
   return (
-    <section className="mb-7">
-      <div className="flex items-center justify-between mb-2 pl-0.5">
-        <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint">
-          {t("settings.members")}
-        </h3>
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-[15px] font-semibold text-text-primary">{t("settings.members")}</h2>
         {!adding && (
           <button
-            className="text-[11px] text-accent-primary font-medium"
+            className="text-[12px] font-medium"
             style={{ color: "var(--accent-primary)" }}
             onClick={() => { setAdding(true); setDraft(emptyDraft()); }}
           >
@@ -330,12 +424,10 @@ function MembersGroup({
           </button>
         )}
       </div>
-
       <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
         {people.length === 0 && !adding && (
           <div className="px-5 py-4 text-[12px] text-text-muted italic">{t("settings.members.empty")}</div>
         )}
-
         {people.map((person) => (
           <div key={person.id} className="border-t border-border-faint first:border-t-0">
             {editId === person.id ? (
@@ -343,7 +435,7 @@ function MembersGroup({
                 draft={editDraft}
                 onChange={setEditDraft}
                 onSave={saveEdit}
-                onCancel={cancelEdit}
+                onCancel={() => setEditId(null)}
                 busy={busy}
                 t={t}
               />
@@ -364,7 +456,6 @@ function MembersGroup({
                 </button>
                 <button
                   className="text-[11px] text-text-muted hover:text-status-urgent transition-colors"
-                  style={{ "--hover-color": "var(--status-urgent)" } as React.CSSProperties}
                   disabled={busy}
                   onClick={async () => {
                     setBusy(true);
@@ -377,7 +468,6 @@ function MembersGroup({
             )}
           </div>
         ))}
-
         {adding && (
           <div className="border-t border-border-faint first:border-t-0">
             <PersonForm
@@ -391,11 +481,11 @@ function MembersGroup({
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
-/* ── AI Config section ────────────────────────────────────────────── */
+/* ── AI Config panel ──────────────────────────────────────────────── */
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI",
@@ -410,11 +500,10 @@ const PROVIDER_DEFAULTS: Record<string, { model: string; baseUrl: string }> = {
   custom:   { model: "",                          baseUrl: "" },
 };
 
-function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+function AIConfigPanel({ t, locale }: { t: (k: string) => string; locale: string }) {
   const { activeProvider, providerConfigs, saveConfig, cloudEnabled, cloudUsed, cloudLimit } = useAIStore();
   const anyKeyConfigured = Object.values(providerConfigs).some((c) => c.hasKey);
 
-  // Local UI state — scoped to the currently viewed provider tab
   const [viewProvider, setViewProvider] = useState<"openai" | "deepseek" | "claude" | "custom">(activeProvider);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel]   = useState(providerConfigs[activeProvider]?.model ?? "");
@@ -428,7 +517,6 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   const hasKey = currentCfg?.hasKey || apiKey.trim().length > 0;
   const isClaude = viewProvider === "claude";
 
-  // Switch provider tab — load saved model/baseUrl for that provider
   function switchProvider(p: typeof viewProvider) {
     setViewProvider(p);
     setApiKey("");
@@ -487,19 +575,14 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   const placeholderUrl   = PROVIDER_DEFAULTS[viewProvider]?.baseUrl ?? "";
 
   return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {t("ai.config.title")}
-      </h3>
-      <div className="rounded-[10px] border bg-surface overflow-hidden flex flex-col" style={{ borderColor: "var(--border-default)" }}>
+    <div>
+      <h2 className="text-[15px] font-semibold text-text-primary mb-5">{t("ai.config.title")}</h2>
+      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
 
-        {/* Lumo Cloud free tier usage bar — only when server key is active and user has no own key */}
         {cloudEnabled && !anyKeyConfigured && (
           <div className="px-5 py-3.5 border-b border-border-faint">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[12px] font-medium text-text-primary">
-                {t("ai.cloud.label")}
-              </span>
+              <span className="text-[12px] font-medium text-text-primary">{t("ai.cloud.label")}</span>
               <span className="text-[11px] tabular-nums" style={{
                 color: cloudUsed >= cloudLimit ? "var(--status-urgent)" : "var(--text-muted)",
               }}>
@@ -516,16 +599,13 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
               />
             </div>
             <div className="mt-1.5 text-[11px] text-text-muted">
-              {cloudUsed >= cloudLimit
-                ? t("ai.cloud.limit_reached")
-                : t("ai.cloud.hint")}
+              {cloudUsed >= cloudLimit ? t("ai.cloud.limit_reached") : t("ai.cloud.hint")}
             </div>
           </div>
         )}
 
-        {/* Provider tabs — "已配置" badge shown directly on configured tabs */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint first:border-t-0"
-          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+          style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
           <div className="text-[13px] font-medium text-text-primary">{t("ai.config.provider")}</div>
           <div className="flex gap-1.5 flex-wrap">
             {(["openai", "deepseek", "claude", "custom"] as const).map((p) => {
@@ -545,10 +625,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
                   }}
                 >
                   {configured && (
-                    <span
-                      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: "var(--accent-primary)" }}
-                    />
+                    <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--accent-primary)" }} />
                   )}
                   {PROVIDER_LABELS[p]}
                 </button>
@@ -557,9 +634,8 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           </div>
         </div>
 
-        {/* API Key row */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint"
-          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+          style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
           <div className="text-[13px] font-medium text-text-primary">{t("ai.config.apiKey")}</div>
           <div className="flex items-center gap-2">
             <input
@@ -583,9 +659,8 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           </div>
         </div>
 
-        {/* Model row */}
         <div className="grid items-center px-5 py-4 border-t border-border-faint"
-          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+          style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
           <div className="text-[13px] font-medium text-text-primary">{t("ai.config.model")}</div>
           <input
             type="text"
@@ -597,10 +672,9 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           />
         </div>
 
-        {/* Base URL — hidden for Claude (uses fixed Anthropic endpoint) */}
         {!isClaude && (
           <div className="grid items-center px-5 py-4 border-t border-border-faint"
-            style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}>
+            style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
             <div>
               <div className="text-[13px] font-medium text-text-primary">{t("ai.config.baseUrl")}</div>
               <div className="text-[11px] text-text-muted mt-0.5">{locale === "zh" ? "留空用默认地址" : "Leave blank for default"}</div>
@@ -616,7 +690,6 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           </div>
         )}
 
-        {/* Actions row */}
         <div className="flex items-center gap-3 px-5 py-4 border-t border-border-faint">
           <button
             onClick={handleTest}
@@ -650,15 +723,15 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
         </div>
 
       </div>
-    </section>
+    </div>
   );
 }
 
-/* ── Integrations section ─────────────────────────────────────────── */
+/* ── Integrations panel ───────────────────────────────────────────── */
 
 const MS_CLIENT_ID = (import.meta as any).env?.VITE_MS_CLIENT_ID as string | undefined;
 
-function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+function IntegrationsPanel({ t, locale }: { t: (k: string) => string; locale: string }) {
   const { connected, userEmail, serverMode, serverEmail, loading, connect, disconnect } = useCalendarStore();
   const [busy, setBusy] = useState(false);
 
@@ -674,18 +747,12 @@ function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: st
   }
 
   return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {t("settings.integrations")}
-      </h3>
+    <div>
+      <h2 className="text-[15px] font-semibold text-text-primary mb-5">{t("settings.integrations")}</h2>
       <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
-        <div
-          className="grid items-center px-5 py-4"
-          style={{ gridTemplateColumns: "1fr auto", gap: 16 }}
-        >
+        <div className="grid items-center px-5 py-4" style={{ gridTemplateColumns: "1fr auto", gap: 16 }}>
           <div>
             <div className="flex items-center gap-2">
-              {/* Outlook icon */}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="2" width="20" height="20" rx="3" fill="#0078D4" />
                 <path d="M12 7C9.24 7 7 9.24 7 12s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8.5c-1.93 0-3.5-1.57-3.5-3.5S10.07 8.5 12 8.5s3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" fill="white"/>
@@ -708,13 +775,8 @@ function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: st
               </div>
             )}
           </div>
-
           {connected ? (
-            <button
-              onClick={disconnect}
-              className="btn btn-secondary"
-              style={{ height: 32, fontSize: 12 }}
-            >
+            <button onClick={disconnect} className="btn btn-secondary" style={{ height: 32, fontSize: 12 }}>
               {t("outlook.disconnect")}
             </button>
           ) : serverMode ? null : (
@@ -732,9 +794,11 @@ function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: st
           )}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
+
+/* ── PersonForm / PersonAvatar ────────────────────────────────────── */
 
 function PersonForm({
   draft,
@@ -754,7 +818,6 @@ function PersonForm({
   return (
     <div className="px-5 py-4 flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        {/* Avatar preview */}
         <PersonAvatar
           person={{ name: draft.name, initials: draft.initials || deriveInitials(draft.name) || "?", color: draft.color }}
           size={36}
@@ -841,7 +904,7 @@ export function PersonAvatar({ person, size = 24 }: { person: Pick<Person, "init
   );
 }
 
-/* ── Storage section ─────────────────────────────────────────────── */
+/* ── Storage panel ────────────────────────────────────────────────── */
 
 function fmtBytes(bytes: number): string {
   if (bytes === 0) return "—";
@@ -850,7 +913,7 @@ function fmtBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+function StoragePanel({ t, locale }: { t: (k: string) => string; locale: string }) {
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
   const [info, setInfo] = useState<{ dbPath: string; dbSize: number } | null>(null);
@@ -884,39 +947,24 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
       if (!result.ok) {
         toast.error(t("settings.storage.move.error"), result.error ?? t("error.unknown"));
       }
-      // On success the app will relaunch — no further action needed
     } finally {
       setMoving(false);
     }
   }
 
-  function handleReveal() {
-    window.electronAPI?.showDbInFolder();
-  }
-
   const revealLabel = isMac ? t("settings.storage.reveal") : t("settings.storage.reveal.win");
 
   return (
-    <section className="mb-7">
-      <h3
-        className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5"
-      >
-        {t("settings.storage")}
-      </h3>
-      <div
-        className="rounded-[10px] border bg-surface overflow-hidden"
-        style={{ borderColor: "var(--border-default)" }}
-      >
-        {/* Database path */}
-        <div
-          className="grid items-start px-5 py-4 border-b border-border-faint"
-          style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
-        >
+    <div>
+      <h2 className="text-[15px] font-semibold text-text-primary mb-5">{t("settings.storage")}</h2>
+      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+        <div className="grid items-start px-5 py-4 border-b border-border-faint"
+          style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
           <div>
             <div className="text-[13px] font-medium text-text-primary leading-snug">
               {t("settings.storage.dbPath")}
             </div>
-            <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed max-w-[360px]">
+            <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed max-w-[200px]">
               {t("settings.storage.dbPath.helper")}
             </div>
           </div>
@@ -954,20 +1002,12 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
             ) : (
               <span className="text-[12px] text-text-muted">{t("settings.storage.loading")}</span>
             )}
-
-            {/* File size */}
             {info && (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-text-faint">
-                  {t("settings.storage.dbSize")}:
-                </span>
-                <span className="text-[11px] text-text-secondary tabular-nums">
-                  {fmtBytes(info.dbSize)}
-                </span>
+                <span className="text-[11px] text-text-faint">{t("settings.storage.dbSize")}:</span>
+                <span className="text-[11px] text-text-secondary tabular-nums">{fmtBytes(info.dbSize)}</span>
               </div>
             )}
-
-            {/* Electron actions */}
             {isElectron && (
               <div className="flex items-center gap-2 mt-1">
                 <button
@@ -979,7 +1019,7 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
                   {moving ? t("settings.storage.moving") : t("settings.storage.change")}
                 </button>
                 <button
-                  onClick={handleReveal}
+                  onClick={() => window.electronAPI?.showDbInFolder()}
                   className="btn btn-secondary"
                   style={{ height: 30, fontSize: 12 }}
                 >
@@ -987,22 +1027,15 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
                 </button>
               </div>
             )}
-
-            {/* Web mode note */}
             {!isElectron && (
-              <p className="text-[11px] text-text-faint leading-relaxed max-w-[380px]">
+              <p className="text-[11px] text-text-faint leading-relaxed max-w-[340px]">
                 {t("settings.storage.web.note")}
               </p>
             )}
           </div>
         </div>
-
-        {/* Privacy badge */}
         <div className="px-5 py-3 flex items-center gap-2">
-          <span
-            className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ background: "var(--accent-primary)" }}
-          />
+          <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--accent-primary)" }} />
           <span className="text-[11.5px] text-text-muted">
             {locale === "zh"
               ? "100% 本地存储 · 数据永不离开你的设备"
@@ -1010,13 +1043,13 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
           </span>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-/* ── Cloud sync settings ──────────────────────────────────────────── */
+/* ── Sync panel ───────────────────────────────────────────────────── */
 
-function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) {
+function SyncPanel({ t, locale }: { t: (k: string) => string; locale: string }) {
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
 
   const [enabled, setEnabled] = useState(false);
@@ -1053,7 +1086,6 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
     if (!window.electronAPI) return;
     setSaving(true);
     await (window.electronAPI as any).setSyncConfig?.({ enabled, url, token });
-    // App will relaunch; no further action needed
   }
 
   async function handleSyncNow() {
@@ -1079,13 +1111,10 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
   const { label: badgeLabel, color: badgeColor } = badgeContent();
 
   return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {t("settings.sync")}
-      </h3>
+    <div>
+      <h2 className="text-[15px] font-semibold text-text-primary mb-5">{t("settings.sync")}</h2>
       <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
 
-        {/* Status badge row */}
         <div className="px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: badgeColor }} />
@@ -1100,11 +1129,8 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
 
         {isElectron ? (
           <>
-            {/* Enable toggle */}
-            <div
-              className="grid items-center px-5 py-4 border-t border-border-faint"
-              style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
-            >
+            <div className="grid items-center px-5 py-4 border-t border-border-faint"
+              style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
               <div>
                 <div className="text-[13px] font-medium text-text-primary leading-snug">{t("settings.sync.enable")}</div>
                 <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed">{t("settings.sync.enable.helper")}</div>
@@ -1112,13 +1138,10 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
               <Toggle value={enabled} onChange={setEnabled} />
             </div>
 
-            {/* URL + token inputs (only when enabled) */}
             {enabled && (
               <>
-                <div
-                  className="grid items-start px-5 py-4 border-t border-border-faint"
-                  style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
-                >
+                <div className="grid items-start px-5 py-4 border-t border-border-faint"
+                  style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
                   <div className="text-[13px] font-medium text-text-primary leading-snug pt-1">{t("settings.sync.url")}</div>
                   <input
                     type="text"
@@ -1134,10 +1157,8 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
                     }}
                   />
                 </div>
-                <div
-                  className="grid items-start px-5 py-4 border-t border-border-faint"
-                  style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
-                >
+                <div className="grid items-start px-5 py-4 border-t border-border-faint"
+                  style={{ gridTemplateColumns: "200px 1fr", gap: 32 }}>
                   <div>
                     <div className="text-[13px] font-medium text-text-primary leading-snug">{t("settings.sync.token")}</div>
                     {hasToken && (
@@ -1160,17 +1181,12 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
                     }}
                   />
                 </div>
-
-                {/* How-to hint */}
                 <div className="px-5 pb-3">
-                  <p className="text-[11px] text-text-faint">
-                    {t("settings.sync.howto")}
-                  </p>
+                  <p className="text-[11px] text-text-faint">{t("settings.sync.howto")}</p>
                 </div>
               </>
             )}
 
-            {/* Action buttons */}
             <div className="px-5 py-3 border-t border-border-faint flex items-center gap-2">
               <button
                 onClick={handleSave}
@@ -1193,7 +1209,6 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
             </div>
           </>
         ) : (
-          /* Web mode — informational only */
           <div className="px-5 py-4 border-t border-border-faint">
             <p className="text-[11.5px] text-text-muted leading-relaxed">
               {locale === "zh"
@@ -1203,47 +1218,11 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
           </div>
         )}
       </div>
-    </section>
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {title}
-      </h3>
-      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function Row({
-  label,
-  helper,
-  children,
-}: {
-  label: string;
-  helper?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className="grid items-center px-5 py-4 border-t border-border-faint first:border-t-0"
-      style={{ gridTemplateColumns: "220px 1fr", gap: 36 }}
-    >
-      <div>
-        <div className="text-[13px] font-medium text-text-primary leading-snug">{label}</div>
-        {helper && (
-          <div className="text-[11.5px] text-text-muted mt-1 leading-relaxed max-w-[360px]">{helper}</div>
-        )}
-      </div>
-      <div>{children}</div>
     </div>
   );
 }
+
+/* ── Shared primitives ────────────────────────────────────────────── */
 
 function Segmented<T extends string>({
   value,
