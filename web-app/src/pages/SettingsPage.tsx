@@ -35,7 +35,7 @@ export function SettingsPage() {
   const { species, petName, setSpecies, setPetName, visible, toggleVisible, setPos } = usePetStore();
 
   return (
-    <div className="fade-in px-8 py-8 max-w-[760px] mx-auto">
+    <div className="fade-in px-8 py-8 max-w-[860px] mx-auto">
       <Group title={t("settings.appearance")}>
         <Row label={t("settings.accent")}>
           <div className="flex gap-2">
@@ -176,11 +176,7 @@ function PetGroup({
   locale: string;
 }) {
   return (
-    <section className="mb-7">
-      <h3 className="text-[11px] font-semibold uppercase mb-2 pl-0.5 text-text-faint" style={{ letterSpacing: "0.1em" }}>
-        {t("settings.pet")}
-      </h3>
-      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+    <SectionShell label={t("settings.pet")}>
         {/* Visibility + reset row */}
         <div className="px-5 py-3 flex items-center justify-between border-b border-border-faint">
           <div>
@@ -248,8 +244,7 @@ function PetGroup({
             {locale === "zh" ? "留空则使用默认名称" : "Leave empty to use the default name"}
           </p>
         </div>
-      </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -315,23 +310,20 @@ function MembersGroup({
   }
 
   return (
-    <section className="mb-7">
-      <div className="flex items-center justify-between mb-2 pl-0.5">
-        <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint">
-          {t("settings.members")}
-        </h3>
-        {!adding && (
+    <SectionShell
+      label={t("settings.members")}
+      headerAction={
+        !adding ? (
           <button
-            className="text-[11px] text-accent-primary font-medium"
+            className="text-[11px] font-medium"
             style={{ color: "var(--accent-primary)" }}
             onClick={() => { setAdding(true); setDraft(emptyDraft()); }}
           >
             + {t("settings.members.add")}
           </button>
-        )}
-      </div>
-
-      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+        ) : undefined
+      }
+    >
         {people.length === 0 && !adding && (
           <div className="px-5 py-4 text-[12px] text-text-muted italic">{t("settings.members.empty")}</div>
         )}
@@ -390,8 +382,7 @@ function MembersGroup({
             />
           </div>
         )}
-      </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -487,11 +478,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
   const placeholderUrl   = PROVIDER_DEFAULTS[viewProvider]?.baseUrl ?? "";
 
   return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {t("ai.config.title")}
-      </h3>
-      <div className="rounded-[10px] border bg-surface overflow-hidden flex flex-col" style={{ borderColor: "var(--border-default)" }}>
+    <SectionShell label={t("ai.config.title")}>
 
         {/* Lumo Cloud free tier usage bar — only when server key is active and user has no own key */}
         {cloudEnabled && !anyKeyConfigured && (
@@ -649,8 +636,7 @@ function AIConfigGroup({ t, locale }: { t: (k: string) => string; locale: string
           </button>
         </div>
 
-      </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -674,11 +660,7 @@ function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: st
   }
 
   return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {t("settings.integrations")}
-      </h3>
-      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+    <SectionShell label={t("settings.integrations")}>
         <div
           className="grid items-center px-5 py-4"
           style={{ gridTemplateColumns: "1fr auto", gap: 16 }}
@@ -731,8 +713,7 @@ function IntegrationsGroup({ t, locale }: { t: (k: string) => string; locale: st
             </button>
           )}
         </div>
-      </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -897,16 +878,7 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
   const revealLabel = isMac ? t("settings.storage.reveal") : t("settings.storage.reveal.win");
 
   return (
-    <section className="mb-7">
-      <h3
-        className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5"
-      >
-        {t("settings.storage")}
-      </h3>
-      <div
-        className="rounded-[10px] border bg-surface overflow-hidden"
-        style={{ borderColor: "var(--border-default)" }}
-      >
+    <SectionShell label={t("settings.storage")}>
         {/* Database path */}
         <div
           className="grid items-start px-5 py-4 border-b border-border-faint"
@@ -1009,8 +981,7 @@ function StorageGroup({ t, locale }: { t: (k: string) => string; locale: string 
               : "100% local · your data never leaves this device"}
           </span>
         </div>
-      </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -1079,11 +1050,7 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
   const { label: badgeLabel, color: badgeColor } = badgeContent();
 
   return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {t("settings.sync")}
-      </h3>
-      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
+    <SectionShell label={t("settings.sync")}>
 
         {/* Status badge row */}
         <div className="px-5 py-3 flex items-center justify-between">
@@ -1202,22 +1169,42 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
             </p>
           </div>
         )}
+    </SectionShell>
+  );
+}
+
+function SectionShell({
+  label,
+  children,
+  headerAction,
+}: {
+  label: string;
+  children: React.ReactNode;
+  headerAction?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-7 grid gap-5" style={{ gridTemplateColumns: "108px 1fr" }}>
+      <div className="pt-3 flex flex-col items-end gap-2">
+        <span
+          className="text-[10px] font-semibold uppercase text-text-faint text-right"
+          style={{ letterSpacing: "0.1em", lineHeight: 1.4 }}
+        >
+          {label}
+        </span>
+        {headerAction}
       </div>
-    </section>
+      <div
+        className="rounded-[10px] border bg-surface overflow-hidden"
+        style={{ borderColor: "var(--border-default)" }}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-7">
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2 pl-0.5">
-        {title}
-      </h3>
-      <div className="rounded-[10px] border bg-surface overflow-hidden" style={{ borderColor: "var(--border-default)" }}>
-        {children}
-      </div>
-    </section>
-  );
+  return <SectionShell label={title}>{children}</SectionShell>;
 }
 
 function Row({
