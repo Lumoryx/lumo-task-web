@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { IconArrowLeft, IconArrowRight, IconCheck } from "@/components/icons";
 import { LumoGlyph } from "@/components/icons";
 import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
+import { useAuthStore, selectIsSignedIn } from "@/store/useAuthStore";
 import { useT } from "@/i18n/useT";
 import type { Locale } from "@/types/task";
 
@@ -17,6 +18,7 @@ export function OnboardingPage() {
   const navigate = useNavigate();
   const t = useT();
   const setOnboarded = useAppStore((s) => s.setOnboarded);
+  const isSignedIn = useAuthStore(selectIsSignedIn);
   const [step, setStep] = useState(0);
 
   const steps: Array<{ key: string; node: React.ReactNode; sub: string; title: string }> = [
@@ -57,7 +59,7 @@ export function OnboardingPage() {
 
   function finish() {
     setOnboarded(true);
-    navigate("/login");
+    navigate(isSignedIn ? "/today" : "/login");
   }
 
   return (

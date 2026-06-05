@@ -19,7 +19,10 @@ const directUrl  = process.env.TURSO_DATABASE_URL;
 const syncUrl    = process.env.TURSO_SYNC_URL;
 const syncToken  = process.env.TURSO_SYNC_TOKEN;
 const localPath  = process.env.LUMO_DB_PATH;
-const localUrl   = localPath ? `file:${localPath}` : "file:local.db";
+// Forward-slash paths are required by libsql's "file:" URL scheme on all platforms.
+const localUrl   = localPath
+  ? `file:${localPath.replace(/\\/g, "/")}`
+  : "file:local.db";
 
 export const db: Client = syncUrl
   ? createClient({ url: localUrl, syncUrl, authToken: syncToken, syncInterval: 60 })

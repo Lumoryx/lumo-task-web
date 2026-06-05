@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { IconArrowLeft, IconCheck, IconPause, IconPlay } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
@@ -9,7 +9,7 @@ import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 
-const TOTAL = 25 * 60;
+const DEFAULT_DURATION = 25 * 60;
 
 /**
  * Pomodoro focus session — full-bleed timer, top strip with the current
@@ -17,33 +17,45 @@ const TOTAL = 25 * 60;
  */
 export function FocusPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
 
-  // Priority: Q1-today → any-today → Q1-any → any incomplete
-  const task =
-    tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
-    tasks.find((x) => x.today && !x.completed) ??
-    tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
-    tasks.find((x) => !x.completed);
+  // Use the task the user explicitly started focus on (passed via router state).
+  // Fall back to priority order only when navigating to /focus directly.
+  const requestedId = (location.state as { taskId?: string } | null)?.taskId;
+  const task = requestedId
+    ? (tasks.find((x) => x.id === requestedId && !x.completed) ??
+        tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => x.today && !x.completed) ??
+        tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => !x.completed))
+    : (tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => x.today && !x.completed) ??
+        tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
+        tasks.find((x) => !x.completed));
 
   const isFallbackTask = !!task && !task.today;
 
-  const [remaining, setRemaining] = useState(TOTAL);
+  // Task duration in seconds — only computed once the task is known.
+  const taskDuration = task && task.duration > 0 ? task.duration * 60 : DEFAULT_DURATION;
+
+  const [remaining, setRemaining] = useState(taskDuration);
   const [paused, setPaused] = useState(false);
   const [compact, setCompact] = useState(false);
   const [petBounce, setPetBounce] = useState(false);
+  const [timerReady, setTimerReady] = useState(false);
+  // Track whether the timer has been started with the correct task duration.
+  const timerStartedForRef = useRef<string | null>(null);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const workerRef = useRef<Worker | null>(null);
-  // Keep a stable ref to locale so the worker message handler always sees the latest value
-  // without needing locale in the effect's dependency array.
   const localeRef = useRef(locale);
   localeRef.current = locale;
 
-  // Boot the Web Worker timer on mount; tear it down on unmount.
+  // ── Create worker once on mount; tear it down on unmount ─────────────────
   useEffect(() => {
     const worker = new Worker("/timer-worker.js");
     workerRef.current = worker;
@@ -61,10 +73,8 @@ export function FocusPage() {
             icon: "/favicon.ico",
           });
         }
-        // Bounce the compact pet
         setPetBounce(true);
         setTimeout(() => setPetBounce(false), 1200);
-        // Check streak milestones
         useTasksStore.getState().fetchAllCompleted().then((entries) => {
           const { currentStreak } = computeAllTimeStats(entries);
           if (currentStreak === 7 || currentStreak === 14 || currentStreak === 30) {
@@ -74,8 +84,6 @@ export function FocusPage() {
       }
     };
 
-    worker.postMessage({ type: "start", duration: TOTAL });
-
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission();
     }
@@ -83,10 +91,27 @@ export function FocusPage() {
     return () => {
       worker.terminate();
       workerRef.current = null;
+      // Reset so a remounted component (React StrictMode double-invoke, or
+      // navigating away and back) starts the timer in the new worker.
+      timerStartedForRef.current = null;
     };
-  }, []); // intentionally empty: localeRef is a stable ref; worker lifecycle is mount/unmount only
+  }, []);
 
-  // Sync pause/resume state changes to the worker
+  // ── Start/restart timer when the task (and its duration) becomes known ────
+  // This runs after tasks load from the API, ensuring the correct duration.
+  useEffect(() => {
+    if (!task || !workerRef.current) return;
+    // Avoid restarting if we already started for this exact task+duration.
+    const key = `${task.id}:${taskDuration}`;
+    if (timerStartedForRef.current === key) return;
+    timerStartedForRef.current = key;
+
+    setRemaining(taskDuration);
+    workerRef.current.postMessage({ type: "start", duration: taskDuration });
+    setTimerReady(true);
+  }, [task?.id, taskDuration]);
+
+  // ── Sync pause/resume ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!workerRef.current) return;
     workerRef.current.postMessage({ type: paused ? "pause" : "resume" });
@@ -206,7 +231,7 @@ export function FocusPage() {
     );
   }
 
-  const progress = (TOTAL - remaining) / TOTAL;
+  const progress = taskDuration > 0 ? (taskDuration - remaining) / taskDuration : 0;
   const turns = -90 + progress * 360;
 
   async function onComplete() {
@@ -419,7 +444,11 @@ export function FocusPage() {
             )}
           </div>
           <div className="text-[11px] text-text-muted mt-0.5">
-            {task.next_step ? ls(task.next_step) : t("focus.sub")}
+            {task.next_step
+              ? ls(task.next_step)
+              : task.duration > 0
+              ? `${t("focus.sub.prefix")} ${fmtDuration(task.duration, locale)}`
+              : t("focus.sub")}
           </div>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-text-faint">
@@ -479,7 +508,7 @@ export function FocusPage() {
               transform="rotate(-90 190 190)"
               style={{
                 filter: "drop-shadow(0 0 8px var(--accent-primary))",
-                transition: "stroke-dashoffset 1s linear",
+                transition: timerReady ? "stroke-dashoffset 1s linear" : "none",
               }}
             />
             <circle
@@ -536,7 +565,7 @@ export function FocusPage() {
             </span>
             <span>
               {locale === "zh" ? "实际 " : "Actual "}
-              {fmtMMSS(TOTAL - remaining)}
+              {fmtMMSS(taskDuration - remaining)}
             </span>
           </div>
         </div>

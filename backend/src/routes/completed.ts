@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { query, queryOne, execute } from "../db/client.js";
+import { query, queryOne, execute, batch } from "../db/client.js";
+import type { InStatement } from "@libsql/client";
 import { authMiddleware } from "../middleware/auth.js";
 import type { Variables } from "../env.js";
 import { httpError } from "../lib/errors.js";
@@ -55,19 +56,25 @@ app.post("/:id/reopen", async (c) => {
   );
   if (!entry) return httpError(c, 404, "NOT_FOUND", "Not found");
 
-  await execute("DELETE FROM completed_entries WHERE id = :id", { id: entryId });
+  // Build the atomic batch: always delete the entry; conditionally reopen the task.
+  // Using batch() ensures both writes succeed or both roll back — no orphaned state.
+  const now = new Date().toISOString();
+  const stmts: InStatement[] = [
+    { sql: "DELETE FROM completed_entries WHERE id = :id", args: { id: entryId } },
+  ];
 
   if (entry.task_id) {
+    // Only reopen the task if it still exists (it may have been deleted separately).
     const task = await queryOne("SELECT id FROM tasks WHERE id = :id", { id: entry.task_id });
     if (task) {
-      const now = new Date().toISOString();
-      await execute(
-        "UPDATE tasks SET completed = 0, today = 1, updated_at = :now WHERE id = :id",
-        { id: entry.task_id, now }
-      );
+      stmts.push({
+        sql: "UPDATE tasks SET completed = 0, today = 1, updated_at = :now WHERE id = :id",
+        args: { id: entry.task_id, now },
+      });
     }
   }
 
+  await batch(stmts);
   return c.json({ ok: true });
 });
 

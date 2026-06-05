@@ -4,6 +4,50 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const crypto = require("crypto");
 const net = require("net");
+const os = require("os");
+
+// ── File logger ───────────────────────────────────────────────────────────────
+
+let logStream = null;
+
+function initLogger() {
+  const logsDir = path.join(app.getPath("userData"), "logs");
+  fs.mkdirSync(logsDir, { recursive: true });
+
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const logFile = path.join(logsDir, `lumo-${date}.log`);
+  logStream = fs.createWriteStream(logFile, { flags: "a", encoding: "utf8" });
+
+  // Prune logs older than 7 days
+  try {
+    const files = fs.readdirSync(logsDir)
+      .filter((f) => f.startsWith("lumo-") && f.endsWith(".log"))
+      .sort();
+    if (files.length > 7) {
+      files.slice(0, files.length - 7).forEach((f) => {
+        try { fs.unlinkSync(path.join(logsDir, f)); } catch {}
+      });
+    }
+  } catch {}
+
+  log(`[main] Log file: ${logFile}`);
+  return logFile;
+}
+
+function log(line) {
+  const ts = new Date().toISOString();
+  const entry = `${ts} ${line}\n`;
+  process.stdout.write(entry);
+  if (logStream) logStream.write(entry);
+}
+
+// Catch uncaught main-process errors
+process.on("uncaughtException", (err) => {
+  log(`[main] uncaughtException: ${err?.stack ?? err}`);
+});
+process.on("unhandledRejection", (reason) => {
+  log(`[main] unhandledRejection: ${reason instanceof Error ? reason.stack : reason}`);
+});
 
 // ── JWT secret ────────────────────────────────────────────────────────────────
 
@@ -111,27 +155,46 @@ async function startBackend() {
   const jwtSecret = getOrCreateJwtSecret();
 
   const syncCfg = getSyncConfig();
+
+  // On Windows, backslashes in file paths break libsql's "file:" URL scheme.
+  // Normalise to forward slashes for cross-platform SQLite URLs.
+  const dbPathNormalised = dbPath.replace(/\\/g, "/");
+
+  log(`[main] Starting backend on port ${apiPort}, db=${dbPathNormalised}`);
   const env = {
     ...process.env,
     LUMO_PORT: String(apiPort),
-    LUMO_DB_PATH: dbPath,
+    LUMO_DB_PATH: dbPathNormalised,
     LUMO_JWT_SECRET: jwtSecret,
+    // In packaged builds, @libsql/* native modules live in extraResources.
+    // NODE_PATH lets the forked bundle resolve them at runtime.
+    ...(app.isPackaged
+      ? { NODE_PATH: path.join(process.resourcesPath, "backend", "node_modules") }
+      : {}),
     ...(syncCfg.enabled && syncCfg.url && syncCfg.token
       ? { TURSO_SYNC_URL: syncCfg.url, TURSO_SYNC_TOKEN: syncCfg.token }
       : {}),
   };
 
+  function pipeOutput(proc) {
+    const onData = (prefix) => (chunk) => {
+      String(chunk).split(/\r?\n/).filter(Boolean).forEach((line) => log(`${prefix} ${line}`));
+    };
+    proc.stdout?.on("data", onData("[backend:out]"));
+    proc.stderr?.on("data", onData("[backend:err]"));
+    proc.on("exit", (code) => {
+      log(`[backend] process exited with code ${code}`);
+    });
+  }
+
   if (app.isPackaged) {
     // ── Packaged: use Electron's built-in Node.js via utilityProcess.fork() ───
-    // This avoids requiring the user to have Node.js installed separately.
     const backendEntry = path.join(process.resourcesPath, "backend", "bundle.cjs");
+    log(`[main] Backend entry (packaged): ${backendEntry}`);
+    log(`[main] Entry exists: ${fs.existsSync(backendEntry)}`);
 
     backendProcess = utilityProcess.fork(backendEntry, [], { env, stdio: "pipe" });
-    backendProcess.stdout?.on("data", (d) => process.stdout.write("[backend] " + d));
-    backendProcess.stderr?.on("data", (d) => process.stderr.write("[backend] " + d));
-    backendProcess.on("exit", (code) => {
-      if (code !== 0) console.error(`[backend] exited with code ${code}`);
-    });
+    pipeOutput(backendProcess);
   } else {
     // ── Dev: use tsx with system Node.js ──────────────────────────────────────
     const distEntry = path.join(__dirname, "../../backend/dist/index.js");
@@ -140,11 +203,8 @@ async function startBackend() {
 
     let cmd, args;
     if (fs.existsSync(distEntry)) {
-      // prefer compiled dist if available
-      cmd = process.execPath; // system node (not Electron when run via `electron .`)
+      cmd = process.execPath;
       args = [distEntry];
-      // In Electron dev (run as `electron .`), process.execPath IS the electron binary.
-      // Fall through to tsx in that case:
       if (process.execPath.toLowerCase().includes("electron")) {
         cmd = fs.existsSync(tsxBin) ? tsxBin : "tsx";
         args = [tsSrc];
@@ -154,15 +214,20 @@ async function startBackend() {
       args = [tsSrc];
     }
 
+    log(`[main] Backend entry (dev): ${cmd} ${args.join(" ")}`);
     backendProcess = spawn(cmd, args, { env, stdio: "pipe" });
-    backendProcess.stdout.on("data", (d) => process.stdout.write("[backend] " + d));
-    backendProcess.stderr.on("data", (d) => process.stderr.write("[backend] " + d));
-    backendProcess.on("exit", (code) => {
-      if (code !== 0) console.error(`[backend] exited with code ${code}`);
-    });
+    pipeOutput(backendProcess);
   }
 
-  await waitForPort(apiPort, 15000);
+  try {
+    // Allow more time on Windows where process startup can be slower.
+    const startupTimeout = process.platform === "win32" ? 30000 : 15000;
+    await waitForPort(apiPort, startupTimeout);
+    log(`[main] Backend ready on port ${apiPort}`);
+  } catch (err) {
+    log(`[main] ERROR: Backend did not become ready — ${err?.message ?? err}`);
+    throw err;
+  }
 }
 
 // ── Window ────────────────────────────────────────────────────────────────────
@@ -223,6 +288,12 @@ function createWindow() {
    */
   ipcMain.handle("db:moveTo", async (_event, newDir) => {
     if (!newDir || typeof newDir !== "string") return { ok: false, error: "Invalid path" };
+    // Reject network paths (\\server\share, //server/share) and anything
+    // that doesn't resolve to the user's home directory or userData.
+    const resolved = path.resolve(newDir);
+    const allowedRoots = [os.homedir(), app.getPath("userData"), app.getPath("documents")];
+    const isAllowed = allowedRoots.some((r) => resolved.startsWith(r));
+    if (!isAllowed) return { ok: false, error: "Path must be within your home directory" };
     const currentDbPath = getDbPath();
     const newDbPath = path.join(newDir, "lumo.db");
 
@@ -267,8 +338,8 @@ function createWindow() {
     if (typeof cfg !== "object" || cfg === null) return { ok: false, error: "Invalid config" };
     saveSyncConfig({
       enabled: !!cfg.enabled,
-      url: typeof cfg.url === "string" ? cfg.url.trim() : "",
-      token: typeof cfg.token === "string" ? cfg.token.trim() : "",
+      url: typeof cfg.url === "string" ? cfg.url.trim().slice(0, 512) : "",
+      token: typeof cfg.token === "string" ? cfg.token.trim().slice(0, 512) : "",
     });
     app.relaunch();
     app.exit(0);
@@ -299,12 +370,36 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  const logFile = initLogger();
+  log(`[main] App ready — version ${app.getVersion()}, userData=${app.getPath("userData")}`);
+  log(`[main] Log file: ${logFile}`);
+
+  let backendReady = false;
   try {
     await startBackend();
+    backendReady = true;
   } catch (err) {
-    console.error("Failed to start backend:", err);
+    log(`[main] FATAL: Failed to start backend — ${err?.stack ?? err}`);
+    const { response } = await dialog.showMessageBox({
+      type: "error",
+      title: "Lumo Task — Backend Error",
+      message: "The backend service failed to start.",
+      detail:
+        `Port ${apiPort} did not become ready.\n\n` +
+        `Log file: ${logFile}\n\n` +
+        "Please check the log file for details, then restart the app. " +
+        "If the problem persists, reinstall Lumo Task.",
+      buttons: ["Quit", "Open Log Folder"],
+      defaultId: 0,
+    });
+    if (response === 1) {
+      shell.showItemInFolder(logFile);
+    }
+    app.quit();
+    return;
   }
-  createWindow();
+
+  if (backendReady) createWindow();
 });
 
 app.on("window-all-closed", () => {
