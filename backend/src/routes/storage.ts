@@ -37,8 +37,10 @@ app.get("/remote-status", async (c) => {
     { uid: userId }
   );
   const { status, error, lastSyncAt } = getSyncStatus();
+  const envUrl = (process.env.LUMO_REMOTE_URL ?? "").trim();
   return c.json({
-    configured: Boolean(row?.remote_url || (process.env.LUMO_REMOTE_URL ?? "").trim()),
+    configured: Boolean(row?.remote_url || envUrl),
+    remoteUrl: envUrl || (row?.remote_url ?? ""),
     status,
     error,
     lastSyncAt,

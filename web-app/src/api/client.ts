@@ -341,7 +341,7 @@ export const api = {
     return req("GET", "/storage/info");
   },
 
-  async remoteStatus(): Promise<{ configured: boolean; status: string; error: string | null; lastSyncAt: string | null }> {
+  async remoteStatus(): Promise<{ configured: boolean; remoteUrl: string; status: string; error: string | null; lastSyncAt: string | null }> {
     return req("GET", "/storage/remote-status");
   },
 
