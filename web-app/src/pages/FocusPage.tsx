@@ -258,7 +258,8 @@ export function FocusPage() {
           alignItems: "center",
           justifyContent: "center",
           background: "transparent",
-          WebkitAppRegion: "drag",
+          // no-drag so onClick fires — window position is managed by main process
+          WebkitAppRegion: "no-drag",
           userSelect: "none",
           overflow: "hidden",
           cursor: "pointer",
