@@ -240,177 +240,60 @@ export function FocusPage() {
     navigate("/today");
   }
 
-  // ── Compact pet overlay (Electron only) ─────────────────────────────────────
+  // ── Compact pet widget (Electron only) ──────────────────────────────────────
+  // Minimal desktop-pet: just the dog + a small time badge.
+  // Click anywhere to restore the full window.
   if (compact) {
     const petMood = paused ? "idle" : remaining < 60 ? "excited" : "happy";
+    const nearDone = remaining < 60;
     return (
       <div
+        onClick={exitCompact}
+        title={t("focus.compact.restore")}
         style={{
           position: "fixed",
           inset: 0,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          background: "var(--bg-elevated)",
+          justifyContent: "center",
+          background: "transparent",
           WebkitAppRegion: "drag",
           userSelect: "none",
           overflow: "hidden",
+          cursor: "pointer",
         }}
       >
-        {/* Drag handle strip */}
+        {/* Dog */}
         <div
           style={{
-            width: "100%",
-            height: 28,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 10px",
-            flexShrink: 0,
+            animation: petBounce ? "petBounce 0.4s ease-in-out 3" : undefined,
+            filter: paused ? "grayscale(0.4)" : undefined,
+            transition: "filter 400ms",
           }}
         >
-          <div style={{ width: 36, height: 3, borderRadius: 2, background: "var(--border-strong)", opacity: 0.5 }} />
-          <button
-            onClick={exitCompact}
-            style={{
-              WebkitAppRegion: "no-drag",
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              border: "1px solid var(--border-default)",
-              background: "var(--bg-surface)",
-              color: "var(--text-muted)",
-              fontSize: 10,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              lineHeight: 1,
-            }}
-            title={t("focus.compact.restore")}
-          >
-            ✕
-          </button>
+          <DogSvg mood={petMood} size={80} />
         </div>
 
-        {/* Pet */}
+        {/* Time badge */}
         <div
           style={{
             marginTop: 4,
-            flexShrink: 0,
-            animation: petBounce ? "petBounce 0.4s ease-in-out 3" : undefined,
-          }}
-        >
-          <DogSvg mood={petMood} size={72} />
-        </div>
-
-        {/* Timer */}
-        <div
-          style={{
             fontFamily: "monospace",
-            fontSize: 42,
-            fontWeight: 200,
-            letterSpacing: "-0.04em",
-            color: remaining < 60 ? "var(--accent-primary)" : "var(--text-primary)",
-            lineHeight: 1,
-            margin: "10px 0 4px",
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: nearDone ? "var(--accent-primary)" : "var(--text-secondary)",
+            background: "var(--bg-elevated)",
+            border: `1px solid ${nearDone ? "var(--accent-edge)" : "var(--border-faint)"}`,
+            borderRadius: 8,
+            padding: "2px 8px",
+            boxShadow: nearDone ? "0 0 8px var(--accent-fog)" : undefined,
+            transition: "color 300ms, border-color 300ms",
           }}
         >
           {fmtMMSS(remaining)}
         </div>
-
-        {/* Task title */}
-        {task && (
-          <div
-            style={{
-              fontSize: 10,
-              color: "var(--text-muted)",
-              maxWidth: 190,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              textAlign: "center",
-              padding: "0 8px",
-            }}
-          >
-            {ls(task.title)}
-          </div>
-        )}
-
-        {/* Pause indicator */}
-        {paused && (
-          <div style={{ fontSize: 9, color: "var(--accent-primary)", marginTop: 3, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            {t("focus.pause")}d
-          </div>
-        )}
-
-        {/* Action buttons */}
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            marginTop: 12,
-            WebkitAppRegion: "no-drag",
-            flexShrink: 0,
-          }}
-        >
-          <button
-            onClick={() => setPaused((p) => !p)}
-            style={{
-              height: 28,
-              padding: "0 12px",
-              borderRadius: 14,
-              border: "1px solid var(--border-default)",
-              background: "var(--bg-surface)",
-              color: "var(--text-secondary)",
-              fontSize: 11,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {paused ? <IconPlay size={10} /> : <IconPause size={10} />}
-            {paused ? t("focus.resume") : t("focus.pause")}
-          </button>
-          <button
-            onClick={onComplete}
-            style={{
-              height: 28,
-              padding: "0 12px",
-              borderRadius: 14,
-              border: "none",
-              background: "var(--accent-primary)",
-              color: "var(--bg-base)",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <IconCheck size={10} />
-            {t("focus.compact.done")}
-          </button>
-        </div>
-
-        {/* Restore link */}
-        <button
-          onClick={exitCompact}
-          style={{
-            WebkitAppRegion: "no-drag",
-            marginTop: 8,
-            fontSize: 10,
-            color: "var(--text-faint)",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            textDecoration: "underline",
-          }}
-        >
-          {t("focus.compact.restore")}
-        </button>
       </div>
     );
   }

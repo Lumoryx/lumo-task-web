@@ -348,13 +348,18 @@ function createWindow() {
 
   // ── Pet focus compact mode ────────────────────────────────────────────────
   let savedBounds = null;
+  let wasMaximized = false;
   ipcMain.on("win:enter-focus", () => {
+    wasMaximized = win.isMaximized();
+    // Unmaximize first so setBounds/setSize work correctly on Windows.
+    if (wasMaximized) win.unmaximize();
     savedBounds = win.getBounds();
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
     win.setMinimumSize(1, 1);
     win.setAlwaysOnTop(true, "floating");
-    win.setSize(220, 300, true);
-    win.setPosition(width - 240, height - 320);
+    // Compact pet widget: just enough room for the dog + time badge.
+    win.setSize(120, 140, true);
+    win.setPosition(width - 140, height - 160);
   });
   ipcMain.on("win:exit-focus", () => {
     win.setAlwaysOnTop(false);
@@ -362,6 +367,8 @@ function createWindow() {
     if (savedBounds) {
       win.setBounds(savedBounds, true);
       savedBounds = null;
+      if (wasMaximized) win.maximize();
+      wasMaximized = false;
     } else {
       win.setSize(1280, 800, true);
       win.center();
