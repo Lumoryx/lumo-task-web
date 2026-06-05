@@ -91,6 +91,9 @@ export function FocusPage() {
     return () => {
       worker.terminate();
       workerRef.current = null;
+      // Reset so a remounted component (React StrictMode double-invoke, or
+      // navigating away and back) starts the timer in the new worker.
+      timerStartedForRef.current = null;
     };
   }, []);
 
