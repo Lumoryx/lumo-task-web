@@ -12,7 +12,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function RegisterPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { register, loading, error, clearError } = useAuthStore();
+  const { register, loading, clearError } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -107,12 +107,6 @@ export function RegisterPage() {
             </button>
             <span>{t("auth.terms")}</span>
           </label>
-
-          {error && (
-            <div className="rounded-md px-3 py-2.5 text-[12px] leading-relaxed" style={{ background: "var(--color-danger-bg, #fef2f2)", color: "var(--color-danger, #dc2626)", border: "1px solid var(--color-danger-border, #fca5a5)" }}>
-              <span className="font-medium">注册失败：</span>{error}
-            </div>
-          )}
 
           <button
             type="submit"
