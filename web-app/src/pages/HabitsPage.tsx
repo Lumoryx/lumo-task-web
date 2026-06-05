@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { HabitCalendarModal } from "@/components/HabitCalendarModal";
 import { HabitCard } from "@/components/HabitCard";
 import { HabitFormModal } from "@/components/HabitFormModal";
 import { IconHabit, IconPlus } from "@/components/icons";
@@ -18,6 +19,7 @@ export function HabitsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Habit | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [calendarHabit, setCalendarHabit] = useState<Habit | null>(null);
 
   // Auth gate
   if (!isSignedIn) {
@@ -112,6 +114,7 @@ export function HabitsPage() {
                 onUndo={() => unlog(userId, habit.id, today)}
                 onEdit={() => handleEdit(habit)}
                 onDelete={() => setDeleteId(habit.id)}
+                onShowCalendar={() => setCalendarHabit(habit)}
               />
             ))}
           </div>
@@ -124,6 +127,15 @@ export function HabitsPage() {
           habit={editTarget}
           onSave={handleSave}
           onClose={() => { setModalOpen(false); setEditTarget(null); }}
+        />
+      )}
+
+      {/* Calendar modal */}
+      {calendarHabit && (
+        <HabitCalendarModal
+          habit={calendarHabit}
+          logs={logs}
+          onClose={() => setCalendarHabit(null)}
         />
       )}
 

@@ -65,7 +65,31 @@
       {
         "from": "../backend/dist/bundle.cjs",
         "to": "backend/bundle.cjs"
+      },
+      {
+        "from": "../backend/node_modules/@libsql",
+        "to": "backend/node_modules/@libsql",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../backend/node_modules/libsql",
+        "to": "backend/node_modules/libsql",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../backend/node_modules/@neon-rs",
+        "to": "backend/node_modules/@neon-rs",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../backend/node_modules/detect-libc",
+        "to": "backend/node_modules/detect-libc",
+        "filter": ["**/*"]
       }
+    ],
+    "asarUnpack": [
+      "resources/backend/node_modules/**/*.node",
+      "resources/backend/node_modules/**/*.wasm"
     ],
     "win": {
       "target": [
@@ -81,7 +105,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": null,
-      "uninstallerIcon": null
+      "uninstallerIcon": null,
+      "include": "build/installer.nsh"
     }
   }
 }

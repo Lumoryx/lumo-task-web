@@ -81,7 +81,7 @@ export function TaskActionPopover({ task, anchor, onClose, onEdit }: Props) {
           icon={<IconArrowRight size={13} />}
           label={t("today.start")}
           accent
-          onClick={() => { onClose(); navigate("/focus"); }}
+          onClick={() => { onClose(); navigate("/focus", { state: { taskId: task.id } }); }}
         />
         <Divider />
         <ActionBtn

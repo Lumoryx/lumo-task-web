@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { IconCheck, IconMore } from "@/components/icons";
+import { IconCalendar, IconCheck, IconMore } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import type { Habit, HabitLog } from "@/types/task";
 import { currentStreak, isCompletedToday, longestStreak } from "@/utils/habits";
@@ -19,9 +19,10 @@ interface Props {
   onUndo: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onShowCalendar: () => void;
 }
 
-export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete }: Props) {
+export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete, onShowCalendar }: Props) {
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -101,6 +102,15 @@ export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete }:
           <span className="text-[11px] text-text-faint">{t("habit.streak.0")}</span>
         )}
       </div>
+
+      {/* Calendar shortcut */}
+      <button
+        onClick={onShowCalendar}
+        aria-label={t("habit.calendar.title")}
+        className="p-1.5 rounded-md text-text-faint hover:text-text-secondary hover:bg-elevated transition-colors flex-shrink-0"
+      >
+        <IconCalendar size={14} />
+      </button>
 
       {/* Menu */}
       <div className="relative flex-shrink-0" ref={menuRef}>

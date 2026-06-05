@@ -32,11 +32,16 @@ function rowToPerson(row: PersonRow) {
 // GET /people
 app.get("/", async (c) => {
   const userId = c.get("userId") as string;
-  const rows = await query<PersonRow>(
-    "SELECT * FROM people WHERE user_id = :uid ORDER BY created_at ASC",
-    { uid: userId }
-  );
-  return c.json(rows.map(rowToPerson));
+  try {
+    const rows = await query<PersonRow>(
+      "SELECT * FROM people WHERE user_id = :uid ORDER BY created_at ASC",
+      { uid: userId }
+    );
+    return c.json(rows.map(rowToPerson));
+  } catch (err) {
+    console.error("[people] GET /:", err instanceof Error ? err.message : err);
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
+  }
 });
 
 // POST /people
@@ -45,14 +50,18 @@ app.post("/", zValidator("json", PersonBody), async (c) => {
   const body = c.req.valid("json");
   const id = "p_" + nanoid(10);
   const now = new Date().toISOString();
+  try {
+    await execute(`
+      INSERT INTO people (id, user_id, name, initials, color, email, created_at)
+      VALUES (:id, :user_id, :name, :initials, :color, :email, :now)
+    `, { id, user_id: userId, name: body.name, initials: body.initials, color: body.color, email: body.email ?? null, now });
 
-  await execute(`
-    INSERT INTO people (id, user_id, name, initials, color, email, created_at)
-    VALUES (:id, :user_id, :name, :initials, :color, :email, :now)
-  `, { id, user_id: userId, name: body.name, initials: body.initials, color: body.color, email: body.email ?? null, now });
-
-  const row = await queryOne<PersonRow>("SELECT * FROM people WHERE id = :id", { id });
-  return c.json(rowToPerson(row!), 201);
+    const row = await queryOne<PersonRow>("SELECT * FROM people WHERE id = :id", { id });
+    return c.json(rowToPerson(row!), 201);
+  } catch (err) {
+    console.error("[people] POST /:", err instanceof Error ? err.message : err);
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
+  }
 });
 
 // PATCH /people/:id
@@ -60,52 +69,65 @@ app.patch("/:id", zValidator("json", PersonBody.partial()), async (c) => {
   const userId = c.get("userId") as string;
   const personId = c.req.param("id");
   const body = c.req.valid("json");
+  try {
+    const existing = await queryOne<PersonRow>(
+      "SELECT * FROM people WHERE id = :id AND user_id = :uid",
+      { id: personId, uid: userId }
+    );
+    if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
 
-  const existing = await queryOne<PersonRow>(
-    "SELECT * FROM people WHERE id = :id AND user_id = :uid",
-    { id: personId, uid: userId }
-  );
-  if (!existing) return httpError(c, 404, "NOT_FOUND", "Not found");
+    await execute(`
+      UPDATE people SET
+        name = :name, initials = :initials, color = :color, email = :email
+      WHERE id = :id AND user_id = :uid
+    `, {
+      name: body.name ?? existing.name,
+      initials: body.initials ?? existing.initials,
+      color: body.color ?? existing.color,
+      email: "email" in body ? (body.email ?? null) : existing.email,
+      id: personId, uid: userId,
+    });
 
-  await execute(`
-    UPDATE people SET
-      name = :name, initials = :initials, color = :color, email = :email
-    WHERE id = :id AND user_id = :uid
-  `, {
-    name: body.name ?? existing.name,
-    initials: body.initials ?? existing.initials,
-    color: body.color ?? existing.color,
-    email: "email" in body ? (body.email ?? null) : existing.email,
-    id: personId, uid: userId,
-  });
-
-  const row = await queryOne<PersonRow>("SELECT * FROM people WHERE id = :id", { id: personId });
-  return c.json(rowToPerson(row!));
+    const row = await queryOne<PersonRow>("SELECT * FROM people WHERE id = :id", { id: personId });
+    return c.json(rowToPerson(row!));
+  } catch (err) {
+    console.error("[people] PATCH /:id:", err instanceof Error ? err.message : err);
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
+  }
 });
 
 // DELETE /people/:id
 app.delete("/:id", async (c) => {
   const userId = c.get("userId") as string;
   const personId = c.req.param("id");
+  try {
+    const result = await execute(
+      "DELETE FROM people WHERE id = :id AND user_id = :uid",
+      { id: personId, uid: userId }
+    );
+    if (result.changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
 
-  const result = await execute(
-    "DELETE FROM people WHERE id = :id AND user_id = :uid",
-    { id: personId, uid: userId }
-  );
-  if (result.changes === 0) return httpError(c, 404, "NOT_FOUND", "Not found");
+    // Remove this person from the assignee_ids JSON array on all affected tasks.
+    // Use json_each instead of LIKE so that personId values containing % or _
+    // do not accidentally match unrelated rows.
+    await execute(`
+      UPDATE tasks
+      SET assignee_ids = (
+        SELECT COALESCE(json_group_array(value), '[]')
+        FROM json_each(assignee_ids)
+        WHERE value != :pid
+      )
+      WHERE user_id = :uid
+        AND EXISTS (
+          SELECT 1 FROM json_each(assignee_ids) WHERE value = :pid
+        )
+    `, { pid: personId, uid: userId });
 
-  // Remove this person from assignee_ids JSON array on all affected tasks
-  await execute(`
-    UPDATE tasks
-    SET assignee_ids = (
-      SELECT COALESCE(json_group_array(value), '[]')
-      FROM json_each(assignee_ids)
-      WHERE value != :pid
-    )
-    WHERE user_id = :uid AND assignee_ids LIKE :pattern
-  `, { pid: personId, uid: userId, pattern: `%${personId}%` });
-
-  return new Response(null, { status: 204 });
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    console.error("[people] DELETE /:id:", err instanceof Error ? err.message : err);
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
+  }
 });
 
 export default app;
