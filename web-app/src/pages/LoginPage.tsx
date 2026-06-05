@@ -12,18 +12,17 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function LoginPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { signIn, loading, clearError } = useAuthStore();
+  const { signIn, loading } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
-    clearError();
     try {
       await signIn(email, password);
       navigate("/today");
     } catch {
-      // error is set in the store and displayed below
+      // signIn dispatches toast.error; nothing else to do here
     }
   }
 

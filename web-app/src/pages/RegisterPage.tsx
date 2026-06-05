@@ -12,7 +12,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function RegisterPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { register, loading, clearError } = useAuthStore();
+  const { register, loading } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -22,12 +22,11 @@ export function RegisterPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!agreed) return;
-    clearError();
     try {
       await register({ email, password, confirm, nickname });
       navigate("/today");
     } catch {
-      // error is set in the store and displayed below
+      // register dispatches toast.error; nothing else to do here
     }
   }
 
