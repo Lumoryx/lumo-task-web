@@ -4,7 +4,6 @@ import { useT } from "@/i18n/useT";
 import type { Habit, HabitColor, HabitFrequency } from "@/types/task";
 
 const COLORS: HabitColor[] = ["green", "cyan", "amber", "red", "purple"];
-const FREQUENCIES: HabitFrequency[] = ["daily", "weekdays", "weekly"];
 
 const COLOR_HEX: Record<HabitColor, string> = {
   green:  "var(--status-success)",
@@ -14,11 +13,26 @@ const COLOR_HEX: Record<HabitColor, string> = {
   purple: "#a78bfa",
 };
 
+const FREQUENCIES: HabitFrequency[] = [
+  "daily",
+  "weekdays",
+  "weekend",
+  "days_of_week",
+  "times_per_week",
+  "interval",
+];
+
+// Sun=0 … Sat=6
+const WEEK_DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+
 interface FormState {
   title: string;
   emoji: string;
   color: HabitColor;
   frequency: HabitFrequency;
+  frequencyDays: number[];
+  frequencyTimes: number;
+  frequencyInterval: number;
   note: string;
 }
 
@@ -37,6 +51,9 @@ export function HabitFormModal({ habit, onSave, onClose }: Props) {
     emoji: habit?.emoji ?? "",
     color: habit?.color ?? "green",
     frequency: habit?.frequency ?? "daily",
+    frequencyDays: habit?.frequencyDays ?? [],
+    frequencyTimes: habit?.frequencyTimes ?? 3,
+    frequencyInterval: habit?.frequencyInterval ?? 2,
     note: habit?.note ?? "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
@@ -47,6 +64,9 @@ export function HabitFormModal({ habit, onSave, onClose }: Props) {
       emoji: habit?.emoji ?? "",
       color: habit?.color ?? "green",
       frequency: habit?.frequency ?? "daily",
+      frequencyDays: habit?.frequencyDays ?? [],
+      frequencyTimes: habit?.frequencyTimes ?? 3,
+      frequencyInterval: habit?.frequencyInterval ?? 2,
       note: habit?.note ?? "",
     });
     setErrors({});
@@ -77,7 +97,19 @@ export function HabitFormModal({ habit, onSave, onClose }: Props) {
       emoji: form.emoji.trim() || undefined,
       color: form.color,
       frequency: form.frequency,
+      frequencyDays: form.frequency === "days_of_week" ? form.frequencyDays : undefined,
+      frequencyTimes: form.frequency === "times_per_week" ? form.frequencyTimes : undefined,
+      frequencyInterval: form.frequency === "interval" ? form.frequencyInterval : undefined,
       note: form.note.trim() || undefined,
+    });
+  }
+
+  function toggleDay(day: number) {
+    setForm((f) => {
+      const days = f.frequencyDays.includes(day)
+        ? f.frequencyDays.filter((d) => d !== day)
+        : [...f.frequencyDays, day];
+      return { ...f, frequencyDays: days };
     });
   }
 
@@ -127,35 +159,128 @@ export function HabitFormModal({ habit, onSave, onClose }: Props) {
             )}
           </div>
 
-          {/* Emoji + Frequency row */}
-          <div className="flex gap-3">
-            <div className="flex-shrink-0 w-24">
-              <label className="block text-[12px] font-medium text-text-secondary mb-1">
-                {t("habit.form.emoji")}
-              </label>
-              <input
-                value={form.emoji}
-                onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))}
-                placeholder="🔥"
-                className="w-full px-3 py-2 rounded-lg bg-elevated border border-border-faint text-[18px] text-center outline-none focus:border-accent-edge transition-colors"
-                maxLength={4}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-[12px] font-medium text-text-secondary mb-1">
-                {t("habit.form.frequency")}
-              </label>
-              <select
-                value={form.frequency}
-                onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value as HabitFrequency }))}
-                className="w-full px-3 py-2 rounded-lg bg-elevated border border-border-faint text-[13px] text-text-primary outline-none focus:border-accent-edge transition-colors"
-              >
-                {FREQUENCIES.map((freq) => (
-                  <option key={freq} value={freq}>{t(`habit.freq.${freq}`)}</option>
-                ))}
-              </select>
+          {/* Emoji */}
+          <div className="flex-shrink-0 w-24">
+            <label className="block text-[12px] font-medium text-text-secondary mb-1">
+              {t("habit.form.emoji")}
+            </label>
+            <input
+              value={form.emoji}
+              onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))}
+              placeholder="🔥"
+              className="w-full px-3 py-2 rounded-lg bg-elevated border border-border-faint text-[18px] text-center outline-none focus:border-accent-edge transition-colors"
+              maxLength={4}
+            />
+          </div>
+
+          {/* Frequency type pills */}
+          <div>
+            <label className="block text-[12px] font-medium text-text-secondary mb-2">
+              {t("habit.form.frequency")}
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {FREQUENCIES.map((freq) => {
+                const on = form.frequency === freq;
+                return (
+                  <button
+                    key={freq}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, frequency: freq }))}
+                    className="px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border"
+                    style={{
+                      borderColor: on ? "var(--accent-edge)" : "var(--border-faint)",
+                      background: on ? "var(--accent-fog)" : "var(--bg-elevated)",
+                      color: on ? "var(--accent-primary)" : "var(--text-secondary)",
+                    }}
+                  >
+                    {t(`habit.freq.${freq}`)}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {/* Sub-config for days_of_week */}
+          {form.frequency === "days_of_week" && (
+            <div>
+              <div className="flex gap-1 justify-between">
+                {WEEK_DAYS.map((day) => {
+                  const on = form.frequencyDays.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDay(day)}
+                      className="flex-1 py-1.5 rounded-lg text-[11px] font-medium transition-all border"
+                      style={{
+                        borderColor: on ? "var(--accent-edge)" : "var(--border-faint)",
+                        background: on ? "var(--accent-fog)" : "var(--bg-elevated)",
+                        color: on ? "var(--accent-primary)" : "var(--text-muted)",
+                      }}
+                    >
+                      {t(`habit.day.${["sun","mon","tue","wed","thu","fri","sat"][day]}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Sub-config for times_per_week */}
+          {form.frequency === "times_per_week" && (
+            <div className="flex items-center gap-3">
+              <span className="text-[12px] text-text-secondary flex-1">
+                {t("habit.freq.times_per_week.label")}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, frequencyTimes: Math.max(1, f.frequencyTimes - 1) }))}
+                  className="w-7 h-7 rounded-full bg-elevated border border-border-faint text-text-primary text-[16px] flex items-center justify-center hover:bg-surface transition-colors"
+                >
+                  −
+                </button>
+                <span className="w-6 text-center text-[14px] font-semibold text-text-primary">
+                  {form.frequencyTimes}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, frequencyTimes: Math.min(7, f.frequencyTimes + 1) }))}
+                  className="w-7 h-7 rounded-full bg-elevated border border-border-faint text-text-primary text-[16px] flex items-center justify-center hover:bg-surface transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-config for interval */}
+          {form.frequency === "interval" && (
+            <div className="flex items-center gap-3">
+              <span className="text-[12px] text-text-secondary flex-1">
+                {t("habit.freq.interval.label")}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, frequencyInterval: Math.max(2, f.frequencyInterval - 1) }))}
+                  className="w-7 h-7 rounded-full bg-elevated border border-border-faint text-text-primary text-[16px] flex items-center justify-center hover:bg-surface transition-colors"
+                >
+                  −
+                </button>
+                <span className="w-6 text-center text-[14px] font-semibold text-text-primary">
+                  {form.frequencyInterval}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, frequencyInterval: Math.min(30, f.frequencyInterval + 1) }))}
+                  className="w-7 h-7 rounded-full bg-elevated border border-border-faint text-text-primary text-[16px] flex items-center justify-center hover:bg-surface transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Color */}
           <div>

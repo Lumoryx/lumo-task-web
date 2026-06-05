@@ -46,6 +46,7 @@ describe("HabitCard", () => {
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
       />
     );
     expect(screen.getByText("Morning run")).toBeInTheDocument();
@@ -60,6 +61,7 @@ describe("HabitCard", () => {
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
       />
     );
     expect(screen.getByText("🏃")).toBeInTheDocument();
@@ -75,6 +77,7 @@ describe("HabitCard", () => {
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
       />
     );
     // Streak should be 1 (yesterday done, today not yet)
@@ -91,6 +94,7 @@ describe("HabitCard", () => {
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText("habit.done"));
@@ -108,6 +112,7 @@ describe("HabitCard", () => {
         onUndo={onUndo}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText("habit.undo"));
@@ -124,6 +129,7 @@ describe("HabitCard", () => {
         onUndo={vi.fn()}
         onEdit={onEdit}
         onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText("open menu"));
@@ -141,6 +147,7 @@ describe("HabitCard", () => {
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={onDelete}
+        onShowCalendar={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText("open menu"));
@@ -157,6 +164,7 @@ describe("HabitCard", () => {
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText("open menu"));

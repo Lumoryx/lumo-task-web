@@ -160,7 +160,14 @@ export interface CountdownEvent {
   createdAt: string;
 }
 
-export type HabitFrequency = "daily" | "weekdays" | "weekly";
+export type HabitFrequency =
+  | "daily"          // every day
+  | "weekdays"       // Mon–Fri
+  | "weekend"        // Sat–Sun
+  | "days_of_week"   // specific weekdays chosen by user
+  | "times_per_week" // N completions per calendar week, any day
+  | "interval";      // every N days
+
 export type HabitColor = "green" | "cyan" | "amber" | "red" | "purple";
 
 export interface Habit {
@@ -169,6 +176,12 @@ export interface Habit {
   emoji?: string;
   color: HabitColor;
   frequency: HabitFrequency;
+  /** [0-6] Sun=0 … Sat=6, used when frequency === "days_of_week" */
+  frequencyDays?: number[];
+  /** 1–7, used when frequency === "times_per_week" (default 3) */
+  frequencyTimes?: number;
+  /** 2–30, used when frequency === "interval" (default 2) */
+  frequencyInterval?: number;
   note?: string;
   createdAt: string;
 }
