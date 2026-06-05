@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
@@ -1029,14 +1029,14 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [status, setStatus] = useState<{ configured: boolean; remoteUrl: string; status: string; error: string | null; lastSyncAt: string | null } | null>(null);
 
-  function refreshStatus() {
+  const refreshStatus = useCallback(() => {
     api.remoteStatus()
       .then((s) => {
         setStatus(s);
         if (s.remoteUrl) setUrl((prev) => prev || s.remoteUrl);
       })
       .catch(() => setStatus(null));
-  }
+  }, []);
 
   useEffect(() => {
     api.syncStatus().then((s) => {
@@ -1053,7 +1053,7 @@ function SyncGroup({ t, locale }: { t: (k: string) => string; locale: string }) 
     } else {
       refreshStatus();
     }
-  }, [isElectron]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isElectron, refreshStatus]);
 
   function badgeContent() {
     if (!isElectron) {
