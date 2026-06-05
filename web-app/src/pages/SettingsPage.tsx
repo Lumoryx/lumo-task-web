@@ -1102,7 +1102,11 @@ function SyncPanel({ t, locale }: { t: (k: string) => string; locale: string }) 
   async function handleElectronSave() {
     if (!window.electronAPI) return;
     setSaving(true);
-    await (window.electronAPI as any).setSyncConfig?.({ enabled, url, token });
+    try {
+      await (window.electronAPI as any).setSyncConfig?.({ enabled, url, token });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleWebSave() {
@@ -1263,7 +1267,7 @@ function SyncPanel({ t, locale }: { t: (k: string) => string; locale: string }) 
             )}
 
             <div className="px-5 py-4 border-t flex flex-col gap-3" style={{ borderColor: "var(--border-faint)" }}>
-              <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("settings.sync.url.placeholder")} className="w-full text-[13px] rounded-md px-3 py-2 border bg-transparent outline-none" style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }} />
+              <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("settings.sync.url.placeholder")} className="w-full text-[13px] rounded-md px-3 py-2 border bg-transparent outline-none" style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }} />
               <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={t("settings.sync.token.placeholder")} className="w-full text-[13px] rounded-md px-3 py-2 border bg-transparent outline-none" style={{ borderColor: "var(--border-default)", color: "var(--text-primary)" }} />
               <div className="flex gap-2">
                 <button onClick={handleWebSave} disabled={saving || !url.trim()} className="btn btn-primary" style={{ height: 32, fontSize: 12 }}>
