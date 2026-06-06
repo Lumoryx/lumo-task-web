@@ -14,7 +14,9 @@ BACKEND := backend
 .DEFAULT_GOAL := dev
 .PHONY: dev install build preview typecheck lint ci clean reset \
         backend-install backend-build backend-dev backend-migrate backend-seed \
-        dev-full package-win help
+        dev-full package-win \
+        test-integration test-integration-backend test-integration-web test-integration-electron \
+        help
 
 # Sentinel files: rebuild when package-lock.json changes.
 $(APP)/node_modules: $(APP)/package-lock.json
@@ -86,6 +88,39 @@ dev-full: $(APP)/node_modules $(BACKEND)/node_modules   ## Run frontend + backen
 	 wait
 
 # -----------------------------------------------------------------------
+# Integration tests  (real API + Playwright)
+# -----------------------------------------------------------------------
+
+test-integration: $(APP)/node_modules $(BACKEND)/node_modules   ## Run all integration test suites (backend + web + electron)
+	@echo ">>> Running all integration test suites..."
+ifeq ($(OS),Windows_NT)
+	powershell -ExecutionPolicy Bypass -File scripts/test-integration.ps1
+else
+	bash scripts/test-integration.sh
+endif
+
+test-integration-backend: $(BACKEND)/node_modules               ## Backend real-API integration tests only
+ifeq ($(OS),Windows_NT)
+	powershell -ExecutionPolicy Bypass -File scripts/test-integration.ps1 -Suite backend -SkipBuild
+else
+	bash scripts/test-integration.sh backend --skip-build
+endif
+
+test-integration-web: $(APP)/node_modules $(BACKEND)/node_modules  ## Web UI integration tests only (real backend)
+ifeq ($(OS),Windows_NT)
+	powershell -ExecutionPolicy Bypass -File scripts/test-integration.ps1 -Suite web -SkipBuild
+else
+	bash scripts/test-integration.sh web --skip-build
+endif
+
+test-integration-electron: $(APP)/node_modules                  ## Windows Electron UI tests only
+ifeq ($(OS),Windows_NT)
+	powershell -ExecutionPolicy Bypass -File scripts/test-integration.ps1 -Suite electron -SkipBuild
+else
+	bash scripts/test-integration.sh electron --skip-build
+endif
+
+# -----------------------------------------------------------------------
 # Desktop packaging
 # -----------------------------------------------------------------------
 
@@ -137,6 +172,12 @@ help:   ## Show this help
 	@echo "  lint         ESLint"
 	@echo "  build        Frontend production build"
 	@echo "  ci           typecheck + lint + build  (mirrors CI gate)"
+	@echo ""
+	@echo "Integration tests (real API + Playwright):"
+	@echo "  test-integration           All suites: backend + web + electron"
+	@echo "  test-integration-backend   Backend real-API tests only"
+	@echo "  test-integration-web       Web UI tests with real backend"
+	@echo "  test-integration-electron  Windows Electron UI tests"
 	@echo ""
 	@echo "Desktop:"
 	@echo "  package-win  Build backend + frontend, package Windows installer → web-app/dist-electron/"

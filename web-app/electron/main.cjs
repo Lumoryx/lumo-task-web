@@ -202,20 +202,26 @@ async function startBackend() {
     const tsSrc = path.join(__dirname, "../../backend/src/index.ts");
 
     let cmd, args;
-    if (fs.existsSync(distEntry)) {
+    // LUMO_USE_DIST=1 forces the pre-built bundle (useful for Playwright tests on Windows)
+    const forceUseDist = process.env.LUMO_USE_DIST === "1";
+    const tsxCmd = path.join(__dirname, "../../backend/node_modules/.bin/tsx.cmd");
+    const tsxExe = fs.existsSync(tsxCmd) ? tsxCmd : (fs.existsSync(tsxBin) ? tsxBin : "tsx");
+
+    if (fs.existsSync(distEntry) && (forceUseDist || !process.execPath.toLowerCase().includes("electron"))) {
       cmd = process.execPath;
       args = [distEntry];
-      if (process.execPath.toLowerCase().includes("electron")) {
-        cmd = fs.existsSync(tsxBin) ? tsxBin : "tsx";
-        args = [tsSrc];
-      }
+    } else if (fs.existsSync(distEntry) && process.execPath.toLowerCase().includes("electron")) {
+      cmd = tsxExe;
+      args = [tsSrc];
     } else {
-      cmd = fs.existsSync(tsxBin) ? tsxBin : "tsx";
+      cmd = tsxExe;
       args = [tsSrc];
     }
 
     log(`[main] Backend entry (dev): ${cmd} ${args.join(" ")}`);
-    backendProcess = spawn(cmd, args, { env, stdio: "pipe" });
+    // .cmd files on Windows require shell:true to execute
+    const needsShell = process.platform === "win32" && cmd.endsWith(".cmd");
+    backendProcess = spawn(cmd, args, { env, stdio: "pipe", shell: needsShell });
     pipeOutput(backendProcess);
   }
 

@@ -15,7 +15,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers playwright test",
-    "test:e2e:report": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers playwright show-report"
+    "test:e2e:report": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers playwright show-report",
+    "test:integration": "playwright test --config playwright.integration.config.ts",
+    "test:integration:report": "playwright show-report playwright-report-integration",
+    "test:electron": "playwright test --config playwright.electron.config.ts",
+    "test:electron:report": "playwright show-report playwright-report-electron"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.11.0",
