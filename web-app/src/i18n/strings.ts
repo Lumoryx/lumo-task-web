@@ -58,8 +58,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.empty.cta": "Go to Today",
     "focus.empty.matrix": "Open Matrix",
     "focus.fallback.badge": "not in today",
+    "focus.sub.prefix": "Est.",
     "focus.compact.enter": "Pet mode",
-    "focus.compact.restore": "Restore",
+    "focus.compact.restore": "Click to restore",
+    "focus.compact.exit": "Exit focus",
     "focus.compact.done": "Done",
 
     "qc.title": "New task",
@@ -545,8 +547,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.empty.cta": "前往今天",
     "focus.empty.matrix": "打开矩阵",
     "focus.fallback.badge": "不在今日计划",
+    "focus.sub.prefix": "预估",
     "focus.compact.enter": "宠物模式",
-    "focus.compact.restore": "恢复窗口",
+    "focus.compact.restore": "点击恢复",
+    "focus.compact.exit": "退出专注",
     "focus.compact.done": "完成",
 
     "qc.title": "新建任务",
