@@ -49,23 +49,52 @@ export function FocusPage() {
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
   const [exiting, setExiting] = useState(false);
-  // Track whether the timer has been started with the correct task duration.
-  const timerStartedForRef = useRef<string | null>(null);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
-  const workerRef = useRef<Worker | null>(null);
   const localeRef = useRef(locale);
   localeRef.current = locale;
 
-  // ── Create worker once on mount; tear it down on unmount ─────────────────
-  useEffect(() => {
-    const worker = new Worker("/timer-worker.js");
-    workerRef.current = worker;
+  // Mutable refs so interval callback always reads latest values without stale closures.
+  const remainingRef = useRef(taskDuration);
+  const pausedRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedForRef = useRef<string | null>(null);
 
-    worker.onmessage = (e: MessageEvent<{ type: string; remaining?: number }>) => {
-      if (e.data.type === "tick" && typeof e.data.remaining === "number") {
-        setRemaining(e.data.remaining);
-      }
-      if (e.data.type === "done") {
+  function stopInterval() {
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }
+
+  // Request notification permission once on mount; clear interval on unmount.
+  useEffect(() => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    return () => { stopInterval(); startedForRef.current = null; };
+  }, []);
+
+  // Start/restart timer when the task (and its duration) becomes known.
+  useEffect(() => {
+    if (!task) return;
+    const key = `${task.id}:${taskDuration}`;
+    if (startedForRef.current === key) return;
+    startedForRef.current = key;
+
+    stopInterval();
+    remainingRef.current = taskDuration;
+    pausedRef.current = false;
+    setPaused(false);
+    setRemaining(taskDuration);
+    setTimerReady(true);
+
+    intervalRef.current = setInterval(() => {
+      if (pausedRef.current) return;
+      const next = Math.max(0, remainingRef.current - 1);
+      remainingRef.current = next;
+      setRemaining(next);
+      if (next === 0) {
+        stopInterval();
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           new Notification("Lumo · Pomodoro done", {
             body: localeRef.current === "zh"
@@ -83,40 +112,12 @@ export function FocusPage() {
           }
         }).catch(() => {});
       }
-    };
-
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-
-    return () => {
-      worker.terminate();
-      workerRef.current = null;
-      timerStartedForRef.current = null;
-      pauseSyncMounted.current = false;
-    };
-  }, []);
-
-  // ── Start/restart timer when the task (and its duration) becomes known ────
-  // This runs after tasks load from the API, ensuring the correct duration.
-  useEffect(() => {
-    if (!task || !workerRef.current) return;
-    // Avoid restarting if we already started for this exact task+duration.
-    const key = `${task.id}:${taskDuration}`;
-    if (timerStartedForRef.current === key) return;
-    timerStartedForRef.current = key;
-
-    setRemaining(taskDuration);
-    workerRef.current.postMessage({ type: "start", duration: taskDuration });
-    setTimerReady(true);
+    }, 1000);
   }, [task?.id, taskDuration]);
 
-  // ── Sync pause/resume (skip on mount — start message already runs the timer)
-  const pauseSyncMounted = useRef(false);
+  // Keep pausedRef in sync so the interval callback reads the latest value.
   useEffect(() => {
-    if (!pauseSyncMounted.current) { pauseSyncMounted.current = true; return; }
-    if (!workerRef.current) return;
-    workerRef.current.postMessage({ type: paused ? "pause" : "resume" });
+    pausedRef.current = paused;
   }, [paused]);
 
   function enterCompact() {
