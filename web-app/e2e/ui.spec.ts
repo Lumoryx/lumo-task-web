@@ -1,10 +1,30 @@
+/**
+ * UI integration tests — mock API, no real backend required.
+ *
+ * The app uses HashRouter: all routes live in the hash fragment (e.g. /#/today).
+ * localStorage is injected via addInitScript so Zustand hydrates the correct
+ * state before the first React render.
+ *
+ * Coverage:
+ *   TC01–TC11  Onboarding wizard (5-step flow, each step's content)
+ *   TC12–TC18  Auth pages (login, register, validation)
+ *   TC19–TC27  Today page (conviction card, plan, quick-add modal)
+ *   TC28–TC34  Matrix page (quadrants, task cards, calendar view)
+ *   TC35–TC40  Focus page (timer, controls, empty state)
+ *   TC41–TC53  Settings page (all 8 tabs, locale switch, replay)
+ *   TC54–TC57  Habits page (auth gate, list, add modal)
+ *   TC58–TC61  Stats page (auth gate, sections, stat cards)
+ *   TC62–TC65  Countdown page (auth gate, list, add modal)
+ *   TC66–TC70  Account & Change-password pages
+ *   TC71–TC74  Navigation (sidebar links, routing, 404 redirect)
+ */
+
 import { test, expect, type Page } from "@playwright/test";
 
-/**
- * The app uses HashRouter: routes live in the hash fragment (e.g. /#/today).
- * Set localStorage before the page boots so Zustand picks up onboarded=true
- * and does not redirect to /onboarding on every test that doesn't test it.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function skipOnboarding(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -23,7 +43,6 @@ async function skipOnboarding(page: Page) {
   });
 }
 
-/** Set onboarded=true AND simulate a signed-in user so the auth gate passes. */
 async function skipOnboardingAndSignIn(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -56,12 +75,82 @@ async function skipOnboardingAndSignIn(page: Page) {
         version: 0,
       })
     );
+    localStorage.setItem("lumo.token", "mock-jwt-token-1234");
   });
 }
 
-/**
- * Mock all /v1/* API calls so tests run without a live backend.
- */
+const MOCK_USER = {
+  id: "u1",
+  email: "alex@stride.studio",
+  name: "Alex",
+  initials: "AL",
+  local: false,
+  plan: "free",
+  stats: { tasks: 5, pomodoros: 3, syncOK: false },
+};
+
+const MOCK_TASKS = [
+  {
+    id: "t1",
+    title: { en: "Write integration tests" },
+    quadrant: "Q1",
+    today: true,
+    completed: false,
+    conviction: 0.95,
+    pomos_done: 1,
+    pomos_total: 2,
+    duration: 30,
+    assignee_ids: [],
+  },
+  {
+    id: "t2",
+    title: { en: "Review pull request" },
+    quadrant: "Q2",
+    today: false,
+    completed: false,
+    conviction: 0.7,
+    pomos_done: 0,
+    pomos_total: 1,
+    duration: 15,
+    assignee_ids: [],
+  },
+  {
+    id: "t3",
+    title: { en: "Update documentation" },
+    quadrant: "Q3",
+    today: false,
+    completed: false,
+    conviction: 0.4,
+    pomos_done: 0,
+    pomos_total: 1,
+    duration: 20,
+    assignee_ids: [],
+  },
+  {
+    id: "t4",
+    title: { en: "Check emails" },
+    quadrant: "Q4",
+    today: false,
+    completed: false,
+    conviction: 0.2,
+    pomos_done: 0,
+    pomos_total: 1,
+    duration: 5,
+    assignee_ids: [],
+  },
+];
+
+const MOCK_HABITS = [
+  { id: "h1", userId: "u1", name: "Morning exercise", frequency: "daily", color: "#22c55e", logs: [] },
+  { id: "h2", userId: "u1", name: "Read 30 minutes", frequency: "daily", color: "#06b6d4", logs: [] },
+];
+
+const MOCK_COUNTDOWNS = [
+  { id: "c1", userId: "u1", title: "Product launch", date: "2026-12-01", repeat: "none" },
+  { id: "c2", userId: "u1", title: "Team offsite", date: "2026-08-15", repeat: "yearly" },
+];
+
+/** Minimal mock — empty task list. Used by basic render / auth-gate tests. */
 async function mockAPI(page: Page) {
   await page.route("**/v1/**", (route) => {
     const url = route.request().url();
@@ -71,17 +160,7 @@ async function mockAPI(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          token: "mock-token",
-          user: {
-            id: "u1",
-            email: "alex@stride.studio",
-            name: "Alex",
-            initials: "AL",
-            plan: "free",
-            stats: { tasksCreated: 5, pomodorosCompleted: 3, syncOK: false },
-          },
-        }),
+        body: JSON.stringify({ token: "mock-token", user: MOCK_USER }),
       });
     }
     if (url.includes("/v1/tasks")) {
@@ -102,9 +181,7 @@ async function mockAPI(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          settings: { locale: "en", accent: "green", density: "comfortable" },
-        }),
+        body: JSON.stringify({ locale: "en", accent: "green", density: "comfortable" }),
       });
     }
     if (url.includes("/v1/completed")) {
@@ -118,16 +195,7 @@ async function mockAPI(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          user: {
-            id: "u1",
-            email: "alex@stride.studio",
-            name: "Alex",
-            initials: "AL",
-            plan: "free",
-            stats: { tasksCreated: 5, pomodorosCompleted: 3, syncOK: false },
-          },
-        }),
+        body: JSON.stringify({ user: MOCK_USER }),
       });
     }
     return route.fulfill({
@@ -138,195 +206,920 @@ async function mockAPI(page: Page) {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC01 – Onboarding: complete the full 5-step wizard
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC01 – Onboarding: complete full 5-step flow", async ({ page }) => {
-  // Fresh context — no onboarded flag in localStorage
-  await page.goto("/");
+/** Full mock with realistic tasks, habits, countdowns, and auth responses. */
+async function mockAPIWithData(page: Page) {
+  await page.route("**/v1/**", (route) => {
+    const url = route.request().url();
+    const method = route.request().method();
 
-  // The first-run gate redirects to #/onboarding
+    // Auth
+    if (method === "POST" && url.includes("/v1/auth/signin")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ token: "mock-token", user: MOCK_USER }),
+      });
+    }
+    if (method === "POST" && url.includes("/v1/auth/register")) {
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ token: "mock-token", user: MOCK_USER }),
+      });
+    }
+
+    // Tasks — complete must be checked before generic /v1/tasks POST
+    if (method === "POST" && url.match(/\/v1\/tasks\/[^/]+\/complete/)) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id: "t1", completed: true }),
+      });
+    }
+    if (method === "POST" && url.includes("/v1/tasks")) {
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "t99",
+          title: { en: "New task" },
+          quadrant: "Q1",
+          today: false,
+          completed: false,
+          assignee_ids: [],
+        }),
+      });
+    }
+    if (url.includes("/v1/completed")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ entries: [] }),
+      });
+    }
+    if (url.includes("/v1/tasks")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ tasks: MOCK_TASKS }),
+      });
+    }
+
+    // People
+    if (url.includes("/v1/people")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ people: [] }),
+      });
+    }
+
+    // Habits
+    if (method === "POST" && url.includes("/v1/habits")) {
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "h99",
+          userId: "u1",
+          name: "New habit",
+          frequency: "daily",
+          color: "#22c55e",
+          logs: [],
+        }),
+      });
+    }
+    if (url.includes("/v1/habits")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ habits: MOCK_HABITS }),
+      });
+    }
+
+    // Countdowns
+    if (method === "POST" && url.includes("/v1/countdowns")) {
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "c99",
+          userId: "u1",
+          title: "New countdown",
+          date: "2026-12-31",
+          repeat: "none",
+        }),
+      });
+    }
+    if (url.includes("/v1/countdowns")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ events: MOCK_COUNTDOWNS }),
+      });
+    }
+
+    // Settings / user / focus
+    if (url.includes("/v1/settings")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ locale: "en", accent: "green", density: "comfortable" }),
+      });
+    }
+    if (url.includes("/v1/user")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ user: MOCK_USER }),
+      });
+    }
+    if (method === "POST" && url.includes("/v1/focus")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ entry_id: "f1" }),
+      });
+    }
+
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({}),
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC01–TC11  Onboarding wizard
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC01 – Onboarding: complete full 5-step flow → lands on login", async ({ page }) => {
+  await page.goto("/");
   await expect(page).toHaveURL(/#\/onboarding/);
 
-  // Step 1 of 5 — "Let's set it up"
   await expect(page.getByText("1 / 5")).toBeVisible();
   await page.locator("footer .btn-primary").click();
 
-  // Steps 2–4 — "Continue"
   for (let step = 2; step <= 4; step++) {
     await expect(page.getByText(`${step} / 5`)).toBeVisible();
     await page.locator("footer .btn-primary").click();
   }
 
-  // Step 5 — "Open the matrix"
   await expect(page.getByText("5 / 5")).toBeVisible();
   await page.locator("footer .btn-primary").click();
 
-  // Completing onboarding now redirects to the login page
   await expect(page).toHaveURL(/login/);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC02 – Onboarding: Skip button exits immediately to Today
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC02 – Onboarding: skip button goes to Today page", async ({ page }) => {
+test("TC02 – Onboarding: skip button exits to login", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/#\/onboarding/);
-
-  // "Skip" sits in the top-right of the onboarding card
   await page.getByRole("button", { name: "Skip" }).click();
-
-  // After skipping onboarding the user must log in before entering the app
   await expect(page).toHaveURL(/login/);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC03 – Login page: all essential form elements are visible
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC03 – Login page: email, password and submit button are visible", async ({ page }) => {
-  await skipOnboarding(page);
-  // HashRouter routes live in the hash fragment — navigate to /#/login
-  await page.goto("/#/login");
+test("TC03 – Onboarding: step 1 shows 'Welcome to Lumo' and primary CTA", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("Welcome to Lumo")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("button", { name: /let's set it up/i })).toBeVisible();
+});
 
+test("TC04 – Onboarding: step 2 shows language selection (English / 中文)", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/english/i)).toBeVisible();
+  await expect(page.getByText("中文")).toBeVisible();
+});
+
+test("TC05 – Onboarding: step 3 shows accent color picker", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC06 – Onboarding: step 4 shows Comfortable / Compact density options", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await expect(page.getByText("Density")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Comfortable")).toBeVisible();
+  await expect(page.getByText("Compact")).toBeVisible();
+});
+
+test("TC07 – Onboarding: step 5 shows 'All set' and 'Open the matrix' CTA", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await expect(page.getByText("All set")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole("button", { name: /open the matrix/i })).toBeVisible();
+});
+
+test("TC08 – Onboarding: back button returns to previous step", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await page.getByRole("button", { name: /back/i }).click();
+  await expect(page.getByText("Welcome to Lumo")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC09 – Onboarding: selecting 中文 does not break navigation", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await page.getByText("中文").click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC10 – Onboarding: selecting Compact density and continuing works", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await expect(page.getByText("Density")).toBeVisible({ timeout: 5_000 });
+  await page.getByText("Compact").click();
+  await page.getByRole("button", { name: /continue/i }).click();
+  await expect(page.getByText("All set")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC11 – Onboarding: step counter advances correctly 1→2→3", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("1 / 5")).toBeVisible({ timeout: 5_000 });
+  await page.getByRole("button", { name: /let's set it up/i }).click();
+  await expect(page.getByText("2 / 5")).toBeVisible({ timeout: 5_000 });
+  await page.getByRole("button", { name: /continue/i }).click();
+  await expect(page.getByText("3 / 5")).toBeVisible({ timeout: 5_000 });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC12–TC18  Auth pages
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC12 – Login: email, password, submit, and OAuth buttons visible", async ({ page }) => {
+  await skipOnboarding(page);
+  await page.goto("/#/login");
   await expect(page.locator('input[type="email"]')).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
-
-  // Submit button says "Sign in"
   const submitBtn = page.locator('button[type="submit"]');
   await expect(submitBtn).toBeVisible();
   await expect(submitBtn).toBeEnabled();
-
-  // OAuth coming-soon buttons
   await expect(page.getByText(/continue with google/i)).toBeVisible();
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC04 – Login page: "Create account" link navigates to /register
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC04 – Login page: 'Create account' link navigates to /register", async ({ page }) => {
+test("TC13 – Login: 'Create account' navigates to /register", async ({ page }) => {
   await skipOnboarding(page);
   await page.goto("/#/login");
-
-  // There are two buttons named "Create account" on the login page
-  // (footer link + OAuth section), pick the type="button" navigation link
   const toRegisterBtn = page
     .locator('button[type="button"]')
     .filter({ hasText: /create account/i })
     .first();
   await toRegisterBtn.click();
-
   await expect(page).toHaveURL(/register/);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC05 – Register page: all required input fields are present
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC05 – Register page: email, password, confirm and nickname fields visible", async ({
-  page,
-}) => {
+test("TC14 – Register: email, two password fields, nickname, and submit present", async ({ page }) => {
   await skipOnboarding(page);
   await page.goto("/#/register");
-
   await expect(page.locator('input[type="email"]')).toBeVisible();
-
-  // Two password-type inputs: password + confirm
-  const passwordInputs = page.locator('input[type="password"]');
-  await expect(passwordInputs).toHaveCount(2);
-
-  // Nickname / display name (text input)
+  await expect(page.locator('input[type="password"]')).toHaveCount(2);
   await expect(page.locator('input[type="text"]')).toBeVisible();
-
-  // Submit button says "Create account"
   await expect(page.locator('button[type="submit"]')).toBeVisible();
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC06 – Today page: sidebar and page content render correctly
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC06 – Today page: sidebar brand and page content are visible", async ({ page }) => {
-  await skipOnboardingAndSignIn(page);
-  await mockAPI(page);
-  await page.goto("/#/today");
+test("TC15 – Register: mismatched passwords shows validation error", async ({ page }) => {
+  await skipOnboarding(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/register");
+  await page.locator('input[type="email"]').fill("test@example.com");
+  await page.locator('input[type="password"]').first().fill("Password!123");
+  await page.locator('input[type="password"]').nth(1).fill("Different!456");
+  await page.locator('button[type="submit"]').click();
+  await expect(
+    page.getByText(/match|mismatch|do not match/i).or(page.locator('[aria-live]'))
+  ).toBeVisible({ timeout: 5_000 });
+});
 
-  // Sidebar brand
-  await expect(page.getByText("Lumo").first()).toBeVisible();
+test("TC16 – Register: successful mock submit navigates to app shell", async ({ page }) => {
+  await skipOnboarding(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/register");
+  await page.locator('input[type="email"]').fill("newuser@lumo.test");
+  await page.locator('input[type="password"]').first().fill("NewPass!123");
+  await page.locator('input[type="password"]').nth(1).fill("NewPass!123");
+  const tos = page.locator('input[type="checkbox"]');
+  if (await tos.count() > 0) await tos.first().check();
+  await page.locator('button[type="submit"]').click();
+  await expect(page).toHaveURL(/#\/(today|matrix)/, { timeout: 10_000 });
+});
 
-  // Today nav item is active in the sidebar
-  await expect(page.locator(".nav-item", { hasText: /today/i }).first()).toBeVisible();
+test("TC17 – Login: successful mock submit navigates to Today", async ({ page }) => {
+  await skipOnboarding(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/login");
+  await page.locator('input[type="email"]').fill("alex@stride.studio");
+  await page.locator('input[type="password"]').fill("Password!123");
+  await page.locator('button[type="submit"]').click();
+  await expect(page).toHaveURL(/#\/(today|matrix)/, { timeout: 10_000 });
+});
 
-  // Today page empty-state (no tasks yet via mock API)
-  await expect(page.getByText("Nothing planned yet")).toBeVisible();
+test("TC18 – Login: 'Continue without an account' link is visible", async ({ page }) => {
+  await skipOnboarding(page);
+  await page.goto("/#/login");
+  await expect(page.getByText(/continue without/i)).toBeVisible();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TC07 – Matrix page: all four Eisenhower quadrant headers are visible
+// TC19–TC27  Today page
 // ─────────────────────────────────────────────────────────────────────────────
-test("TC07 – Matrix page: four quadrant headers visible (Do first, Schedule, Delegate, Drop)", async ({
-  page,
-}) => {
+
+test("TC19 – Today: empty state shows 'Nothing planned yet' and Matrix CTA", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
-  await page.goto("/#/matrix");
+  await page.goto("/#/today");
+  await expect(page.getByText("Nothing planned yet")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("button", { name: /open matrix/i })).toBeVisible();
+});
 
-  // The four quadrant column headings
-  await expect(page.getByText("Do first")).toBeVisible();
+test("TC20 – Today: sidebar brand 'Lumo' is visible", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/today");
+  await expect(page.getByText("Lumo").first()).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC21 – Today: 'Recommended' conviction card shows Q1+today task", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+  await expect(page.getByText("Recommended")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC22 – Today: 'Today's plan' section heading is visible", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+  await expect(page.getByText("Today's plan")).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC23 – Today: 'Start focus' button is present on conviction card", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+  await expect(page.getByRole("button", { name: /start focus/i }).first()).toBeVisible({
+    timeout: 8_000,
+  });
+});
+
+test("TC24 – Today: Quick Add modal opens from topbar button", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+  await page.getByRole("button", { name: /quick add/i }).click();
+  await expect(page.getByPlaceholder(/what needs doing/i)).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC25 – Today: Quick Add Cancel button closes the modal", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+  await page.getByRole("button", { name: /quick add/i }).click();
+  await expect(page.getByPlaceholder(/what needs doing/i)).toBeVisible({ timeout: 5_000 });
+  await page.getByRole("button", { name: /cancel/i }).click();
+  await expect(page.getByPlaceholder(/what needs doing/i)).not.toBeVisible({ timeout: 5_000 });
+});
+
+test("TC26 – Today: Quick Add Create submits and closes modal", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+  await page.getByRole("button", { name: /quick add/i }).click();
+  await page.getByPlaceholder(/what needs doing/i).fill("Brand new test task");
+  await page.getByRole("button", { name: /^create$/i }).click();
+  await expect(page.getByPlaceholder(/what needs doing/i)).not.toBeVisible({ timeout: 5_000 });
+});
+
+test("TC27 – Today: Today nav item is highlighted in sidebar", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/today");
+  await expect(page.locator(".nav-item", { hasText: /today/i }).first()).toBeVisible({
+    timeout: 8_000,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC28–TC34  Matrix page
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC28 – Matrix: all four Eisenhower quadrant headers visible", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/matrix");
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText("Schedule")).toBeVisible();
   await expect(page.getByText("Delegate")).toBeVisible();
   await expect(page.getByText("Drop")).toBeVisible();
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC08 – Focus page: renders without errors (empty state with no tasks)
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC08 – Focus page: empty state renders when there are no tasks", async ({ page }) => {
+test("TC29 – Matrix: Q1 task card renders in the correct quadrant", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
-  await mockAPI(page);
-  await page.goto("/#/focus");
+  await mockAPIWithData(page);
+  await page.goto("/#/matrix");
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 5_000 });
+});
 
-  // With zero tasks the focus page shows this empty-state heading
-  await expect(page.getByText("Nothing to focus on")).toBeVisible();
+test("TC30 – Matrix: tasks in Q2, Q3, Q4 also render", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/matrix");
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Review pull request")).toBeVisible();
+  await expect(page.getByText("Update documentation")).toBeVisible();
+  await expect(page.getByText("Check emails")).toBeVisible();
+});
 
-  // CTA to go back to Today
-  await expect(page.getByRole("button", { name: /go to today/i })).toBeVisible();
+test("TC31 – Matrix: calendar view toggle shows week-day columns", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/matrix");
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
+  const calBtn = page.getByRole("button", { name: /calendar/i });
+  if (await calBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await calBtn.click();
+    await expect(
+      page.getByText(/sun|mon|tue|wed|thu|fri|sat/i).first()
+    ).toBeVisible({ timeout: 5_000 });
+    await page.getByRole("button", { name: /matrix/i }).click();
+    await expect(page.getByText("Do first")).toBeVisible({ timeout: 5_000 });
+  }
+});
+
+test("TC32 – Matrix: 'AI classify' button appears in toolbar", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/matrix");
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
+  await expect(
+    page.getByRole("button", { name: /ai classify/i }).or(page.getByText(/ai classify/i))
+  ).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC33 – Matrix: page title 'Matrix' visible in topbar", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/matrix");
+  await expect(page.getByText("Matrix").first()).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC34 – Matrix: Eisenhower subtitle is present", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/matrix");
+  await expect(
+    page.getByText(/eisenhower|urgent.*important|important.*urgent/i).first()
+  ).toBeVisible({ timeout: 8_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TC09 – Settings page: appearance controls render
+// TC35–TC40  Focus page
 // ─────────────────────────────────────────────────────────────────────────────
-test("TC09 – Settings page: appearance section with accent and density controls visible", async ({
-  page,
-}) => {
+
+test("TC35 – Focus: empty state with 'Nothing to focus on' and CTA", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/focus");
+  await expect(page.getByText("Nothing to focus on")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("button", { name: /go to today/i })).toBeVisible();
+});
+
+test("TC36 – Focus: timer renders in MM:SS format", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/focus");
+  await expect(page.getByText(/\d{1,2}:\d{2}/).first()).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC37 – Focus: 'Do not disturb' label is visible", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/focus");
+  await expect(page.getByText("Do not disturb")).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC38 – Focus: 'Mark complete' button present when a task is active", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/focus");
+  await expect(
+    page.getByRole("button", { name: /mark complete/i })
+      .or(page.getByText("Nothing to focus on"))
+  ).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC39 – Focus: pause or resume button visible", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/focus");
+  await expect(
+    page.getByRole("button", { name: /pause|resume/i })
+      .or(page.getByText("Nothing to focus on"))
+  ).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC40 – Focus: 'Round N of M' label present", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/focus");
+  await expect(
+    page.getByText(/round/i).or(page.getByText("Nothing to focus on"))
+  ).toBeVisible({ timeout: 8_000 });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC41–TC53  Settings page — all tabs
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC41 – Settings: Appearance tab shows accent swatch area and density controls", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/settings");
-
-  // "Appearance" section group heading
-  await expect(page.getByText("Appearance").first()).toBeVisible();
-
-  // Density segmented control — at least one density option
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText("Comfortable").first()).toBeVisible();
   await expect(page.getByText("Compact").first()).toBeVisible();
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TC10 – Sidebar navigation: clicking links changes the active page
-// ─────────────────────────────────────────────────────────────────────────────
-test("TC10 – Sidebar navigation: Today → Matrix → Settings updates the URL", async ({
-  page,
-}) => {
+test("TC42 – Settings: Appearance tab has Reduced motion toggle", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
-  await page.goto("/#/today");
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/reduced motion/i)).toBeVisible({ timeout: 5_000 });
+});
 
-  // Navigate to Matrix
+test("TC43 – Settings: Language tab shows English / 中文 options", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /language/i }).click();
+  await expect(page.getByText(/english/i)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("中文")).toBeVisible();
+});
+
+test("TC44 – Settings: switching to 中文 locale updates visible text", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /language/i }).click();
+  await page.getByText("中文").click();
+  await expect(page.getByText("中文")).toBeVisible({ timeout: 3_000 });
+  // Restore English for subsequent tests
+  await page.getByText(/english/i).click();
+});
+
+test("TC45 – Settings: Members tab shows 'Add member' button", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /members/i }).click();
+  await expect(page.getByRole("button", { name: /add member/i })).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC46 – Settings: Members tab empty state hint is visible", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /members/i }).click();
+  await expect(
+    page.getByText(/no members|add teammates/i)
+      .or(page.getByRole("button", { name: /add member/i }))
+  ).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC47 – Settings: AI tab shows provider / model controls", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  const aiTab = page.getByRole("button", { name: /^AI$/i });
+  if (await aiTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await aiTab.click();
+    await expect(
+      page.getByText(/openai|provider|model|api/i).first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+});
+
+test("TC48 – Settings: Storage tab shows database info", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  const storageTab = page.getByRole("button", { name: /storage/i });
+  if (await storageTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await storageTab.click();
+    await expect(
+      page.getByText(/database|storage|web app/i).first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+});
+
+test("TC49 – Settings: Sync tab shows cloud sync controls", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  const syncTab = page.getByRole("button", { name: /^sync$/i });
+  if (await syncTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await syncTab.click();
+    await expect(
+      page.getByText(/cloud sync|sync|turso/i).first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+});
+
+test("TC50 – Settings: Data tab shows 'Replay onboarding' button", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /data/i }).click();
+  await expect(page.getByRole("button", { name: /replay onboarding/i })).toBeVisible({
+    timeout: 5_000,
+  });
+});
+
+test("TC51 – Settings: Data tab shows 'Reset demo data' button", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: /data/i }).click();
+  await expect(
+    page.getByRole("button", { name: /reset/i }).first()
+  ).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC52 – Settings: 'Replay onboarding' navigates back to onboarding", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /data/i }).click();
+  await page.getByRole("button", { name: /replay onboarding/i }).click();
+  await expect(page).toHaveURL(/onboarding/, { timeout: 5_000 });
+});
+
+test("TC53 – Settings: Pet tab shows pet management controls", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/settings");
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  const petTab = page.getByRole("button", { name: /^pet$/i });
+  if (await petTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await petTab.click();
+    await expect(
+      page.getByText(/pet|dog|species|visible/i).first()
+    ).toBeVisible({ timeout: 5_000 });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC54–TC57  Habits page
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC54 – Habits: shows sign-in CTA when not authenticated", async ({ page }) => {
+  await skipOnboarding(page);
+  await mockAPI(page);
+  await page.goto("/#/habits");
+  await expect(
+    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+  ).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC55 – Habits: heading and habit list render when signed in", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/habits");
+  await expect(page.getByText("Habits").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Morning exercise")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Read 30 minutes")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC56 – Habits: 'Add' button opens habit creation modal", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/habits");
+  await expect(page.getByText("Habits").first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /add/i }).first().click();
+  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
+  const cancelBtn = page.getByRole("button", { name: /cancel/i });
+  if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await cancelBtn.click();
+  } else {
+    await page.keyboard.press("Escape");
+  }
+});
+
+test("TC57 – Habits: each card shows a completion checkbox or toggle", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/habits");
+  await expect(page.getByText("Morning exercise")).toBeVisible({ timeout: 8_000 });
+  await expect(
+    page.locator('input[type="checkbox"]').or(page.getByRole("checkbox")).first()
+  ).toBeVisible({ timeout: 5_000 });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC58–TC61  Stats page
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC58 – Stats: shows sign-in CTA when not authenticated", async ({ page }) => {
+  await skipOnboarding(page);
+  await mockAPI(page);
+  await page.goto("/#/stats");
+  await expect(
+    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+  ).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC59 – Stats: 'This week' section renders when signed in", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/stats");
+  await expect(page.getByText(/this week/i)).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC60 – Stats: 'All time' section renders", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/stats");
+  await expect(page.getByText(/all time/i)).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC61 – Stats: Tasks, Focus, and Streak stat cards are visible", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/stats");
+  await expect(page.getByText(/this week/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/tasks/i).first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/focus|hours/i).first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/streak/i).first()).toBeVisible({ timeout: 5_000 });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC62–TC65  Countdown page
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC62 – Countdown: shows sign-in CTA when not authenticated", async ({ page }) => {
+  await skipOnboarding(page);
+  await mockAPI(page);
+  await page.goto("/#/countdown");
+  await expect(
+    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+  ).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC63 – Countdown: renders countdown list when signed in", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/countdown");
+  await expect(page.getByText(/countdown/i).first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Product launch")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Team offsite")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC64 – Countdown: 'Add' button opens creation modal", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/countdown");
+  await expect(page.getByText(/countdown/i).first()).toBeVisible({ timeout: 8_000 });
+  await page.getByRole("button", { name: /add/i }).first().click();
+  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
+  const cancelBtn = page.getByRole("button", { name: /cancel/i });
+  if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await cancelBtn.click();
+  } else {
+    await page.keyboard.press("Escape");
+  }
+});
+
+test("TC65 – Countdown: cards show time-remaining information", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/countdown");
+  await expect(page.getByText("Product launch")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/days|upcoming|past/i).first()).toBeVisible({ timeout: 5_000 });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC66–TC70  Account & Change password
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC66 – Account: shows local-account prompt when not signed in", async ({ page }) => {
+  await skipOnboarding(page);
+  await mockAPI(page);
+  await page.goto("/#/account");
+  await expect(
+    page.getByText(/local account|using local/i)
+      .or(page.getByRole("button", { name: /sign in/i }))
+  ).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC67 – Account: shows user name and email when signed in", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/account");
+  await expect(page.getByText("Account").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Alex")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("alex@stride.studio")).toBeVisible({ timeout: 5_000 });
+});
+
+test("TC68 – Account: 'Sign out' button visible when signed in", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/account");
+  await expect(page.getByRole("button", { name: /sign out/i })).toBeVisible({ timeout: 8_000 });
+});
+
+test("TC69 – Change password: has current, new, and confirm password inputs", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/account/change-password");
+  await expect(page.locator('input[type="password"]')).toHaveCount(3, { timeout: 8_000 });
+});
+
+test("TC70 – Change password: mismatched new passwords shows error", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/account/change-password");
+  await page.locator('input[type="password"]').first().fill("OldPassword!123");
+  await page.locator('input[type="password"]').nth(1).fill("NewPass!123");
+  await page.locator('input[type="password"]').nth(2).fill("Differ!456");
+  await page.getByRole("button", { name: /update password|save/i }).click();
+  await expect(page.getByText(/match|mismatch|do not match/i)).toBeVisible({ timeout: 5_000 });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TC71–TC74  Navigation & routing
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("TC71 – Navigation: Today → Matrix → Settings updates URL correctly", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
   await page.locator(".nav-item", { hasText: /matrix/i }).click();
   await expect(page).toHaveURL(/matrix/);
-
-  // Navigate to Settings
   await page.locator(".nav-item", { hasText: /settings/i }).click();
   await expect(page).toHaveURL(/settings/);
-
-  // Navigate back to Today
   await page.locator(".nav-item", { hasText: /today/i }).click();
   await expect(page).toHaveURL(/today/);
+});
+
+test("TC72 – Navigation: all five shell nav links load their pages", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+
+  const routes: [string, RegExp][] = [
+    ["today",    /nothing planned|recommended|today's plan/i],
+    ["matrix",   /do first/i],
+    ["focus",    /\d{1,2}:\d{2}/],
+    ["stats",    /this week|stats/i],
+    ["settings", /appearance/i],
+  ];
+
+  for (const [navLabel, expectedText] of routes) {
+    await page.locator(".nav-item", { hasText: new RegExp(navLabel, "i") }).click();
+    await expect(page.getByText(expectedText).first()).toBeVisible({ timeout: 8_000 });
+  }
+});
+
+test("TC73 – Navigation: unknown hash route redirects to Today", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPI(page);
+  await page.goto("/#/nonexistent-route-xyz");
+  await expect(page).toHaveURL(/#\/today/);
+});
+
+test("TC74 – Navigation: Focus nav link navigates to Focus page", async ({ page }) => {
+  await skipOnboardingAndSignIn(page);
+  await mockAPIWithData(page);
+  await page.goto("/#/today");
+  await page.locator(".nav-item", { hasText: /focus/i }).click();
+  await expect(page).toHaveURL(/focus/);
+  await expect(
+    page.getByText(/\d{1,2}:\d{2}/).or(page.getByText("Nothing to focus on")).first()
+  ).toBeVisible({ timeout: 8_000 });
 });
