@@ -58,14 +58,16 @@ fi
 ok "Node $NODE_VER"
 
 # ── install deps ──────────────────────────────────────────────────────────────
-header "Installing dependencies"
+if [[ "$SKIP_BUILD" == "false" ]]; then
+  header "Installing dependencies"
 
-( cd "$BACKEND" && npm ci --prefer-offline --silent )
-ok "backend"
+  ( cd "$BACKEND" && npm ci --prefer-offline --silent )
+  ok "backend"
 
-( cd "$WEBAPP" && npm ci --prefer-offline --silent )
-( cd "$WEBAPP" && npx playwright install chromium --with-deps 2>/dev/null || true )
-ok "web-app + Playwright browsers"
+  ( cd "$WEBAPP" && npm ci --prefer-offline --silent )
+  ( cd "$WEBAPP" && npx playwright install chromium --with-deps 2>/dev/null || true )
+  ok "web-app + Playwright browsers"
+fi
 
 # ── build ─────────────────────────────────────────────────────────────────────
 if [[ "$SKIP_BUILD" == "false" ]]; then
