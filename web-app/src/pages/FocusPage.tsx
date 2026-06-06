@@ -48,6 +48,7 @@ export function FocusPage() {
   const [compact, setCompact] = useState(false);
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
+  const [exiting, setExiting] = useState(false);
   // Track whether the timer has been started with the correct task duration.
   const timerStartedForRef = useRef<string | null>(null);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
@@ -310,10 +311,16 @@ export function FocusPage() {
 
         {/* Exit focus button */}
         <button
+          disabled={exiting}
           onClick={async (e) => {
             e.stopPropagation();
+            setExiting(true);
             exitCompact();
-            if (task) await complete(task.id);
+            try {
+              if (task) await complete(task.id);
+            } catch {
+              // best-effort — navigate away regardless
+            }
             navigate("/today");
           }}
           style={{
@@ -322,9 +329,10 @@ export function FocusPage() {
             color: "var(--text-faint)",
             background: "none",
             border: "none",
-            cursor: "pointer",
+            cursor: exiting ? "default" : "pointer",
             textDecoration: "underline",
             padding: 0,
+            opacity: exiting ? 0.4 : 1,
           }}
         >
           {t("focus.compact.exit")}
