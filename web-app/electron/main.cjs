@@ -364,9 +364,12 @@ function createWindow() {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
     win.setMinimumSize(1, 1);
     win.setAlwaysOnTop(true, "floating");
-    // Compact pet widget: just enough room for the dog + time badge.
-    win.setSize(120, 140, true);
-    win.setPosition(width - 140, height - 160);
+    // 240×280 physical pixels keeps the widget correctly sized across DPI scales:
+    // 125% → 192×224 CSS px, 150% → 160×187 CSS px, 200% → 120×140 CSS px.
+    win.setSize(240, 280, true);
+    win.setPosition(width - 260, height - 300);
+    // Pre-focus so the first click restores the window instead of just activating it.
+    win.focus();
   });
   ipcMain.on("win:exit-focus", () => {
     win.setAlwaysOnTop(false);
