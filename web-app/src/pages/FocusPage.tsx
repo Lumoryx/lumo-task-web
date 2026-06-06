@@ -48,6 +48,7 @@ export function FocusPage() {
   const [compact, setCompact] = useState(false);
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
+  const [exiting, setExiting] = useState(false);
   // Track whether the timer has been started with the correct task duration.
   const timerStartedForRef = useRef<string | null>(null);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
@@ -91,9 +92,8 @@ export function FocusPage() {
     return () => {
       worker.terminate();
       workerRef.current = null;
-      // Reset so a remounted component (React StrictMode double-invoke, or
-      // navigating away and back) starts the timer in the new worker.
       timerStartedForRef.current = null;
+      pauseSyncMounted.current = false;
     };
   }, []);
 
@@ -111,8 +111,10 @@ export function FocusPage() {
     setTimerReady(true);
   }, [task?.id, taskDuration]);
 
-  // ── Sync pause/resume ─────────────────────────────────────────────────────
+  // ── Sync pause/resume (skip on mount — start message already runs the timer)
+  const pauseSyncMounted = useRef(false);
   useEffect(() => {
+    if (!pauseSyncMounted.current) { pauseSyncMounted.current = true; return; }
     if (!workerRef.current) return;
     workerRef.current.postMessage({ type: paused ? "pause" : "resume" });
   }, [paused]);
@@ -248,8 +250,6 @@ export function FocusPage() {
     const nearDone = remaining < 60;
     return (
       <div
-        onClick={exitCompact}
-        title={t("focus.compact.restore")}
         style={{
           position: "fixed",
           inset: 0,
@@ -258,16 +258,17 @@ export function FocusPage() {
           alignItems: "center",
           justifyContent: "center",
           background: "transparent",
-          // no-drag so onClick fires — window position is managed by main process
           WebkitAppRegion: "no-drag",
           userSelect: "none",
           overflow: "hidden",
-          cursor: "pointer",
         }}
       >
-        {/* Dog */}
+        {/* Dog — click to restore */}
         <div
+          onClick={exitCompact}
+          title={t("focus.compact.restore")}
           style={{
+            cursor: "pointer",
             animation: petBounce ? "petBounce 0.4s ease-in-out 3" : undefined,
             filter: paused ? "grayscale(0.4)" : undefined,
             transition: "filter 400ms",
@@ -295,6 +296,47 @@ export function FocusPage() {
         >
           {fmtMMSS(remaining)}
         </div>
+
+        {/* Restore hint */}
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 10,
+            color: "var(--text-faint)",
+            opacity: 0.7,
+          }}
+        >
+          {t("focus.compact.restore")}
+        </div>
+
+        {/* Exit focus button */}
+        <button
+          disabled={exiting}
+          onClick={async (e) => {
+            e.stopPropagation();
+            setExiting(true);
+            exitCompact();
+            try {
+              if (task) await complete(task.id);
+            } catch {
+              // best-effort — navigate away regardless
+            }
+            navigate("/today");
+          }}
+          style={{
+            marginTop: 6,
+            fontSize: 10,
+            color: "var(--text-faint)",
+            background: "none",
+            border: "none",
+            cursor: exiting ? "default" : "pointer",
+            textDecoration: "underline",
+            padding: 0,
+            opacity: exiting ? 0.4 : 1,
+          }}
+        >
+          {t("focus.compact.exit")}
+        </button>
       </div>
     );
   }
