@@ -61,9 +61,11 @@ test.describe("Electron app", () => {
 
     if (!authData) throw new Error(`Registration failed — backend on port ${backendPort} did not return auth data`);
 
-    // Inject auth + onboarding state, then reload into the shell
-    await page.evaluate(
-      ({ token, user }: { token: string; user: object }) => {
+    // Use addInitScript (not page.evaluate) so localStorage is populated BEFORE
+    // the page's own JS runs on reload. Electron's file:// localStorage is not
+    // guaranteed to survive a webContents.reload() when set via evaluate().
+    await page.addInitScript(
+      (arg: { token: string; user: object }) => {
         localStorage.setItem(
           "lumo.app.v1",
           JSON.stringify({
@@ -74,9 +76,9 @@ test.describe("Electron app", () => {
         // Auth store (Zustand persist) only serializes "user" — token lives in a flat key
         localStorage.setItem(
           "lumo.auth.v1",
-          JSON.stringify({ state: { user }, version: 0 })
+          JSON.stringify({ state: { user: arg.user }, version: 0 })
         );
-        localStorage.setItem("lumo.token", token);
+        localStorage.setItem("lumo.token", arg.token);
       },
       { token: authData.token, user: authData.user }
     );
