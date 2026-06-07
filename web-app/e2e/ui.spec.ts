@@ -388,7 +388,7 @@ test("TC03 – Onboarding: step 1 shows 'Welcome to Lumo' and primary CTA", asyn
 test("TC04 – Onboarding: step 2 shows language selection (English / 中文)", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /let's set it up/i }).click();
-  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 5_000 });
   await expect(page.getByText(/english/i)).toBeVisible();
   await expect(page.getByText("中文")).toBeVisible();
 });
@@ -423,7 +423,7 @@ test("TC07 – Onboarding: step 5 shows 'All set' and 'Open the matrix' CTA", as
 test("TC08 – Onboarding: back button returns to previous step", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /let's set it up/i }).click();
-  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 5_000 });
   await page.getByRole("button", { name: /back/i }).click();
   await expect(page.getByText("Welcome to Lumo")).toBeVisible({ timeout: 5_000 });
 });
@@ -431,7 +431,7 @@ test("TC08 – Onboarding: back button returns to previous step", async ({ page 
 test("TC09 – Onboarding: selecting 中文 does not break navigation", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /let's set it up/i }).click();
-  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 5_000 });
   await page.getByText("中文").click();
   await page.getByRole("button", { name: /continue/i }).click();
   await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 5_000 });
