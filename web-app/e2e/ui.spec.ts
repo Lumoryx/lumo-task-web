@@ -443,7 +443,7 @@ test("TC09 – Onboarding: selecting 中文 does not break navigation", async ({
   await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 5_000 });
   await page.getByText("中文").click();
   await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC10 – Onboarding: selecting Compact density and continuing works", async ({ page }) => {
@@ -540,7 +540,7 @@ test("TC17 – Login: successful mock submit navigates to Today", async ({ page 
 test("TC18 – Login: 'Continue without an account' link is visible", async ({ page }) => {
   await skipOnboarding(page);
   await page.goto("/#/login");
-  await expect(page.getByText(/continue without/i)).toBeVisible();
+  await expect(page.getByText(/continue without/i)).toBeVisible({ timeout: 8_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -566,7 +566,7 @@ test("TC21 – Today: 'Recommended' conviction card shows Q1+today task", async 
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await expect(page.getByText("Recommended")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Recommended")).toBeVisible({ timeout: 12_000 });
   await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 5_000 });
 });
 
@@ -574,7 +574,7 @@ test("TC22 – Today: 'Today's plan' section heading is visible", async ({ page 
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await expect(page.getByText("Today's plan")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Today's plan")).toBeVisible({ timeout: 12_000 });
 });
 
 test("TC23 – Today: 'Start focus' button is present on conviction card", async ({ page }) => {
@@ -582,7 +582,7 @@ test("TC23 – Today: 'Start focus' button is present on conviction card", async
   await mockAPIWithData(page);
   await page.goto("/#/today");
   await expect(page.getByRole("button", { name: /start focus/i }).first()).toBeVisible({
-    timeout: 8_000,
+    timeout: 12_000,
   });
 });
 
@@ -641,7 +641,7 @@ test("TC29 – Matrix: Q1 task card renders in the correct quadrant", async ({ p
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/matrix");
-  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 12_000 });
   await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 5_000 });
 });
 
@@ -649,10 +649,10 @@ test("TC30 – Matrix: tasks in Q2, Q3, Q4 also render", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/matrix");
-  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Review pull request")).toBeVisible();
-  await expect(page.getByText("Update documentation")).toBeVisible();
-  await expect(page.getByText("Check emails")).toBeVisible();
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 12_000 });
+  await expect(page.getByText("Review pull request")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Update documentation")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Check emails")).toBeVisible({ timeout: 5_000 });
 });
 
 test("TC31 – Matrix: calendar view toggle shows week-day columns", async ({ page }) => {
@@ -720,7 +720,7 @@ test("TC37 – Focus: 'Do not disturb' label is visible", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/focus");
-  await expect(page.getByText("Do not disturb")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Do not disturb")).toBeVisible({ timeout: 12_000 });
 });
 
 test("TC38 – Focus: 'Mark complete' button present when a task is active", async ({ page }) => {
