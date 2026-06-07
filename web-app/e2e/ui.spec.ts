@@ -1088,11 +1088,11 @@ test("TC71 – Navigation: Today → Matrix → Settings updates URL correctly",
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await page.locator(".nav-item").filter({ hasText: /matrix/i }).click();
+  await page.getByText(/^Matrix$/i).click();
   await expect(page).toHaveURL(/matrix/);
-  await page.locator(".nav-item").filter({ hasText: /settings/i }).click();
+  await page.getByText(/^Settings$/i).click();
   await expect(page).toHaveURL(/settings/);
-  await page.locator(".nav-item").filter({ hasText: /today/i }).click();
+  await page.getByText(/^Today$/i).click();
   await expect(page).toHaveURL(/today/);
 });
 
@@ -1101,16 +1101,16 @@ test("TC72 – Navigation: all five shell nav links load their pages", async ({ 
   await mockAPIWithData(page);
   await page.goto("/#/today");
 
-  const routes: [string, RegExp][] = [
-    ["today",    /nothing planned|recommended|today's plan/i],
-    ["matrix",   /do first/i],
-    ["focus",    /\d{1,2}:\d{2}/],
-    ["stats",    /this week|stats/i],
-    ["settings", /appearance/i],
+  const routes: [RegExp, RegExp][] = [
+    [/^Today$/i,     /nothing planned|recommended|today's plan/i],
+    [/^Matrix$/i,    /do first/i],
+    [/^Focus$/i,     /\d{1,2}:\d{2}/],
+    [/^Stats$/i,     /this week|stats/i],
+    [/^Settings$/i,  /appearance/i],
   ];
 
   for (const [navLabel, expectedText] of routes) {
-    await page.locator(".nav-item").filter({ hasText: new RegExp(navLabel, "i") }).click();
+    await page.getByText(navLabel).click();
     await expect(page.getByText(expectedText).first()).toBeVisible({ timeout: 8_000 });
   }
 });
@@ -1126,7 +1126,7 @@ test("TC74 – Navigation: Focus nav link navigates to Focus page", async ({ pag
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await page.locator(".nav-item").filter({ hasText: /focus/i }).click();
+  await page.getByText(/^Focus$/i).click();
   await expect(page).toHaveURL(/focus/);
   await expect(
     page.getByText(/\d{1,2}:\d{2}/).or(page.getByText("Nothing to focus on")).first()
