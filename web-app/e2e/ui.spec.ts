@@ -342,6 +342,15 @@ async function mockAPIWithData(page: Page) {
       });
     }
 
+    // Catch-all for any other endpoints (health, etc)
+    if (url.includes("/health")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    }
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
