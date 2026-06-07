@@ -618,7 +618,7 @@ test("TC27 – Today: Today nav item is highlighted in sidebar", async ({ page }
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/today");
-  await expect(page.locator(".nav-item", { hasText: /today/i }).first()).toBeVisible({
+  await expect(page.locator(".nav-item").filter({ hasText: /today/i }).first()).toBeVisible({
     timeout: 8_000,
   });
 });
@@ -1088,11 +1088,11 @@ test("TC71 – Navigation: Today → Matrix → Settings updates URL correctly",
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await page.locator(".nav-item", { hasText: /matrix/i }).click();
+  await page.locator(".nav-item").filter({ hasText: /matrix/i }).click();
   await expect(page).toHaveURL(/matrix/);
-  await page.locator(".nav-item", { hasText: /settings/i }).click();
+  await page.locator(".nav-item").filter({ hasText: /settings/i }).click();
   await expect(page).toHaveURL(/settings/);
-  await page.locator(".nav-item", { hasText: /today/i }).click();
+  await page.locator(".nav-item").filter({ hasText: /today/i }).click();
   await expect(page).toHaveURL(/today/);
 });
 
@@ -1110,7 +1110,7 @@ test("TC72 – Navigation: all five shell nav links load their pages", async ({ 
   ];
 
   for (const [navLabel, expectedText] of routes) {
-    await page.locator(".nav-item", { hasText: new RegExp(navLabel, "i") }).click();
+    await page.locator(".nav-item").filter({ hasText: new RegExp(navLabel, "i") }).click();
     await expect(page.getByText(expectedText).first()).toBeVisible({ timeout: 8_000 });
   }
 });
@@ -1126,7 +1126,7 @@ test("TC74 – Navigation: Focus nav link navigates to Focus page", async ({ pag
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await page.locator(".nav-item", { hasText: /focus/i }).click();
+  await page.locator(".nav-item").filter({ hasText: /focus/i }).click();
   await expect(page).toHaveURL(/focus/);
   await expect(
     page.getByText(/\d{1,2}:\d{2}/).or(page.getByText("Nothing to focus on")).first()
