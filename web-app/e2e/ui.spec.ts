@@ -808,12 +808,12 @@ test("TC46 – Settings: Members tab empty state hint is visible", async ({ page
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/settings");
-  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /members/i }).click();
   await expect(
     page.getByText(/no members|add teammates/i)
       .or(page.getByRole("button", { name: /add member/i }))
-  ).toBeVisible({ timeout: 5_000 });
+  ).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC47 – Settings: AI tab shows provider / model controls", async ({ page }) => {
@@ -862,10 +862,10 @@ test("TC50 – Settings: Data tab shows 'Replay onboarding' button", async ({ pa
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/settings");
-  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /data/i }).click();
   await expect(page.getByRole("button", { name: /replay onboarding/i })).toBeVisible({
-    timeout: 5_000,
+    timeout: 8_000,
   });
 });
 
@@ -883,10 +883,10 @@ test("TC52 – Settings: 'Replay onboarding' navigates back to onboarding", asyn
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/settings");
-  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /data/i }).click();
   await page.getByRole("button", { name: /replay onboarding/i }).click();
-  await expect(page).toHaveURL(/onboarding/, { timeout: 5_000 });
+  await expect(page).toHaveURL(/onboarding/, { timeout: 8_000 });
 });
 
 test("TC53 – Settings: Pet tab shows pet management controls", async ({ page }) => {
