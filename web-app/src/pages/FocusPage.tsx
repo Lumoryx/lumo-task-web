@@ -251,6 +251,7 @@ export function FocusPage() {
     const nearDone = remaining < 60;
     return (
       <div
+        onClick={exitCompact}
         style={{
           position: "fixed",
           inset: 0,
@@ -258,30 +259,34 @@ export function FocusPage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "transparent",
+          gap: 6,
+          background: "var(--bg-base)",
+          // no-drag so onClick fires — window position is managed by main process
           WebkitAppRegion: "no-drag",
           userSelect: "none",
-          overflow: "hidden",
-        }}
+          cursor: "pointer",
+          padding: "8px 4px 12px",
+          boxSizing: "border-box",
+        } as React.CSSProperties}
       >
         {/* Dog — click to restore */}
         <div
           onClick={exitCompact}
           title={t("focus.compact.restore")}
           style={{
+            flex: "0 0 auto",
             cursor: "pointer",
             animation: petBounce ? "petBounce 0.4s ease-in-out 3" : undefined,
             filter: paused ? "grayscale(0.4)" : undefined,
             transition: "filter 400ms",
           }}
         >
-          <DogSvg mood={petMood} size={80} />
+          <DogSvg mood={petMood} size={72} />
         </div>
 
         {/* Time badge */}
         <div
           style={{
-            marginTop: 4,
             fontFamily: "monospace",
             fontSize: 13,
             fontWeight: 600,
@@ -298,13 +303,12 @@ export function FocusPage() {
           {fmtMMSS(remaining)}
         </div>
 
-        {/* Restore hint */}
+        {/* Restore hint — always visible */}
         <div
           style={{
-            marginTop: 4,
-            fontSize: 10,
+            fontSize: 11,
             color: "var(--text-faint)",
-            opacity: 0.7,
+            letterSpacing: "0.01em",
           }}
         >
           {t("focus.compact.restore")}
