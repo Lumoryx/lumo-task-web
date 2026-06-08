@@ -155,12 +155,12 @@ const MOCK_TASKS = [
   },
 ];
 
-const MOCK_HABITS = [
+const _MOCK_HABITS = [
   { id: "h1", title: "Morning exercise", frequency: "daily", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
   { id: "h2", title: "Read 30 minutes", frequency: "daily", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
 
-const MOCK_COUNTDOWNS = [
+const _MOCK_COUNTDOWNS = [
   { id: "c1", title: "Product launch", date: "2026-12-01", repeat: "none", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
   { id: "c2", title: "Team offsite", date: "2026-08-15", repeat: "yearly", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
