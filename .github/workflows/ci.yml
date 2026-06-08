@@ -30,6 +30,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: tsc --noEmit
         run: npm run typecheck
@@ -52,6 +54,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: ESLint
         run: npm run lint
@@ -75,6 +79,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Vite production build
         run: npm run build
@@ -196,6 +202,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -236,6 +244,8 @@ jobs:
       # and are never shipped to production — omit them from the audit.
       - name: Audit frontend deps (production only)
         run: cd web-app && npm ci && npm audit --audit-level=high --omit=dev
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Audit backend deps
         run: cd backend && npm ci && npm audit --audit-level=high
