@@ -76,6 +76,21 @@ async function skipOnboardingAndSignIn(page: Page) {
       })
     );
     localStorage.setItem("lumo.token", "mock-jwt-token-1234");
+    // Seed habits and countdowns (localStorage-based APIs)
+    localStorage.setItem(
+      "lumo.habits.v1.u1",
+      JSON.stringify([
+        { id: "h1", title: "Morning exercise", frequency: "daily", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "h2", title: "Read 30 minutes", frequency: "daily", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
+      ])
+    );
+    localStorage.setItem(
+      "lumo.countdowns.v1.u1",
+      JSON.stringify([
+        { id: "c1", title: "Product launch", date: "2026-12-01", repeat: "none", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "c2", title: "Team offsite", date: "2026-08-15", repeat: "yearly", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
+      ])
+    );
   });
 }
 
@@ -141,13 +156,18 @@ const MOCK_TASKS = [
 ];
 
 const MOCK_HABITS = [
-  { id: "h1", userId: "u1", name: "Morning exercise", frequency: "daily", color: "#22c55e", logs: [] },
-  { id: "h2", userId: "u1", name: "Read 30 minutes", frequency: "daily", color: "#06b6d4", logs: [] },
+  { id: "h1", title: "Morning exercise", frequency: "daily", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+  { id: "h2", title: "Read 30 minutes", frequency: "daily", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
 
 const MOCK_COUNTDOWNS = [
-  { id: "c1", userId: "u1", title: "Product launch", date: "2026-12-01", repeat: "none" },
-  { id: "c2", userId: "u1", title: "Team offsite", date: "2026-08-15", repeat: "yearly" },
+  { id: "c1", title: "Product launch", date: "2026-12-01", repeat: "none", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+  { id: "c2", title: "Team offsite", date: "2026-08-15", repeat: "yearly", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
+];
+
+const MOCK_COMPLETED = [
+  { id: "e1", title: { en: "Write integration tests" }, duration: 30, quadrant: "Q1", completedAt: "2026-06-07T10:00:00.000Z" },
+  { id: "e2", title: { en: "Review pull request" }, duration: 15, quadrant: "Q2", completedAt: "2026-06-06T10:00:00.000Z" },
 ];
 
 /** Minimal mock — empty task list. Used by basic render / auth-gate tests. */
@@ -167,14 +187,14 @@ async function mockAPI(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ tasks: [] }),
+        body: JSON.stringify([]),
       });
     }
     if (url.includes("/v1/people")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ people: [] }),
+        body: JSON.stringify([]),
       });
     }
     if (url.includes("/v1/settings")) {
@@ -188,7 +208,7 @@ async function mockAPI(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ entries: [] }),
+        body: JSON.stringify([]),
       });
     }
     if (url.includes("/v1/user")) {
@@ -254,14 +274,14 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ entries: [] }),
+        body: JSON.stringify(MOCK_COMPLETED),
       });
     }
     if (url.includes("/v1/tasks")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ tasks: MOCK_TASKS }),
+        body: JSON.stringify(MOCK_TASKS),
       });
     }
 
@@ -270,30 +290,16 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ people: [] }),
+        body: JSON.stringify([]),
       });
     }
 
-    // Habits
-    if (method === "POST" && url.includes("/v1/habits")) {
-      return route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: "h99",
-          userId: "u1",
-          name: "New habit",
-          frequency: "daily",
-          color: "#22c55e",
-          logs: [],
-        }),
-      });
-    }
+    // Habits (localStorage-based — HTTP routes not used, but catch any calls)
     if (url.includes("/v1/habits")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ habits: MOCK_HABITS }),
+        body: JSON.stringify({}),
       });
     }
 
@@ -315,7 +321,7 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ events: MOCK_COUNTDOWNS }),
+        body: JSON.stringify({}),
       });
     }
 
@@ -442,8 +448,9 @@ test("TC09 – Onboarding: selecting 中文 does not break navigation", async ({
   await page.getByRole("button", { name: /let's set it up/i }).click();
   await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 10_000 });
   await page.getByText("中文").click();
-  await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 8_000 });
+  // After selecting 中文, button label switches to Chinese ("继续") — use class selector
+  await page.locator("footer .btn-primary").click();
+  await expect(page.getByText("Pick an accent").or(page.getByText("选择强调色")).first()).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC10 – Onboarding: selecting Compact density and continuing works", async ({ page }) => {
@@ -510,7 +517,7 @@ test("TC15 – Register: mismatched passwords shows validation error", async ({ 
   await page.locator('input[type="password"]').nth(1).fill("Different!456");
   await page.locator('button[type="submit"]').click();
   await expect(
-    page.getByText(/match|mismatch|do not match/i).or(page.locator('[aria-live]'))
+    page.getByText(/passwords don't match|do not match|mismatch/i).first()
   ).toBeVisible({ timeout: 10_000 });
 });
 
@@ -540,7 +547,7 @@ test("TC17 – Login: successful mock submit navigates to Today", async ({ page 
 test("TC18 – Login: 'Continue without an account' link is visible", async ({ page }) => {
   await skipOnboarding(page);
   await page.goto("/#/login");
-  await expect(page.getByText(/continue without/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/continue without/i).first()).toBeVisible({ timeout: 8_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -813,6 +820,7 @@ test("TC46 – Settings: Members tab empty state hint is visible", async ({ page
   await expect(
     page.getByText(/no members|add teammates/i)
       .or(page.getByRole("button", { name: /add member/i }))
+      .first()
   ).toBeVisible({ timeout: 8_000 });
 });
 
@@ -864,7 +872,7 @@ test("TC50 – Settings: Data tab shows 'Replay onboarding' button", async ({ pa
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /data/i }).click();
-  await expect(page.getByRole("button", { name: /replay onboarding/i })).toBeVisible({
+  await expect(page.getByRole("button", { name: /^replay$/i })).toBeVisible({
     timeout: 8_000,
   });
 });
@@ -885,7 +893,7 @@ test("TC52 – Settings: 'Replay onboarding' navigates back to onboarding", asyn
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /data/i }).click();
-  await page.getByRole("button", { name: /replay onboarding/i }).click();
+  await page.getByRole("button", { name: /^replay$/i }).click();
   await expect(page).toHaveURL(/onboarding/, { timeout: 8_000 });
 });
 
@@ -912,7 +920,7 @@ test("TC54 – Habits: shows sign-in CTA when not authenticated", async ({ page 
   await mockAPI(page);
   await page.goto("/#/habits");
   await expect(
-    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+    page.getByRole("button", { name: /sign in/i })
   ).toBeVisible({ timeout: 8_000 });
 });
 
@@ -959,7 +967,7 @@ test("TC58 – Stats: shows sign-in CTA when not authenticated", async ({ page }
   await mockAPI(page);
   await page.goto("/#/stats");
   await expect(
-    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+    page.getByRole("button", { name: /sign in/i })
   ).toBeVisible({ timeout: 8_000 });
 });
 
@@ -996,7 +1004,7 @@ test("TC62 – Countdown: shows sign-in CTA when not authenticated", async ({ pa
   await mockAPI(page);
   await page.goto("/#/countdown");
   await expect(
-    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+    page.getByRole("button", { name: /sign in/i })
   ).toBeVisible({ timeout: 8_000 });
 });
 
@@ -1051,8 +1059,8 @@ test("TC67 – Account: shows user name and email when signed in", async ({ page
   await mockAPIWithData(page);
   await page.goto("/#/account");
   await expect(page.getByText("Account").first()).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Alex")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText("alex@stride.studio")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("main").getByText("Alex").first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("alex@stride.studio").first()).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC68 – Account: 'Sign out' button visible when signed in", async ({ page }) => {
@@ -1104,13 +1112,13 @@ test("TC72 – Navigation: all five shell nav links load their pages", async ({ 
   const routes: [RegExp, RegExp][] = [
     [/^Today$/i,     /nothing planned|recommended|today's plan/i],
     [/^Matrix$/i,    /do first/i],
-    [/^Focus$/i,     /\d{1,2}:\d{2}/],
-    [/^Stats$/i,     /this week|stats/i],
+    [/^Focus$/i,     /\d{1,2}:\d{2}|nothing to focus/i],
+    [/^Stats$/i,     /this week|stats|focus report/i],
     [/^Settings$/i,  /appearance/i],
   ];
 
   for (const [navLabel, expectedText] of routes) {
-    await page.getByText(navLabel).click();
+    await page.getByRole("link", { name: navLabel }).click();
     await expect(page.getByText(expectedText).first()).toBeVisible({ timeout: 8_000 });
   }
 });
@@ -1126,7 +1134,7 @@ test("TC74 – Navigation: Focus nav link navigates to Focus page", async ({ pag
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await page.getByText(/^Focus$/i).click();
+  await page.getByRole("link", { name: /^Focus$/i }).click();
   await expect(page).toHaveURL(/focus/);
   await expect(
     page.getByText(/\d{1,2}:\d{2}/).or(page.getByText("Nothing to focus on")).first()
