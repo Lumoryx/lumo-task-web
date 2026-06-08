@@ -30,6 +30,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: tsc --noEmit
         run: npm run typecheck
@@ -52,6 +54,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: ESLint
         run: npm run lint
@@ -75,6 +79,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Vite production build
         run: npm run build
@@ -177,7 +183,53 @@ jobs:
       - name: Run integration tests
         run: npm run test:integration
 
-  # ── 8. Security — npm audit ───────────────────────────────────────────────
+  # ── 8. Frontend — Playwright UI Tests ───────────────────────────────────────
+  ui-test:
+    name: UI Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [typecheck]
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run UI tests
+        run: npx playwright test
+        env:
+          BROWSER: none
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: web-app/playwright-report/
+          retention-days: 7
+
+      - name: Upload test videos on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-videos-${{ github.sha }}
+          path: web-app/test-results/
+          retention-days: 3
+
+  # ── 9. Security — npm audit ───────────────────────────────────────────────
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -192,6 +244,8 @@ jobs:
       # and are never shipped to production — omit them from the audit.
       - name: Audit frontend deps (production only)
         run: cd web-app && npm ci && npm audit --audit-level=high --omit=dev
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Audit backend deps
         run: cd backend && npm ci && npm audit --audit-level=high
@@ -201,7 +255,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [typecheck, lint, build, backend-typecheck, backend-build, backend-test, backend-integration, security]
+    needs: [typecheck, lint, build, backend-typecheck, backend-build, backend-test, backend-integration, ui-test, security]
     runs-on: ubuntu-latest
     steps:
       - name: All checks passed

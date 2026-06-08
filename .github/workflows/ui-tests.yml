@@ -1,7 +1,12 @@
 name: UI Tests (Daily)
 
 on:
-  # Run every day at 08:00 UTC
+  # Run on every PR targeting main and on pushes to main
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  # Keep the daily run for regression detection
   schedule:
     - cron: "0 8 * * *"
   # Allow manual trigger from the Actions tab
@@ -26,6 +31,8 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
