@@ -574,7 +574,7 @@ test("TC21 – Today: 'Recommended' conviction card shows Q1+today task", async 
   await mockAPIWithData(page);
   await page.goto("/#/today");
   await expect(page.getByText("Recommended").first()).toBeVisible({ timeout: 12_000 });
-  await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Write integration tests").first()).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC22 – Today: 'Today's plan' section heading is visible", async ({ page }) => {
