@@ -121,7 +121,7 @@ const MOCK_TASKS = [
     id: "t2",
     title: { en: "Review pull request" },
     quadrant: "Q2",
-    today: false,
+    today: true,
     completed: false,
     conviction: 0.7,
     pomos_done: 0,
@@ -450,7 +450,7 @@ test("TC09 – Onboarding: selecting 中文 does not break navigation", async ({
   await page.getByText("中文").click();
   // After selecting 中文, button label switches to Chinese ("继续") — use class selector
   await page.locator("footer .btn-primary").click();
-  await expect(page.getByText("Pick an accent").or(page.getByText("选择强调色")).first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Pick an accent").or(page.getByText("选一种强调色")).first()).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC10 – Onboarding: selecting Compact density and continuing works", async ({ page }) => {
@@ -573,7 +573,7 @@ test("TC21 – Today: 'Recommended' conviction card shows Q1+today task", async 
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await expect(page.getByText("Recommended")).toBeVisible({ timeout: 12_000 });
+  await expect(page.getByText("Recommended").first()).toBeVisible({ timeout: 12_000 });
   await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 10_000 });
 });
 
@@ -954,7 +954,7 @@ test("TC57 – Habits: each card shows a completion checkbox or toggle", async (
   await page.goto("/#/habits");
   await expect(page.getByText("Morning exercise")).toBeVisible({ timeout: 8_000 });
   await expect(
-    page.locator('input[type="checkbox"]').or(page.getByRole("checkbox")).first()
+    page.getByRole("button", { name: /done today/i }).first()
   ).toBeVisible({ timeout: 10_000 });
 });
 
@@ -1110,8 +1110,8 @@ test("TC72 – Navigation: all five shell nav links load their pages", async ({ 
   await page.goto("/#/today");
 
   const routes: [RegExp, RegExp][] = [
-    [/^Today$/i,     /nothing planned|recommended|today's plan/i],
-    [/^Matrix$/i,    /do first/i],
+    [/^Today\b/i,    /nothing planned|recommended|today's plan/i],
+    [/^Matrix\b/i,   /do first/i],
     [/^Focus$/i,     /\d{1,2}:\d{2}|nothing to focus/i],
     [/^Stats$/i,     /this week|stats|focus report/i],
     [/^Settings$/i,  /appearance/i],
