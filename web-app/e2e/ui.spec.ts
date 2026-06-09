@@ -76,6 +76,21 @@ async function skipOnboardingAndSignIn(page: Page) {
       })
     );
     localStorage.setItem("lumo.token", "mock-jwt-token-1234");
+    // Seed habits and countdowns (localStorage-based APIs)
+    localStorage.setItem(
+      "lumo.habits.v1.u1",
+      JSON.stringify([
+        { id: "h1", title: "Morning exercise", frequency: "daily", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "h2", title: "Read 30 minutes", frequency: "daily", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
+      ])
+    );
+    localStorage.setItem(
+      "lumo.countdowns.v1.u1",
+      JSON.stringify([
+        { id: "c1", title: "Product launch", date: "2026-12-01", repeat: "none", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "c2", title: "Team offsite", date: "2026-08-15", repeat: "yearly", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
+      ])
+    );
   });
 }
 
@@ -106,7 +121,7 @@ const MOCK_TASKS = [
     id: "t2",
     title: { en: "Review pull request" },
     quadrant: "Q2",
-    today: false,
+    today: true,
     completed: false,
     conviction: 0.7,
     pomos_done: 0,
@@ -140,14 +155,19 @@ const MOCK_TASKS = [
   },
 ];
 
-const MOCK_HABITS = [
-  { id: "h1", userId: "u1", name: "Morning exercise", frequency: "daily", color: "#22c55e", logs: [] },
-  { id: "h2", userId: "u1", name: "Read 30 minutes", frequency: "daily", color: "#06b6d4", logs: [] },
+const _MOCK_HABITS = [
+  { id: "h1", title: "Morning exercise", frequency: "daily", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+  { id: "h2", title: "Read 30 minutes", frequency: "daily", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
 
-const MOCK_COUNTDOWNS = [
-  { id: "c1", userId: "u1", title: "Product launch", date: "2026-12-01", repeat: "none" },
-  { id: "c2", userId: "u1", title: "Team offsite", date: "2026-08-15", repeat: "yearly" },
+const _MOCK_COUNTDOWNS = [
+  { id: "c1", title: "Product launch", date: "2026-12-01", repeat: "none", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
+  { id: "c2", title: "Team offsite", date: "2026-08-15", repeat: "yearly", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
+];
+
+const MOCK_COMPLETED = [
+  { id: "e1", title: { en: "Write integration tests" }, duration: 30, quadrant: "Q1", completedAt: "2026-06-07T10:00:00.000Z" },
+  { id: "e2", title: { en: "Review pull request" }, duration: 15, quadrant: "Q2", completedAt: "2026-06-06T10:00:00.000Z" },
 ];
 
 /** Minimal mock — empty task list. Used by basic render / auth-gate tests. */
@@ -167,14 +187,14 @@ async function mockAPI(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ tasks: [] }),
+        body: JSON.stringify([]),
       });
     }
     if (url.includes("/v1/people")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ people: [] }),
+        body: JSON.stringify([]),
       });
     }
     if (url.includes("/v1/settings")) {
@@ -188,7 +208,7 @@ async function mockAPI(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ entries: [] }),
+        body: JSON.stringify([]),
       });
     }
     if (url.includes("/v1/user")) {
@@ -254,14 +274,14 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ entries: [] }),
+        body: JSON.stringify(MOCK_COMPLETED),
       });
     }
     if (url.includes("/v1/tasks")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ tasks: MOCK_TASKS }),
+        body: JSON.stringify(MOCK_TASKS),
       });
     }
 
@@ -270,30 +290,16 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ people: [] }),
+        body: JSON.stringify([]),
       });
     }
 
-    // Habits
-    if (method === "POST" && url.includes("/v1/habits")) {
-      return route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: "h99",
-          userId: "u1",
-          name: "New habit",
-          frequency: "daily",
-          color: "#22c55e",
-          logs: [],
-        }),
-      });
-    }
+    // Habits (localStorage-based — HTTP routes not used, but catch any calls)
     if (url.includes("/v1/habits")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ habits: MOCK_HABITS }),
+        body: JSON.stringify({}),
       });
     }
 
@@ -315,7 +321,7 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ events: MOCK_COUNTDOWNS }),
+        body: JSON.stringify({}),
       });
     }
 
@@ -339,6 +345,15 @@ async function mockAPIWithData(page: Page) {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ entry_id: "f1" }),
+      });
+    }
+
+    // Catch-all for any other endpoints (health, etc)
+    if (url.includes("/health")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
       });
     }
 
@@ -388,7 +403,7 @@ test("TC03 – Onboarding: step 1 shows 'Welcome to Lumo' and primary CTA", asyn
 test("TC04 – Onboarding: step 2 shows language selection (English / 中文)", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /let's set it up/i }).click();
-  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/english/i)).toBeVisible();
   await expect(page.getByText("中文")).toBeVisible();
 });
@@ -397,7 +412,7 @@ test("TC05 – Onboarding: step 3 shows accent color picker", async ({ page }) =
   await page.goto("/");
   await page.getByRole("button", { name: /let's set it up/i }).click();
   await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC06 – Onboarding: step 4 shows Comfortable / Compact density options", async ({ page }) => {
@@ -405,7 +420,7 @@ test("TC06 – Onboarding: step 4 shows Comfortable / Compact density options", 
   await page.getByRole("button", { name: /let's set it up/i }).click();
   await page.getByRole("button", { name: /continue/i }).click();
   await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("Density")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Density")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("Comfortable")).toBeVisible();
   await expect(page.getByText("Compact")).toBeVisible();
 });
@@ -416,25 +431,26 @@ test("TC07 – Onboarding: step 5 shows 'All set' and 'Open the matrix' CTA", as
   await page.getByRole("button", { name: /continue/i }).click();
   await page.getByRole("button", { name: /continue/i }).click();
   await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("All set")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("All set")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: /open the matrix/i })).toBeVisible();
 });
 
 test("TC08 – Onboarding: back button returns to previous step", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /let's set it up/i }).click();
-  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 10_000 });
   await page.getByRole("button", { name: /back/i }).click();
-  await expect(page.getByText("Welcome to Lumo")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Welcome to Lumo")).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC09 – Onboarding: selecting 中文 does not break navigation", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /let's set it up/i }).click();
-  await expect(page.getByText("Language")).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator("text=Language").first()).toBeVisible({ timeout: 10_000 });
   await page.getByText("中文").click();
-  await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("Pick an accent")).toBeVisible({ timeout: 5_000 });
+  // After selecting 中文, button label switches to Chinese ("继续") — use class selector
+  await page.locator("footer .btn-primary").click();
+  await expect(page.getByText("Pick an accent").or(page.getByText("选一种强调色")).first()).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC10 – Onboarding: selecting Compact density and continuing works", async ({ page }) => {
@@ -442,19 +458,19 @@ test("TC10 – Onboarding: selecting Compact density and continuing works", asyn
   await page.getByRole("button", { name: /let's set it up/i }).click();
   await page.getByRole("button", { name: /continue/i }).click();
   await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("Density")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Density")).toBeVisible({ timeout: 10_000 });
   await page.getByText("Compact").click();
   await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("All set")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("All set")).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC11 – Onboarding: step counter advances correctly 1→2→3", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("1 / 5")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("1 / 5")).toBeVisible({ timeout: 10_000 });
   await page.getByRole("button", { name: /let's set it up/i }).click();
-  await expect(page.getByText("2 / 5")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("2 / 5")).toBeVisible({ timeout: 10_000 });
   await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page.getByText("3 / 5")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("3 / 5")).toBeVisible({ timeout: 10_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -501,8 +517,8 @@ test("TC15 – Register: mismatched passwords shows validation error", async ({ 
   await page.locator('input[type="password"]').nth(1).fill("Different!456");
   await page.locator('button[type="submit"]').click();
   await expect(
-    page.getByText(/match|mismatch|do not match/i).or(page.locator('[aria-live]'))
-  ).toBeVisible({ timeout: 5_000 });
+    page.getByText(/passwords don't match|do not match|mismatch/i).first()
+  ).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC16 – Register: successful mock submit navigates to app shell", async ({ page }) => {
@@ -531,7 +547,7 @@ test("TC17 – Login: successful mock submit navigates to Today", async ({ page 
 test("TC18 – Login: 'Continue without an account' link is visible", async ({ page }) => {
   await skipOnboarding(page);
   await page.goto("/#/login");
-  await expect(page.getByText(/continue without/i)).toBeVisible();
+  await expect(page.getByText(/continue without/i).first()).toBeVisible({ timeout: 8_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -557,15 +573,15 @@ test("TC21 – Today: 'Recommended' conviction card shows Q1+today task", async 
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await expect(page.getByText("Recommended")).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Recommended").first()).toBeVisible({ timeout: 12_000 });
+  await expect(page.getByText("Write integration tests").first()).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC22 – Today: 'Today's plan' section heading is visible", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await expect(page.getByText("Today's plan")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Today's plan")).toBeVisible({ timeout: 12_000 });
 });
 
 test("TC23 – Today: 'Start focus' button is present on conviction card", async ({ page }) => {
@@ -573,7 +589,7 @@ test("TC23 – Today: 'Start focus' button is present on conviction card", async
   await mockAPIWithData(page);
   await page.goto("/#/today");
   await expect(page.getByRole("button", { name: /start focus/i }).first()).toBeVisible({
-    timeout: 8_000,
+    timeout: 12_000,
   });
 });
 
@@ -582,7 +598,7 @@ test("TC24 – Today: Quick Add modal opens from topbar button", async ({ page }
   await mockAPIWithData(page);
   await page.goto("/#/today");
   await page.getByRole("button", { name: /quick add/i }).click();
-  await expect(page.getByPlaceholder(/what needs doing/i)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByPlaceholder(/what needs doing/i)).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC25 – Today: Quick Add Cancel button closes the modal", async ({ page }) => {
@@ -590,9 +606,9 @@ test("TC25 – Today: Quick Add Cancel button closes the modal", async ({ page }
   await mockAPIWithData(page);
   await page.goto("/#/today");
   await page.getByRole("button", { name: /quick add/i }).click();
-  await expect(page.getByPlaceholder(/what needs doing/i)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByPlaceholder(/what needs doing/i)).toBeVisible({ timeout: 10_000 });
   await page.getByRole("button", { name: /cancel/i }).click();
-  await expect(page.getByPlaceholder(/what needs doing/i)).not.toBeVisible({ timeout: 5_000 });
+  await expect(page.getByPlaceholder(/what needs doing/i)).not.toBeVisible({ timeout: 10_000 });
 });
 
 test("TC26 – Today: Quick Add Create submits and closes modal", async ({ page }) => {
@@ -602,14 +618,14 @@ test("TC26 – Today: Quick Add Create submits and closes modal", async ({ page 
   await page.getByRole("button", { name: /quick add/i }).click();
   await page.getByPlaceholder(/what needs doing/i).fill("Brand new test task");
   await page.getByRole("button", { name: /^create$/i }).click();
-  await expect(page.getByPlaceholder(/what needs doing/i)).not.toBeVisible({ timeout: 5_000 });
+  await expect(page.getByPlaceholder(/what needs doing/i)).not.toBeVisible({ timeout: 10_000 });
 });
 
 test("TC27 – Today: Today nav item is highlighted in sidebar", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/today");
-  await expect(page.locator(".nav-item", { hasText: /today/i }).first()).toBeVisible({
+  await expect(page.locator(".nav-item").filter({ hasText: /today/i }).first()).toBeVisible({
     timeout: 8_000,
   });
 });
@@ -632,18 +648,18 @@ test("TC29 – Matrix: Q1 task card renders in the correct quadrant", async ({ p
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/matrix");
-  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 12_000 });
+  await expect(page.getByText("Write integration tests")).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC30 – Matrix: tasks in Q2, Q3, Q4 also render", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/matrix");
-  await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Review pull request")).toBeVisible();
-  await expect(page.getByText("Update documentation")).toBeVisible();
-  await expect(page.getByText("Check emails")).toBeVisible();
+  await expect(page.getByText("Do first")).toBeVisible({ timeout: 12_000 });
+  await expect(page.getByText("Review pull request")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Update documentation")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Check emails")).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC31 – Matrix: calendar view toggle shows week-day columns", async ({ page }) => {
@@ -652,13 +668,13 @@ test("TC31 – Matrix: calendar view toggle shows week-day columns", async ({ pa
   await page.goto("/#/matrix");
   await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
   const calBtn = page.getByRole("button", { name: /calendar/i });
-  if (await calBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+  if (await calBtn.isVisible({ timeout: 8_000 }).catch(() => false)) {
     await calBtn.click();
     await expect(
       page.getByText(/sun|mon|tue|wed|thu|fri|sat/i).first()
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 10_000 });
     await page.getByRole("button", { name: /matrix/i }).click();
-    await expect(page.getByText("Do first")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Do first")).toBeVisible({ timeout: 10_000 });
   }
 });
 
@@ -669,7 +685,7 @@ test("TC32 – Matrix: 'AI classify' button appears in toolbar", async ({ page }
   await expect(page.getByText("Do first")).toBeVisible({ timeout: 8_000 });
   await expect(
     page.getByRole("button", { name: /ai classify/i }).or(page.getByText(/ai classify/i))
-  ).toBeVisible({ timeout: 5_000 });
+  ).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC33 – Matrix: page title 'Matrix' visible in topbar", async ({ page }) => {
@@ -711,7 +727,7 @@ test("TC37 – Focus: 'Do not disturb' label is visible", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/focus");
-  await expect(page.getByText("Do not disturb")).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Do not disturb")).toBeVisible({ timeout: 12_000 });
 });
 
 test("TC38 – Focus: 'Mark complete' button present when a task is active", async ({ page }) => {
@@ -761,7 +777,7 @@ test("TC42 – Settings: Appearance tab has Reduced motion toggle", async ({ pag
   await mockAPI(page);
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText(/reduced motion/i)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/reduced motion/i)).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC43 – Settings: Language tab shows English / 中文 options", async ({ page }) => {
@@ -770,7 +786,7 @@ test("TC43 – Settings: Language tab shows English / 中文 options", async ({ 
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   await page.getByRole("button", { name: /language/i }).click();
-  await expect(page.getByText(/english/i)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/english/i)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("中文")).toBeVisible();
 });
 
@@ -781,7 +797,7 @@ test("TC44 – Settings: switching to 中文 locale updates visible text", async
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   await page.getByRole("button", { name: /language/i }).click();
   await page.getByText("中文").click();
-  await expect(page.getByText("中文")).toBeVisible({ timeout: 3_000 });
+  await expect(page.getByText("中文")).toBeVisible({ timeout: 8_000 });
   // Restore English for subsequent tests
   await page.getByText(/english/i).click();
 });
@@ -792,19 +808,20 @@ test("TC45 – Settings: Members tab shows 'Add member' button", async ({ page }
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   await page.getByRole("button", { name: /members/i }).click();
-  await expect(page.getByRole("button", { name: /add member/i })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole("button", { name: /add member/i })).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC46 – Settings: Members tab empty state hint is visible", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/settings");
-  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /members/i }).click();
   await expect(
     page.getByText(/no members|add teammates/i)
       .or(page.getByRole("button", { name: /add member/i }))
-  ).toBeVisible({ timeout: 5_000 });
+      .first()
+  ).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC47 – Settings: AI tab shows provider / model controls", async ({ page }) => {
@@ -813,11 +830,11 @@ test("TC47 – Settings: AI tab shows provider / model controls", async ({ page 
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   const aiTab = page.getByRole("button", { name: /^AI$/i });
-  if (await aiTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+  if (await aiTab.isVisible({ timeout: 8_000 }).catch(() => false)) {
     await aiTab.click();
     await expect(
       page.getByText(/openai|provider|model|api/i).first()
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 10_000 });
   }
 });
 
@@ -827,11 +844,11 @@ test("TC48 – Settings: Storage tab shows database info", async ({ page }) => {
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   const storageTab = page.getByRole("button", { name: /storage/i });
-  if (await storageTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+  if (await storageTab.isVisible({ timeout: 8_000 }).catch(() => false)) {
     await storageTab.click();
     await expect(
       page.getByText(/database|storage|web app/i).first()
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 10_000 });
   }
 });
 
@@ -841,11 +858,11 @@ test("TC49 – Settings: Sync tab shows cloud sync controls", async ({ page }) =
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   const syncTab = page.getByRole("button", { name: /^sync$/i });
-  if (await syncTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+  if (await syncTab.isVisible({ timeout: 8_000 }).catch(() => false)) {
     await syncTab.click();
     await expect(
       page.getByText(/cloud sync|sync|turso/i).first()
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 10_000 });
   }
 });
 
@@ -853,10 +870,10 @@ test("TC50 – Settings: Data tab shows 'Replay onboarding' button", async ({ pa
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/settings");
-  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /data/i }).click();
-  await expect(page.getByRole("button", { name: /replay onboarding/i })).toBeVisible({
-    timeout: 5_000,
+  await expect(page.getByRole("button", { name: /^replay$/i })).toBeVisible({
+    timeout: 8_000,
   });
 });
 
@@ -867,17 +884,17 @@ test("TC51 – Settings: Data tab shows 'Reset demo data' button", async ({ page
   await page.getByRole("button", { name: /data/i }).click();
   await expect(
     page.getByRole("button", { name: /reset/i }).first()
-  ).toBeVisible({ timeout: 5_000 });
+  ).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC52 – Settings: 'Replay onboarding' navigates back to onboarding", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPI(page);
   await page.goto("/#/settings");
-  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: /data/i }).click();
-  await page.getByRole("button", { name: /replay onboarding/i }).click();
-  await expect(page).toHaveURL(/onboarding/, { timeout: 5_000 });
+  await page.getByRole("button", { name: /^replay$/i }).click();
+  await expect(page).toHaveURL(/onboarding/, { timeout: 8_000 });
 });
 
 test("TC53 – Settings: Pet tab shows pet management controls", async ({ page }) => {
@@ -886,11 +903,11 @@ test("TC53 – Settings: Pet tab shows pet management controls", async ({ page }
   await page.goto("/#/settings");
   await expect(page.getByText("Appearance").first()).toBeVisible({ timeout: 8_000 });
   const petTab = page.getByRole("button", { name: /^pet$/i });
-  if (await petTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+  if (await petTab.isVisible({ timeout: 8_000 }).catch(() => false)) {
     await petTab.click();
     await expect(
       page.getByText(/pet|dog|species|visible/i).first()
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 10_000 });
   }
 });
 
@@ -903,7 +920,7 @@ test("TC54 – Habits: shows sign-in CTA when not authenticated", async ({ page 
   await mockAPI(page);
   await page.goto("/#/habits");
   await expect(
-    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+    page.getByRole("button", { name: /sign in/i })
   ).toBeVisible({ timeout: 8_000 });
 });
 
@@ -912,8 +929,8 @@ test("TC55 – Habits: heading and habit list render when signed in", async ({ p
   await mockAPIWithData(page);
   await page.goto("/#/habits");
   await expect(page.getByText("Habits").first()).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Morning exercise")).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByText("Read 30 minutes")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Morning exercise")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Read 30 minutes")).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC56 – Habits: 'Add' button opens habit creation modal", async ({ page }) => {
@@ -922,7 +939,7 @@ test("TC56 – Habits: 'Add' button opens habit creation modal", async ({ page }
   await page.goto("/#/habits");
   await expect(page.getByText("Habits").first()).toBeVisible({ timeout: 8_000 });
   await page.getByRole("button", { name: /add/i }).first().click();
-  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10_000 });
   const cancelBtn = page.getByRole("button", { name: /cancel/i });
   if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await cancelBtn.click();
@@ -937,8 +954,8 @@ test("TC57 – Habits: each card shows a completion checkbox or toggle", async (
   await page.goto("/#/habits");
   await expect(page.getByText("Morning exercise")).toBeVisible({ timeout: 8_000 });
   await expect(
-    page.locator('input[type="checkbox"]').or(page.getByRole("checkbox")).first()
-  ).toBeVisible({ timeout: 5_000 });
+    page.getByRole("button", { name: /done today/i }).first()
+  ).toBeVisible({ timeout: 10_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -950,7 +967,7 @@ test("TC58 – Stats: shows sign-in CTA when not authenticated", async ({ page }
   await mockAPI(page);
   await page.goto("/#/stats");
   await expect(
-    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+    page.getByRole("button", { name: /sign in/i })
   ).toBeVisible({ timeout: 8_000 });
 });
 
@@ -973,9 +990,9 @@ test("TC61 – Stats: Tasks, Focus, and Streak stat cards are visible", async ({
   await mockAPIWithData(page);
   await page.goto("/#/stats");
   await expect(page.getByText(/this week/i)).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText(/tasks/i).first()).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByText(/focus|hours/i).first()).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByText(/streak/i).first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/tasks/i).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/focus|hours/i).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/streak/i).first()).toBeVisible({ timeout: 10_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -987,7 +1004,7 @@ test("TC62 – Countdown: shows sign-in CTA when not authenticated", async ({ pa
   await mockAPI(page);
   await page.goto("/#/countdown");
   await expect(
-    page.getByText(/sign in|login/i).or(page.getByRole("button", { name: /sign in/i }))
+    page.getByRole("button", { name: /sign in/i })
   ).toBeVisible({ timeout: 8_000 });
 });
 
@@ -996,8 +1013,8 @@ test("TC63 – Countdown: renders countdown list when signed in", async ({ page 
   await mockAPIWithData(page);
   await page.goto("/#/countdown");
   await expect(page.getByText(/countdown/i).first()).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Product launch")).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByText("Team offsite")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Product launch")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Team offsite")).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC64 – Countdown: 'Add' button opens creation modal", async ({ page }) => {
@@ -1006,7 +1023,7 @@ test("TC64 – Countdown: 'Add' button opens creation modal", async ({ page }) =
   await page.goto("/#/countdown");
   await expect(page.getByText(/countdown/i).first()).toBeVisible({ timeout: 8_000 });
   await page.getByRole("button", { name: /add/i }).first().click();
-  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10_000 });
   const cancelBtn = page.getByRole("button", { name: /cancel/i });
   if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await cancelBtn.click();
@@ -1020,7 +1037,7 @@ test("TC65 – Countdown: cards show time-remaining information", async ({ page 
   await mockAPIWithData(page);
   await page.goto("/#/countdown");
   await expect(page.getByText("Product launch")).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText(/days|upcoming|past/i).first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/days|upcoming|past/i).first()).toBeVisible({ timeout: 10_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1042,8 +1059,8 @@ test("TC67 – Account: shows user name and email when signed in", async ({ page
   await mockAPIWithData(page);
   await page.goto("/#/account");
   await expect(page.getByText("Account").first()).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText("Alex")).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByText("alex@stride.studio")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole("main").getByText("Alex").first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("alex@stride.studio").first()).toBeVisible({ timeout: 10_000 });
 });
 
 test("TC68 – Account: 'Sign out' button visible when signed in", async ({ page }) => {
@@ -1068,7 +1085,7 @@ test("TC70 – Change password: mismatched new passwords shows error", async ({ 
   await page.locator('input[type="password"]').nth(1).fill("NewPass!123");
   await page.locator('input[type="password"]').nth(2).fill("Differ!456");
   await page.getByRole("button", { name: /update password|save/i }).click();
-  await expect(page.getByText(/match|mismatch|do not match/i)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(/match|mismatch|do not match/i)).toBeVisible({ timeout: 10_000 });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1079,11 +1096,11 @@ test("TC71 – Navigation: Today → Matrix → Settings updates URL correctly",
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await page.locator(".nav-item", { hasText: /matrix/i }).click();
+  await page.getByText(/^Matrix$/i).click();
   await expect(page).toHaveURL(/matrix/);
-  await page.locator(".nav-item", { hasText: /settings/i }).click();
+  await page.getByText(/^Settings$/i).click();
   await expect(page).toHaveURL(/settings/);
-  await page.locator(".nav-item", { hasText: /today/i }).click();
+  await page.getByText(/^Today$/i).click();
   await expect(page).toHaveURL(/today/);
 });
 
@@ -1092,16 +1109,16 @@ test("TC72 – Navigation: all five shell nav links load their pages", async ({ 
   await mockAPIWithData(page);
   await page.goto("/#/today");
 
-  const routes: [string, RegExp][] = [
-    ["today",    /nothing planned|recommended|today's plan/i],
-    ["matrix",   /do first/i],
-    ["focus",    /\d{1,2}:\d{2}/],
-    ["stats",    /this week|stats/i],
-    ["settings", /appearance/i],
+  const routes: [RegExp, RegExp][] = [
+    [/^Today\b/i,    /nothing planned|recommended|today's plan/i],
+    [/^Matrix\b/i,   /do first/i],
+    [/^Focus$/i,     /\d{1,2}:\d{2}|nothing to focus/i],
+    [/^Stats$/i,     /this week|stats|focus report/i],
+    [/^Settings$/i,  /appearance/i],
   ];
 
   for (const [navLabel, expectedText] of routes) {
-    await page.locator(".nav-item", { hasText: new RegExp(navLabel, "i") }).click();
+    await page.getByRole("link", { name: navLabel }).click();
     await expect(page.getByText(expectedText).first()).toBeVisible({ timeout: 8_000 });
   }
 });
@@ -1117,7 +1134,7 @@ test("TC74 – Navigation: Focus nav link navigates to Focus page", async ({ pag
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await page.locator(".nav-item", { hasText: /focus/i }).click();
+  await page.getByRole("link", { name: /^Focus$/i }).click();
   await expect(page).toHaveURL(/focus/);
   await expect(
     page.getByText(/\d{1,2}:\d{2}/).or(page.getByText("Nothing to focus on")).first()

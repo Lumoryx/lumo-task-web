@@ -3,9 +3,27 @@
 .claude/settings.local.json
 .claude/launch.json
 
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Environment secrets (*.example files are intentionally kept)
+.env
+.env.local
+.env.*.local
+
 # Electron packaged output
 web-app/dist-electron/
 
-# Playwright test artifacts
+# Playwright test artifacts (all report variants + failure screenshots)
 web-app/playwright-report/
+web-app/playwright-report-integration/
+web-app/playwright-report-electron/
 web-app/test-results/

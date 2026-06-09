@@ -87,6 +87,14 @@ export function LoginPage() {
           >
             {t("auth.toregister")}
           </button>
+          <span className="text-text-faint">·</span>
+          <button
+            type="button"
+            className="hover:text-text-primary transition-colors"
+            onClick={() => navigate("/today")}
+          >
+            {t("auth.localonly")}
+          </button>
         </div>
 
       </form>
