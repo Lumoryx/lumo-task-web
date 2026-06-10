@@ -167,27 +167,24 @@ export function CalendarView() {
     }
   }
 
-  // Partition active tasks into: scheduled (with time), all-day (due only), unscheduled
+  // Partition active tasks into: scheduled (with time), all-day (due only), and all-tasks list
   const scheduledBuckets = new Map<string, Task[]>(); // tasks with scheduled_start
   const allDayBuckets = new Map<string, Task[]>();    // tasks with due but no scheduled_start
-  const unscheduled: Task[] = [];
+  const allActiveTasks: Task[] = [];
   days.forEach((d) => { scheduledBuckets.set(d.iso, []); allDayBuckets.set(d.iso, []); });
 
   for (const task of tasks) {
     if (task.completed) continue;
+    allActiveTasks.push(task);
     if (task.scheduled_start) {
       const dayIso = task.scheduled_start.substring(0, 10);
       if (scheduledBuckets.has(dayIso)) {
         scheduledBuckets.get(dayIso)!.push(task);
-      } else {
-        unscheduled.push(task);
       }
     } else {
       const iso = parseDueISO(task.due);
       if (iso && allDayBuckets.has(iso)) {
         allDayBuckets.get(iso)!.push(task);
-      } else {
-        unscheduled.push(task);
       }
     }
   }
@@ -302,17 +299,17 @@ export function CalendarView() {
             <span className="text-[10px] font-semibold uppercase tracking-widest text-text-faint">
               {t("calendar.unscheduled")}
             </span>
-            {unscheduled.length > 0 && (
-              <span className="ml-1.5 text-[10px] text-text-muted">{unscheduled.length}</span>
+            {allActiveTasks.length > 0 && (
+              <span className="ml-1.5 text-[10px] text-text-muted">{allActiveTasks.length}</span>
             )}
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
-            {unscheduled.length === 0 ? (
+            {allActiveTasks.length === 0 ? (
               <div className="text-[11px] text-text-faint italic px-1 py-2">
                 {overUnscheduled ? t("calendar.unscheduled.hint") : "—"}
               </div>
             ) : (
-              unscheduled.map((task) => <UnscheduledChip key={task.id} task={task} />)
+              allActiveTasks.map((task) => <UnscheduledChip key={task.id} task={task} />)
             )}
           </div>
         </div>
@@ -505,18 +502,48 @@ function makeDragProps(taskId: string) {
 
 function UnscheduledChip({ task }: { task: Task }) {
   const ls = useLocaleString();
+  const t = useT();
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const hasScheduled = Boolean(task.scheduled_start);
+  const hasDue = Boolean(task.due);
 
   return (
     <>
       <div
         {...makeDragProps(task.id)}
         onClick={() => setDetailOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border cursor-grab active:cursor-grabbing text-[11px] text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary"
+        className="flex flex-col gap-0.5 px-2 py-1.5 rounded-md border cursor-grab active:cursor-grabbing text-[11px] text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary"
         style={{ borderColor: "var(--border-faint)", background: "var(--bg-subtle)" }}
       >
-        <span className={`qdot qdot-${task.quadrant.toLowerCase()}`} />
-        <span className="truncate">{ls(task.title)}</span>
+        <div className="flex items-center gap-1.5">
+          <span className={`qdot qdot-${task.quadrant.toLowerCase()} flex-shrink-0`} />
+          <span className="truncate flex-1">{ls(task.title)}</span>
+        </div>
+        <div className="flex items-center gap-1 ml-0.5">
+          {hasScheduled ? (
+            <span
+              className="text-[9px] font-medium px-1 py-0.5 rounded"
+              style={{ background: "var(--accent-fog)", color: "var(--accent-primary)" }}
+            >
+              {t("calendar.badge.scheduled")}
+            </span>
+          ) : hasDue ? (
+            <span
+              className="text-[9px] font-medium px-1 py-0.5 rounded"
+              style={{ background: "var(--bg-elevated)", color: "var(--text-muted)", border: "1px solid var(--border-faint)" }}
+            >
+              {t("calendar.badge.due")}
+            </span>
+          ) : (
+            <span
+              className="text-[9px] font-medium px-1 py-0.5 rounded"
+              style={{ color: "var(--text-faint)" }}
+            >
+              {t("calendar.badge.nodate")}
+            </span>
+          )}
+        </div>
       </div>
       {detailOpen && <TaskDetailModal task={task} onClose={() => setDetailOpen(false)} />}
     </>

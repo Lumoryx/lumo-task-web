@@ -11,6 +11,17 @@ import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, getDueLabel } from "@/lib/format";
 import type { Subtask, Task } from "@/types/task";
 
+function fmtScheduledStart(iso: string): string {
+  const d = new Date(iso);
+  const dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const suffix = h >= 12 ? "pm" : "am";
+  const dh = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  const timeStr = m === 0 ? `${dh}${suffix}` : `${dh}:${String(m).padStart(2, "0")}${suffix}`;
+  return `${dateStr} ${timeStr}`;
+}
+
 const Q_COLOR: Record<string, string> = {
   Q1: "var(--q1-color)",
   Q2: "var(--q2-color)",
@@ -141,6 +152,15 @@ export function TaskDetailModal({ task, onClose }: Props) {
 
         {/* Meta grid */}
         <div className="px-5 pb-4 grid grid-cols-2 gap-x-6 gap-y-3">
+          {/* Scheduled time */}
+          {liveTask.scheduled_start && (
+            <MetaRow
+              icon={<IconCalendar size={13} />}
+              label={t("detail.scheduledAt")}
+              value={fmtScheduledStart(liveTask.scheduled_start)}
+            />
+          )}
+
           {/* Due date */}
           {due && (
             <MetaRow
