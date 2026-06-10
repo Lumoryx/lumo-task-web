@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { IconCheck } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import type { Habit } from "@/types/task";
@@ -20,6 +20,7 @@ interface Props {
 export function HabitCheckInModal({ habit, onConfirm, onClose }: Props) {
   const t = useT();
   const color = COLOR_MAP[habit.color] ?? COLOR_MAP.green;
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -30,6 +31,8 @@ export function HabitCheckInModal({ habit, onConfirm, onClose }: Props) {
   }, [onClose]);
 
   function handleConfirm() {
+    if (confirmed) return;
+    setConfirmed(true);
     onConfirm();
     onClose();
   }
@@ -64,8 +67,9 @@ export function HabitCheckInModal({ habit, onConfirm, onClose }: Props) {
           {/* Confirm button */}
           <button
             onClick={handleConfirm}
+            disabled={confirmed}
             className="w-full py-3 rounded-xl text-[14px] font-semibold text-white transition-opacity hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2"
-            style={{ background: color }}
+            style={{ background: color, opacity: confirmed ? 0.5 : 1, cursor: confirmed ? "default" : "pointer" }}
           >
             <IconCheck size={16} />
             {t("habit.checkin.btn")}
