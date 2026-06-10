@@ -1,0 +1,47 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Cancel a stale review when a new commit lands on the same PR to save tokens.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    name: Claude Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_sticky_comment: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            你是本项目的 Code Reviewer。请严格依据本仓库的审查规范进行审查：
+            - 先阅读 `.github/PR_REVIEW_CHECKLIST.md`（8 大维度审查清单）
+            - 阅读根目录 `CLAUDE.md` 和 `web-app/CLAUDE.md`（工程标准与架构规则）
+
+            重点关注：代码质量、类型安全、测试覆盖、安全性（secrets / 输入校验 / SQL）、
+            性能回归、向后兼容、文档更新。
+
+            PR 分支已检出在当前工作目录。
+            - 用 `mcp__github_inline_comment__create_inline_comment`（confirmed: true）对具体代码行留行内评论
+            - 用 `gh pr comment` 留总体审查结论（按 CLAUDE.md 标准给出 Approve / Request Changes 建议）
+            - 只通过 GitHub 评论输出，不要把审查正文当作普通消息返回
+            - 用中文撰写评论，保持与团队一致
+          claude_args: |
+            --model claude-sonnet-4-6
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
