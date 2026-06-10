@@ -182,7 +182,7 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2.5 mt-auto">
-          <button className="btn btn-primary btn-lg" onClick={() => navigate("/focus")}>
+          <button className="btn btn-primary btn-lg" onClick={() => navigate("/focus", { state: { taskId: task.id } })}>
             {t("today.start")} <IconArrowRight size={14} />
           </button>
         </div>

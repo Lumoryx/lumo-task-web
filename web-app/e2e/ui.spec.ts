@@ -716,17 +716,24 @@ test("TC35 – Focus: empty state with 'Nothing to focus on' and CTA", async ({ 
   await expect(page.getByRole("button", { name: /go to today/i })).toBeVisible();
 });
 
+/** Navigate to focus page with an active task by going through Today → Start focus. */
+async function navigateToFocusWithTask(page: Page) {
+  await page.goto("/#/today");
+  await page.getByRole("button", { name: /start focus/i }).first().click();
+  await page.waitForURL(/#\/focus/);
+}
+
 test("TC36 – Focus: timer renders in MM:SS format", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
-  await page.goto("/#/focus");
+  await navigateToFocusWithTask(page);
   await expect(page.getByText(/\d{1,2}:\d{2}/).first()).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC37 – Focus: 'Do not disturb' label is visible", async ({ page }) => {
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
-  await page.goto("/#/focus");
+  await navigateToFocusWithTask(page);
   await expect(page.getByText("Do not disturb")).toBeVisible({ timeout: 12_000 });
 });
 

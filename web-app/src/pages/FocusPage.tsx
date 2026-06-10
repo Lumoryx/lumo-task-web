@@ -25,7 +25,7 @@ export function FocusPage() {
   const complete = useTasksStore((s) => s.complete);
 
   // Use the task the user explicitly started focus on (passed via router state).
-  // Fall back to priority order only when navigating to /focus directly.
+  // When navigating directly to /focus without a taskId, show the empty landing page.
   const requestedId = (location.state as { taskId?: string } | null)?.taskId;
   const task = requestedId
     ? (tasks.find((x) => x.id === requestedId && !x.completed) ??
@@ -33,10 +33,7 @@ export function FocusPage() {
         tasks.find((x) => x.today && !x.completed) ??
         tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
         tasks.find((x) => !x.completed))
-    : (tasks.find((x) => x.today && x.quadrant === "Q1" && !x.completed) ??
-        tasks.find((x) => x.today && !x.completed) ??
-        tasks.find((x) => x.quadrant === "Q1" && !x.completed) ??
-        tasks.find((x) => !x.completed));
+    : null;
 
   const isFallbackTask = !!task && !task.today;
 
