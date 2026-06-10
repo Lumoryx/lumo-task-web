@@ -42,7 +42,7 @@ describe("HabitCard", () => {
       <HabitCard
         habit={HABIT}
         logs={[]}
-        onComplete={vi.fn()}
+        onCheckIn={vi.fn()}
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
@@ -57,7 +57,7 @@ describe("HabitCard", () => {
       <HabitCard
         habit={HABIT_WITH_EMOJI}
         logs={[]}
-        onComplete={vi.fn()}
+        onCheckIn={vi.fn()}
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
@@ -73,7 +73,7 @@ describe("HabitCard", () => {
       <HabitCard
         habit={HABIT}
         logs={logs}
-        onComplete={vi.fn()}
+        onCheckIn={vi.fn()}
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
@@ -84,13 +84,13 @@ describe("HabitCard", () => {
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
-  it("calls onComplete when check button is clicked and not done", () => {
-    const onComplete = vi.fn();
+  it("calls onCheckIn when check button is clicked and not done", () => {
+    const onCheckIn = vi.fn();
     render(
       <HabitCard
         habit={HABIT}
         logs={[]}
-        onComplete={onComplete}
+        onCheckIn={onCheckIn}
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
@@ -98,7 +98,7 @@ describe("HabitCard", () => {
       />
     );
     fireEvent.click(screen.getByLabelText("habit.done"));
-    expect(onComplete).toHaveBeenCalledOnce();
+    expect(onCheckIn).toHaveBeenCalledOnce();
   });
 
   it("calls onUndo when check button is clicked and already done today", () => {
@@ -108,7 +108,7 @@ describe("HabitCard", () => {
       <HabitCard
         habit={HABIT}
         logs={logs}
-        onComplete={vi.fn()}
+        onCheckIn={vi.fn()}
         onUndo={onUndo}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
@@ -125,7 +125,7 @@ describe("HabitCard", () => {
       <HabitCard
         habit={HABIT}
         logs={[]}
-        onComplete={vi.fn()}
+        onCheckIn={vi.fn()}
         onUndo={vi.fn()}
         onEdit={onEdit}
         onDelete={vi.fn()}
@@ -143,7 +143,7 @@ describe("HabitCard", () => {
       <HabitCard
         habit={HABIT}
         logs={[]}
-        onComplete={vi.fn()}
+        onCheckIn={vi.fn()}
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={onDelete}
@@ -160,7 +160,7 @@ describe("HabitCard", () => {
       <HabitCard
         habit={HABIT}
         logs={[]}
-        onComplete={vi.fn()}
+        onCheckIn={vi.fn()}
         onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
