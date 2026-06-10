@@ -15,14 +15,14 @@ const COLOR_MAP: Record<string, string> = {
 interface Props {
   habit: Habit;
   logs: HabitLog[];
-  onComplete: () => void;
+  onCheckIn: () => void;
   onUndo: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onShowCalendar: () => void;
 }
 
-export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete, onShowCalendar }: Props) {
+export function HabitCard({ habit, logs, onCheckIn, onUndo, onEdit, onDelete, onShowCalendar }: Props) {
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -46,7 +46,7 @@ export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete, o
     if (done) {
       onUndo();
     } else {
-      onComplete();
+      onCheckIn();
     }
   }
 
@@ -78,9 +78,18 @@ export function HabitCard({ habit, logs, onComplete, onUndo, onEdit, onDelete, o
           <span className="font-medium text-text-primary truncate">{habit.title}</span>
         </div>
         <div className="flex items-center gap-3 mt-0.5">
-          <span className="text-[11px] text-text-muted">
-            {t(`habit.freq.${habit.frequency}`)}
-          </span>
+          {done ? (
+            <span
+              className="text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+              style={{ background: `${color}22`, color }}
+            >
+              {t("habit.checkin.already")}
+            </span>
+          ) : (
+            <span className="text-[11px] text-text-muted">
+              {t(`habit.freq.${habit.frequency}`)}
+            </span>
+          )}
           {best > 0 && (
             <span className="text-[11px] text-text-faint">
               {t("habit.best")}: {best}

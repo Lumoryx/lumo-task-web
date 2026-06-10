@@ -428,6 +428,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "habit.error.update": "Failed to update habit",
     "habit.error.delete": "Failed to delete habit",
     "habit.error.log": "Failed to record habit",
+    "habit.checkin.title": "Check in",
+    "habit.checkin.sub": "Great — keep the streak going!",
+    "habit.checkin.btn": "Check in today",
+    "habit.checkin.already": "Checked in today",
     "auth.required.habits": "Habits are tied to your account. Sign in to track your daily streaks.",
 
     "nav.stats": "Stats",
@@ -922,6 +926,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "habit.error.update": "更新习惯失败",
     "habit.error.delete": "删除习惯失败",
     "habit.error.log": "记录习惯失败",
+    "habit.checkin.title": "打卡",
+    "habit.checkin.sub": "继续保持，加油！",
+    "habit.checkin.btn": "今日打卡",
+    "habit.checkin.already": "已打卡",
     "auth.required.habits": "习惯追踪与你的账号绑定，登录后才能追踪每日打卡。",
 
     "nav.stats": "统计",
