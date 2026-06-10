@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HabitCalendarModal } from "@/components/HabitCalendarModal";
 import { HabitCard } from "@/components/HabitCard";
+import { HabitCheckInModal } from "@/components/HabitCheckInModal";
 import { HabitFormModal } from "@/components/HabitFormModal";
 import { IconHabit, IconPlus } from "@/components/icons";
 import { useT } from "@/i18n/useT";
@@ -20,6 +21,7 @@ export function HabitsPage() {
   const [editTarget, setEditTarget] = useState<Habit | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [calendarHabit, setCalendarHabit] = useState<Habit | null>(null);
+  const [checkInHabit, setCheckInHabit] = useState<Habit | null>(null);
 
   // Auth gate
   if (!isSignedIn) {
@@ -110,7 +112,7 @@ export function HabitsPage() {
                 key={habit.id}
                 habit={habit}
                 logs={logs}
-                onComplete={() => log(userId, habit.id, today)}
+                onCheckIn={() => setCheckInHabit(habit)}
                 onUndo={() => unlog(userId, habit.id, today)}
                 onEdit={() => handleEdit(habit)}
                 onDelete={() => setDeleteId(habit.id)}
@@ -120,6 +122,15 @@ export function HabitsPage() {
           </div>
         )}
       </div>
+
+      {/* Check-in modal */}
+      {checkInHabit && (
+        <HabitCheckInModal
+          habit={checkInHabit}
+          onConfirm={() => log(userId, checkInHabit.id, today)}
+          onClose={() => setCheckInHabit(null)}
+        />
+      )}
 
       {/* Create / Edit modal */}
       {modalOpen && (
