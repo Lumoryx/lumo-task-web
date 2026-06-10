@@ -1,0 +1,137 @@
+[
+  {
+    "name": "bug",
+    "color": "d73a49",
+    "description": "Something isn't working"
+  },
+  {
+    "name": "feature",
+    "color": "a2eeef",
+    "description": "New feature or request"
+  },
+  {
+    "name": "documentation",
+    "color": "0075ca",
+    "description": "Improvements or additions to documentation"
+  },
+  {
+    "name": "question",
+    "color": "d876e3",
+    "description": "Further information is requested"
+  },
+  {
+    "name": "help-wanted",
+    "color": "008672",
+    "description": "Extra attention is needed"
+  },
+  {
+    "name": "good-first-issue",
+    "color": "7057ff",
+    "description": "Good for newcomers"
+  },
+  {
+    "name": "needs-triage",
+    "color": "ffd700",
+    "description": "Waiting for triage team to classify"
+  },
+  {
+    "name": "needs-info",
+    "color": "fbca04",
+    "description": "Waiting for more information from issue author"
+  },
+  {
+    "name": "needs-repro",
+    "color": "fbca04",
+    "description": "Needs reproduction steps or minimal example"
+  },
+  {
+    "name": "stale",
+    "color": "cccccc",
+    "description": "No activity for 30 days, will be closed soon"
+  },
+  {
+    "name": "duplicate",
+    "color": "cfd3d7",
+    "description": "This issue or pull request already exists"
+  },
+  {
+    "name": "wontfix",
+    "color": "ffffff",
+    "description": "This will not be worked on"
+  },
+  {
+    "name": "P0",
+    "color": "b60205",
+    "description": "Critical: Service down or major data loss"
+  },
+  {
+    "name": "P1",
+    "color": "ff5722",
+    "description": "High: Important feature broken or security issue"
+  },
+  {
+    "name": "P2",
+    "color": "ff9800",
+    "description": "Medium: Regular feature defect"
+  },
+  {
+    "name": "P3",
+    "color": "ffc107",
+    "description": "Low: Enhancement or optimization"
+  },
+  {
+    "name": "P4",
+    "color": "ffeb3b",
+    "description": "Future consideration: Planning stage"
+  },
+  {
+    "name": "frontend",
+    "color": "6f42c1",
+    "description": "web-app related"
+  },
+  {
+    "name": "backend",
+    "color": "0275d8",
+    "description": "backend API related"
+  },
+  {
+    "name": "ci",
+    "color": "28a745",
+    "description": "CI/CD workflow related"
+  },
+  {
+    "name": "infra",
+    "color": "6610f2",
+    "description": "Infrastructure related"
+  },
+  {
+    "name": "devops",
+    "color": "20c997",
+    "description": "DevOps related"
+  },
+  {
+    "name": "typescript",
+    "color": "3178c6",
+    "description": "TypeScript related"
+  },
+  {
+    "name": "react",
+    "color": "61dafb",
+    "description": "React/Frontend framework related"
+  },
+  {
+    "name": "node",
+    "color": "68a063",
+    "description": "Node.js/Backend related"
+  },
+  {
+    "name": "database",
+    "color": "ff9900",
+    "description": "Database related"
+  },
+  {
+    "name": "security",
+    "color": "d73a49",
+    "description": "Security issue or concern"
+  }
+]

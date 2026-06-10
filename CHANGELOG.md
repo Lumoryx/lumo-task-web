@@ -1,0 +1,203 @@
+# Changelog
+
+All notable changes to the lumo-task-web project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Engineering standards documentation (CONTRIBUTING.md, ARCHITECTURE.md)
+- Code review checklist and standards
+- Custom Claude Code commands (/check-tests, /commit-push-pr, /triage-issues)
+- Cross-platform development tools
+- GitHub issue templates (Epic, Story)
+- Architecture Decision Records (ADR) framework
+- Automated issue lifecycle management
+- Issue auto-triage workflow
+- Release automation workflow
+
+### Changed
+- Improved PR template with ECC skills integration and comprehensive checklist
+- Enhanced CLAUDE.md with multi-role collaboration guidelines
+
+### Fixed
+- Removed hardcoded Windows-specific paths from .claude/settings.json
+
+---
+
+## Version History Format
+
+For each new version, add a section like:
+
+```markdown
+## [1.0.0] - 2026-01-15
+
+### Added
+- Feature one
+- Feature two
+
+### Changed
+- Existing feature improvement
+
+### Deprecated
+- Old feature (will be removed in 2.0.0)
+
+### Removed
+- Removed feature
+
+### Fixed
+- Bug fix
+
+### Security
+- Security patch
+```
+
+---
+
+## Release Notes Guidelines
+
+### When to Release
+
+- **Patch**: Bug fixes, minor improvements (can be released weekly)
+- **Minor**: New features (released as needed)
+- **Major**: Breaking changes (coordinate with team)
+
+### Before Releasing
+
+1. Ensure CI/CD passes
+2. Update CHANGELOG.md
+3. Update version in package.json files
+4. Create Release on GitHub
+5. Deploy to production
+
+### Commit Message Format
+
+Changes should use Conventional Commits:
+- `feat:` for features
+- `fix:` for bug fixes
+- `docs:` for documentation
+- `refactor:` for refactoring
+- `test:` for tests
+- `ci:` for CI/CD
+- `chore:` for maintenance
+
+---
+
+## [1.0.0] - TBD
+
+This will be the first stable release of lumo-task-web.
+
+### Planned for 1.0.0
+- [ ] Core task management features
+- [ ] User authentication
+- [ ] Real-time task updates
+- [ ] Mobile-responsive design
+- [ ] API documentation
+- [ ] User guide and tutorials
+
+---
+
+## How to Update CHANGELOG
+
+### Automatically (Recommended)
+When a PR is merged, the CHANGELOG is automatically updated based on commit messages.
+
+```bash
+# PR commit message
+feat(tasks): add task filtering
+
+# After merge, CHANGELOG.md is updated:
+## [Unreleased]
+### Added
+- Add task filtering capability
+```
+
+### Manually
+If automatic update didn't work, manually add to `## [Unreleased]` section:
+
+1. Open CHANGELOG.md
+2. Find the `## [Unreleased]` section
+3. Add your change under appropriate subsection (Added, Changed, Fixed, etc.)
+4. Keep entries organized and user-friendly
+
+### Example Entry
+
+```markdown
+### Added
+- Task filtering by priority and due date (#123)
+- API endpoint `/api/tasks/filter` for task queries
+
+### Fixed
+- Incorrect task count in sidebar (#456)
+
+### Changed
+- API response format for bulk task operations (BREAKING CHANGE: see migration guide)
+```
+
+---
+
+## Linking Issues
+
+Use issue numbers to link changes to the tracking system:
+
+```markdown
+### Added
+- New notification system (#789)
+
+### Fixed
+- Memory leak in task list component (#790)
+```
+
+These will automatically link to GitHub issues.
+
+---
+
+## Breaking Changes
+
+Always mark breaking changes clearly:
+
+```markdown
+### Changed
+- **BREAKING CHANGE**: API response format changed from XML to JSON
+  - Migration guide: See API documentation at /docs/migration-v2.0.md
+  - Affects: All API clients
+```
+
+---
+
+## Pre-release Versions
+
+For alpha, beta, or RC versions:
+
+```markdown
+## [2.0.0-beta.1] - 2026-02-01
+
+### Added
+- Experimental real-time sync feature
+
+### Known Issues
+- Real-time sync may cause high CPU usage (issue #999)
+```
+
+---
+
+## Archive
+
+Old releases are tagged in Git:
+```bash
+git tag v1.0.0
+git log --oneline v1.0.0
+```
+
+View archived releases: https://github.com/lumoryx/lumo-task-web/releases
+
+---
+
+## Questions?
+
+- Check [Semantic Versioning](https://semver.org/) for version format
+- See [Keep a Changelog](https://keepachangelog.com/) for format best practices
+- Review [.github/VERSION.md](.github/VERSION.md) for versioning policy
+- Check [CONTRIBUTING.md](.github/CONTRIBUTING.md) for commit conventions
