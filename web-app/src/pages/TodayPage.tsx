@@ -508,70 +508,50 @@ function CompletedTimeline({ entries, locale }: TimelineProps) {
           const qChip = entry.quadrant ? (Q_CHIP[entry.quadrant] ?? "chip") : null;
 
           return (
-            <div key={entry.id} className="flex gap-0">
+            <div key={entry.id} className="timeline-entry flex gap-0">
               <div
                 className="flex flex-col items-end gap-0.5 flex-shrink-0 pt-0.5"
-                style={{ width: 72, minWidth: 72 }}
+                style={{ width: 80, minWidth: 80 }}
               >
                 {timeStart && (
-                  <span className="text-[11px] tabular-nums text-text-faint leading-none">{timeStart}</span>
+                  <span className="timeline-time-start text-[11px] leading-none">{timeStart}</span>
                 )}
                 {timeEnd && timeEnd !== timeStart && (
-                  <span className="text-[11px] tabular-nums text-text-muted leading-none">{timeEnd}</span>
+                  <span className="timeline-time-end text-[11px] leading-none">{timeEnd}</span>
                 )}
               </div>
 
               <div className="flex flex-col items-center mx-4 flex-shrink-0">
                 <div
-                  className="flex-shrink-0 rounded-full border-2 mt-1"
+                  className="timeline-node flex-shrink-0 rounded-full mt-1"
                   style={{
-                    width: 10, height: 10,
+                    width: 12, height: 12,
                     borderColor: "var(--accent-primary)",
                     background: "var(--bg-base)",
-                    boxShadow: "0 0 6px var(--accent-glow)",
                   }}
                 />
                 {!isLast && (
                   <div
-                    className="flex-1 w-px mt-1"
+                    className="timeline-node-connector flex-1 w-1.5 mt-1"
                     style={{
-                      background: "linear-gradient(to bottom, var(--accent-edge), var(--border-subtle))",
-                      minHeight: 28,
+                      minHeight: 32,
                     }}
                   />
                 )}
               </div>
 
-              <div className="flex-1 group" style={{ paddingBottom: isLast ? 0 : 20 }}>
+              <div className="timeline-card flex-1 group" style={{ paddingBottom: isLast ? 0 : 16 }}>
                 <div className="flex items-start gap-2">
                   <span
-                    className="flex-1 text-sm font-medium text-text-secondary leading-snug"
-                    style={{ textDecoration: "line-through", textDecorationColor: "var(--text-faint)" }}
+                    className="timeline-task-title flex-1 text-sm font-medium leading-snug"
                   >
                     {ls(entry.title)}
                   </span>
-                  {/* Reopen button — visible on hover */}
+                  {/* Reopen button — enhanced styling */}
                   <button
                     onClick={() => reopen(entry.id)}
                     title={t("today.reopen")}
-                    className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity rounded-md px-2 py-0.5 text-[11px]"
-                    style={{
-                      color: "var(--text-faint)",
-                      background: "transparent",
-                      border: "1px solid var(--border-faint)",
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.color = "var(--accent-primary)";
-                      el.style.borderColor = "var(--accent-edge)";
-                      el.style.background = "var(--accent-fog)";
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.color = "var(--text-faint)";
-                      el.style.borderColor = "var(--border-faint)";
-                      el.style.background = "transparent";
-                    }}
+                    className="timeline-reopen-btn flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-[11px]"
                   >
                     <IconUndo size={11} />
                     {t("today.reopen")}
