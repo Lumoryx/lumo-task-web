@@ -48,3 +48,19 @@ export function getDueLabel(due: string | null, locale: Locale): string | null {
   };
   return map[locale][due] ?? due;
 }
+
+/** Formats a scheduled_start ISO timestamp as a short date + time, e.g. "Jun 10 3pm" / "6月10日 15:00". */
+export function fmtScheduledStart(iso: string, locale: Locale): string {
+  const d = new Date(iso);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  if (locale === "zh") {
+    const timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${timeStr}`;
+  }
+  const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const suffix = h >= 12 ? "pm" : "am";
+  const dh = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  const timeStr = m === 0 ? `${dh}${suffix}` : `${dh}:${String(m).padStart(2, "0")}${suffix}`;
+  return `${dateStr} ${timeStr}`;
+}

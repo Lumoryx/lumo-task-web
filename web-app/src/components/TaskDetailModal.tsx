@@ -8,7 +8,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
-import { fmtDuration, getDueLabel } from "@/lib/format";
+import { fmtDuration, fmtScheduledStart, getDueLabel } from "@/lib/format";
 import type { Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
@@ -141,6 +141,15 @@ export function TaskDetailModal({ task, onClose }: Props) {
 
         {/* Meta grid */}
         <div className="px-5 pb-4 grid grid-cols-2 gap-x-6 gap-y-3">
+          {/* Scheduled time */}
+          {liveTask.scheduled_start && (
+            <MetaRow
+              icon={<IconCalendar size={13} />}
+              label={t("detail.scheduledAt")}
+              value={fmtScheduledStart(liveTask.scheduled_start, locale)}
+            />
+          )}
+
           {/* Due date */}
           {due && (
             <MetaRow
