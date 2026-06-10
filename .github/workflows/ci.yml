@@ -205,6 +205,17 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
+      # Remove the pre-installed Microsoft apt sources that intermittently
+      # return 403 Forbidden, which causes `--with-deps` (apt-get update) to
+      # fail with exit code 100. The system libraries Playwright needs come
+      # from the standard Ubuntu repos, which are unaffected.
+      - name: Remove conflicting apt sources
+        working-directory: .
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+                     /etc/apt/sources.list.d/azure-cli.list \
+                     /etc/apt/sources.list.d/azure-cli.sources 2>/dev/null || true
+
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
