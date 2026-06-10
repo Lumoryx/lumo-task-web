@@ -339,7 +339,7 @@ input[type="number"] { -moz-appearance: textfield; }
 
 .timeline-node-connector {
   transition: background 120ms var(--ease-default);
-  background: linear-gradient(to bottom, var(--accent-edge), var(--border-subtle));
+  background: linear-gradient(to bottom, var(--accent-edge), var(--border-faint));
 }
 
 /* Hover state — scale up node */

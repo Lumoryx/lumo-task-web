@@ -508,7 +508,7 @@ function CompletedTimeline({ entries, locale }: TimelineProps) {
           const qChip = entry.quadrant ? (Q_CHIP[entry.quadrant] ?? "chip") : null;
 
           return (
-            <div key={entry.id} className="timeline-entry flex gap-0">
+            <div key={entry.id} className="timeline-entry group flex gap-0">
               <div
                 className="flex flex-col items-end gap-0.5 flex-shrink-0 pt-0.5"
                 style={{ width: 80, minWidth: 80 }}
@@ -532,7 +532,7 @@ function CompletedTimeline({ entries, locale }: TimelineProps) {
                 />
                 {!isLast && (
                   <div
-                    className="timeline-node-connector flex-1 w-1.5 mt-1"
+                    className="timeline-node-connector flex-1 w-px mt-1"
                     style={{
                       minHeight: 32,
                     }}
@@ -540,7 +540,7 @@ function CompletedTimeline({ entries, locale }: TimelineProps) {
                 )}
               </div>
 
-              <div className="timeline-card flex-1 group" style={{ paddingBottom: isLast ? 0 : 16 }}>
+              <div className="timeline-card flex-1" style={{ paddingBottom: isLast ? 0 : 16 }}>
                 <div className="flex items-start gap-2">
                   <span
                     className="timeline-task-title flex-1 text-sm font-medium leading-snug"
