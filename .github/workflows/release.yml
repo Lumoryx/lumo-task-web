@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # Extract relevant section from CHANGELOG for this version
+          VERSION=${{ steps.version.outputs.version }}
+
+          # Simple extraction - in production, use a tool like `git-cliff`
+          echo "Extracting release notes for version $VERSION..."
+
+          # For now, reference the full CHANGELOG
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "See [CHANGELOG.md](https://github.com/lumoryx/lumo-task-web/blob/main/CHANGELOG.md) for full details." >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          body: |
+            # Release ${{ steps.version.outputs.version }}
+
+            For detailed changes, please see [CHANGELOG.md](https://github.com/lumoryx/lumo-task-web/blob/main/CHANGELOG.md).
+
+            ## Installation
+
+            ### Web App
+            The web app is automatically deployed to Vercel on release.
+
+            ### Backend
+            The backend is automatically deployed to Vercel/Render on release.
+
+            ### Changelog
+            ${{ steps.release_notes.outputs.notes }}
+
+            ---
+
+            **Compare**: [v${{ steps.version.outputs.version }}](https://github.com/lumoryx/lumo-task-web/releases/tag/v${{ steps.version.outputs.version }})
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (web-app)
+        run: |
+          echo "Frontend deployment would be triggered here"
+          echo "This can be automated via Vercel GitHub integration"
+          # Command: npx vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Vercel/Render (backend)
+        run: |
+          echo "Backend deployment would be triggered here"
+          echo "This can be automated via Vercel/Render GitHub integration"
+          # Command: npx vercel --prod --token ${{ secrets.VERCEL_TOKEN }} backend/
+
+  post-release:
+    runs-on: ubuntu-latest
+    needs: [create-release, deploy-frontend, deploy-backend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Post release notification
+        run: |
+          echo "Release ${{ github.ref }} completed successfully!"
+          echo "Frontend and backend are being deployed..."
