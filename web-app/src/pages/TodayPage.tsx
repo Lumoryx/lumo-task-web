@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { CompletedTimeline } from "@/components/CompletedTimeline";
 import { TaskRow } from "@/components/TaskRow";
-import { IconArrowRight, IconUndo } from "@/components/icons";
+import { IconArrowRight } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { fmtDuration } from "@/lib/format";
-import type { CompletedEntry, Locale, Task } from "@/types/task";
+import type { Locale, Task } from "@/types/task";
 
 const Q_PRIORITY: Record<Task["quadrant"], number> = {
   Q1: 0, Q2: 1, Q3: 2, Q4: 3, unclassified: 4,
@@ -21,13 +22,6 @@ const Q_CHIP: Record<string, string> = {
   Q4: "chip chip-q4",
   unclassified: "chip",
 };
-
-function fmtTime(iso: string | undefined, locale: Locale): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleTimeString(locale === "zh" ? "zh-CN" : "en-US", {
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  });
-}
 
 // ─── Conviction Card ───────────────────────────────────────────────────────
 
@@ -452,147 +446,6 @@ function AllDoneBanner() {
         ))}
       </div>
     </div>
-  );
-}
-
-// ─── Completed Timeline ────────────────────────────────────────────────────
-
-interface TimelineProps {
-  entries: CompletedEntry[];
-  locale: Locale;
-}
-
-function CompletedTimeline({ entries, locale }: TimelineProps) {
-  const ls = useLocaleString();
-  const t = useT();
-  const reopen = useTasksStore((s) => s.reopen);
-  const total = entries.reduce((s, c) => s + c.duration, 0);
-  const totalLabel =
-    total >= 60
-      ? locale === "zh"
-        ? `${Math.floor(total / 60)} 小时 ${total % 60} 分`
-        : `${Math.floor(total / 60)}h ${total % 60}m`
-      : locale === "zh"
-      ? `${total} 分钟`
-      : `${total} min`;
-
-  const sorted = [...entries].sort((a, b) => {
-    const ta = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-    const tb = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-    return ta - tb;
-  });
-
-  return (
-    <section className="mt-10">
-      <div className="flex items-center gap-3 mb-5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-faint">
-          {locale === "zh" ? "今日已完成" : "Completed today"}
-        </span>
-        <span
-          className="text-[11px] tabular-nums text-text-faint px-2 py-0.5 rounded-full border"
-          style={{ borderColor: "var(--border-subtle)" }}
-        >
-          {entries.length} {locale === "zh" ? "项" : entries.length === 1 ? "task" : "tasks"}
-        </span>
-        <span className="flex-1 h-px" style={{ background: "var(--border-subtle)" }} />
-        <span className="text-[11px] tabular-nums text-text-faint">
-          {locale === "zh" ? "共 " : ""}{totalLabel}{locale === "zh" ? "" : " total"}
-        </span>
-      </div>
-
-      <div className="flex flex-col">
-        {sorted.map((entry, idx) => {
-          const isLast = idx === sorted.length - 1;
-          const timeStart = fmtTime(entry.startedAt, locale);
-          const timeEnd = fmtTime(entry.completedAt, locale);
-          const qChip = entry.quadrant ? (Q_CHIP[entry.quadrant] ?? "chip") : null;
-
-          return (
-            <div key={entry.id} className="flex gap-0">
-              <div
-                className="flex flex-col items-end gap-0.5 flex-shrink-0 pt-0.5"
-                style={{ width: 72, minWidth: 72 }}
-              >
-                {timeStart && (
-                  <span className="text-[11px] tabular-nums text-text-faint leading-none">{timeStart}</span>
-                )}
-                {timeEnd && timeEnd !== timeStart && (
-                  <span className="text-[11px] tabular-nums text-text-muted leading-none">{timeEnd}</span>
-                )}
-              </div>
-
-              <div className="flex flex-col items-center mx-4 flex-shrink-0">
-                <div
-                  className="flex-shrink-0 rounded-full border-2 mt-1"
-                  style={{
-                    width: 10, height: 10,
-                    borderColor: "var(--accent-primary)",
-                    background: "var(--bg-base)",
-                    boxShadow: "0 0 6px var(--accent-glow)",
-                  }}
-                />
-                {!isLast && (
-                  <div
-                    className="flex-1 w-px mt-1"
-                    style={{
-                      background: "linear-gradient(to bottom, var(--accent-edge), var(--border-subtle))",
-                      minHeight: 28,
-                    }}
-                  />
-                )}
-              </div>
-
-              <div className="flex-1 group" style={{ paddingBottom: isLast ? 0 : 20 }}>
-                <div className="flex items-start gap-2">
-                  <span
-                    className="flex-1 text-sm font-medium text-text-secondary leading-snug"
-                    style={{ textDecoration: "line-through", textDecorationColor: "var(--text-faint)" }}
-                  >
-                    {ls(entry.title)}
-                  </span>
-                  {/* Reopen button — visible on hover */}
-                  <button
-                    onClick={() => reopen(entry.id)}
-                    title={t("today.reopen")}
-                    className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity rounded-md px-2 py-0.5 text-[11px]"
-                    style={{
-                      color: "var(--text-faint)",
-                      background: "transparent",
-                      border: "1px solid var(--border-faint)",
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.color = "var(--accent-primary)";
-                      el.style.borderColor = "var(--accent-edge)";
-                      el.style.background = "var(--accent-fog)";
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.color = "var(--text-faint)";
-                      el.style.borderColor = "var(--border-faint)";
-                      el.style.background = "transparent";
-                    }}
-                  >
-                    <IconUndo size={11} />
-                    {t("today.reopen")}
-                  </button>
-                </div>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  {qChip && (
-                    <span className={qChip} style={{ fontSize: 10, padding: "1px 7px" }}>
-                      {entry.quadrant}
-                    </span>
-                  )}
-                  <span className="text-[11px] tabular-nums text-text-faint">
-                    {fmtDuration(entry.duration, locale)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 
