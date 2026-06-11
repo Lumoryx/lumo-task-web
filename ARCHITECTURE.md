@@ -19,7 +19,7 @@ This document provides an overview of the lumo-task-web project architecture, te
 ├─────────────────────────────────────────────────────┤
 │  Web Browser (web-app/)  │  Electron Desktop App    │
 │  ├─ React Components     │  └─ Electron + web-app   │
-│  ├─ Redux Store          │                          │
+│  ├─ Zustand Store        │                          │
 │  ├─ TypeScript           │                          │
 │  └─ Vite (dev + build)   │                          │
 └────────────────────┬─────────────────────────────────┘
@@ -56,10 +56,10 @@ lumo-task-web/
 │   │   │   └── __tests__/            # Component tests
 │   │   ├── pages/                    # Page components
 │   │   ├── hooks/                    # Custom React hooks
-│   │   ├── store/                    # Redux store
-│   │   │   ├── taskSlice.ts
-│   │   │   ├── userSlice.ts
-│   │   │   └── store.ts
+│   │   ├── store/                    # Zustand stores
+│   │   │   ├── taskStore.ts
+│   │   │   ├── userStore.ts
+│   │   │   └── settingsStore.ts
 │   │   ├── api/                      # API client
 │   │   │   ├── client.ts             # HTTP client (fetch-based)
 │   │   │   └── hooks.ts              # API query hooks
@@ -149,7 +149,7 @@ lumo-task-web/
 | Language | TypeScript | Latest |
 | Framework | React | 18+ |
 | Build Tool | Vite | Latest |
-| State Mgmt | Redux Toolkit | Latest |
+| State Mgmt | Zustand | Latest |
 | UI Components | Native HTML + Tailwind CSS | - |
 | Testing | Vitest + React Testing Library | Latest |
 | E2E Testing | Playwright | Latest |
@@ -210,7 +210,7 @@ Set Authorization header for future requests
 ```
 User Action (create task form)
   ↓
-React Component State → Redux Action
+React Component State → Zustand Action
   ↓
 fetch POST /api/tasks (title, description, ...)
   ↓
@@ -226,7 +226,7 @@ Insert into DB: INSERT INTO tasks (user_id, title, ...) VALUES (...)
   ↓
 Return: { task: {...}, message: "Task created" }
   ↓
-Frontend: Update Redux store with new task
+Frontend: Update Zustand store with new task
   ↓
 UI re-renders with new task
 ```
@@ -248,7 +248,7 @@ Page Component (e.g., TaskPage.tsx)
 ```
 
 #### 2. State Management
-- **Redux Toolkit** for global state (user, tasks, filters)
+- **Zustand** for global state (user, tasks, settings, filters)
 - **React hooks** for local component state
 - **Custom hooks** for reusable logic (useTask, useAuth)
 
