@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat: Habit check-in dialog + daily check-in badge (PR #126)
+- feat: Optimize completed timeline visual — extracted CompletedTimeline component with 14 unit tests (PR #130)
+- feat: AI auto PR code review workflow (PR #131)
+- docs: Industry-standard bilingual documentation — README.md (EN), README.zh.md (ZH), updated ARCHITECTURE.md, CHANGELOG.md, new docs/ROADMAP.md (Issue #129)
 - Engineering standards documentation (CONTRIBUTING.md, ARCHITECTURE.md)
 - Code review checklist and standards
 - Custom Claude Code commands (/check-tests, /commit-push-pr, /triage-issues)
