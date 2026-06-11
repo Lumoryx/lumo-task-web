@@ -23,13 +23,6 @@ const Q_CHIP: Record<string, string> = {
   unclassified: "chip",
 };
 
-function fmtTime(iso: string | undefined, locale: Locale): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleTimeString(locale === "zh" ? "zh-CN" : "en-US", {
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  });
-}
-
 // ─── Conviction Card ───────────────────────────────────────────────────────
 
 interface ConvictionCardProps {
