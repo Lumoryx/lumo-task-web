@@ -90,14 +90,14 @@ export function StatsPage() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
+      <div className="flex items-center justify-between px-7 pt-7 pb-4 flex-shrink-0">
         <div>
           <h1 className="text-[20px] font-semibold text-text-primary">{t("stats.title")}</h1>
           <p className="text-[13px] text-text-muted mt-0.5">{t("stats.sub")}</p>
         </div>
       </div>
 
-      <div className="px-6 pb-6 space-y-6">
+      <div className="px-7 pb-7 space-y-6">
         {loading ? (
           <div className="text-center py-16 text-text-muted text-[13px]">Loading…</div>
         ) : entries.length === 0 ? (

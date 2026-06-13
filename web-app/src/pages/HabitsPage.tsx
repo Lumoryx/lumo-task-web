@@ -75,7 +75,7 @@ export function HabitsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Page header */}
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
+      <div className="flex items-center justify-between px-7 pt-7 pb-4 flex-shrink-0">
         <div>
           <h1 className="text-[20px] font-semibold text-text-primary">{t("habit.title")}</h1>
           <p className="text-[13px] text-text-muted mt-0.5">{t("habit.sub")}</p>
@@ -91,7 +91,7 @@ export function HabitsPage() {
       </div>
 
       {/* Habit list */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-7 pb-6">
         {habits.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-16">
             <div
