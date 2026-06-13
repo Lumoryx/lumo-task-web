@@ -483,7 +483,7 @@ export function TodayPage() {
   }
 
   return (
-    <div className="fade-in px-4 sm:px-8 py-6 sm:py-8">
+    <div className="fade-in px-4 sm:px-7 py-6 sm:py-7">
       {!top && completed.length > 0 && (
         <AllDoneBanner />
       )}
