@@ -1,14 +1,6 @@
 import { useT } from "@/i18n/useT";
 import type { Habit, HabitLog } from "@/types/task";
-import { currentStreak, toDateStr } from "@/utils/habits";
-
-const COLOR_MAP: Record<string, string> = {
-  green:  "var(--status-success)",
-  cyan:   "var(--accent-primary)",
-  amber:  "var(--status-warning)",
-  red:    "var(--status-danger)",
-  purple: "#a78bfa",
-};
+import { currentStreak, habitColor, toDateStr } from "@/utils/habits";
 
 function weekTarget(habit: Habit): number {
   switch (habit.frequency) {
@@ -31,7 +23,7 @@ interface CardProps {
 
 function HabitWeekCard({ habit, logs, weekStart, weekEnd }: CardProps) {
   const t = useT();
-  const color = COLOR_MAP[habit.color] ?? COLOR_MAP.green;
+  const color = habitColor(habit);
   const weekStartStr = toDateStr(weekStart);
   const weekEndStr = toDateStr(weekEnd);
 
@@ -83,6 +75,7 @@ function HabitWeekCard({ habit, logs, weekStart, weekEnd }: CardProps) {
         className="h-1.5 rounded-full overflow-hidden"
         style={{ background: "var(--bg-elevated)" }}
         role="progressbar"
+        aria-label={habit.title}
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}

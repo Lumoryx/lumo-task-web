@@ -7,7 +7,7 @@ import { useHabitsStore } from "@/store/useHabitsStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import type { CompletedEntry } from "@/types/task";
 import { computeWeekStats, computeAllTimeStats, fmtHour } from "@/utils/stats";
-import { currentStreak as habitStreak } from "@/utils/habits";
+import { currentStreak as habitStreak, toDateStr } from "@/utils/habits";
 import { shouldShowWrapped, markWrappedShown, computePrevWeekStats } from "@/utils/wrapped";
 import { useNavigate } from "react-router-dom";
 import { ShareCard } from "@/components/ShareCard";
@@ -81,8 +81,8 @@ export function StatsPage() {
     ? Math.max(...habits.map((h) => habitStreak(h, habitLogs)))
     : 0;
 
-  const weekStartStr = `${week.weekStart.getFullYear()}-${String(week.weekStart.getMonth() + 1).padStart(2, "0")}-${String(week.weekStart.getDate()).padStart(2, "0")}`;
-  const weekEndStr = `${week.weekEnd.getFullYear()}-${String(week.weekEnd.getMonth() + 1).padStart(2, "0")}-${String(week.weekEnd.getDate()).padStart(2, "0")}`;
+  const weekStartStr = toDateStr(week.weekStart);
+  const weekEndStr = toDateStr(week.weekEnd);
   const weekHabitDone = habitLogs.filter(
     (l) => l.date >= weekStartStr && l.date <= weekEndStr,
   ).length;
@@ -156,7 +156,7 @@ export function StatsPage() {
                   <StatCard
                     label={t("stats.habits.total")}
                     value={weekHabitDone}
-                    sub={t("stats.days")}
+                    sub={t("stats.habits.totalUnit")}
                   />
                 )}
               </div>
