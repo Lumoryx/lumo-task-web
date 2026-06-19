@@ -38,13 +38,14 @@ vi.mock("@/store/useTasksStore", () => ({
 }));
 
 vi.mock("@/store/useAIStore", () => {
-  const state = {
+  // Reads module-level AI_HAS_KEY on each call so tests can toggle the AI step
+  const getState = () => ({
     activeProvider: "openai",
-    providerConfigs: { openai: { hasKey: false } },
-  };
+    providerConfigs: { openai: { hasKey: AI_HAS_KEY } },
+  });
   return {
     useAIStore: (sel?: (s: unknown) => unknown) =>
-      sel ? sel(state) : state,
+      sel ? sel(getState()) : getState(),
   };
 });
 
@@ -82,9 +83,12 @@ function makeTask(override: Partial<Task> = {}): Task {
 
 // Module-level mutable task list — mock reads this on each call
 let TASKS: Task[] = [];
+// Module-level AI toggle — mock reads this on each call (drives the AI step)
+let AI_HAS_KEY = false;
 
 beforeEach(() => {
   TASKS = [];
+  AI_HAS_KEY = false;
   mockUpdate.mockClear();
   mockCelebrate.mockClear();
   mockPetGetState.mockClear();
@@ -243,5 +247,48 @@ describe("MorningPlanningModal", () => {
       "lumo.planning_done_date",
       today
     );
+  });
+
+  // ─── AI step (AC #3 / #5) ────────────────────────────────────────────────
+  describe("AI step (hasKey: true)", () => {
+    it("inserts the AI step between select and done when AI is configured", () => {
+      AI_HAS_KEY = true;
+      TASKS = [makeTask({ id: "t1", quadrant: "Q1", today: false })];
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      // select → ai (not straight to done)
+      fireEvent.click(screen.getByText("planning.btn.next"));
+      expect(screen.getByText("planning.step.ai.title")).toBeInTheDocument();
+    });
+
+    it("prompts to pick a task when nothing is selected", () => {
+      AI_HAS_KEY = true;
+      TASKS = [makeTask({ id: "t1", quadrant: "Q1", today: false })];
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      fireEvent.click(screen.getByText("planning.btn.next")); // select → ai
+      expect(screen.getByText(/planning\.ai\.empty/)).toBeInTheDocument();
+    });
+
+    it("gives positive feedback when the selection is well-focused", async () => {
+      AI_HAS_KEY = true;
+      TASKS = [makeTask({ id: "t1", title: { en: "Task 1" }, quadrant: "Q1", due: "2026-06-20" })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Task 1")); // select the only Q1 task
+      fireEvent.click(screen.getByText("planning.btn.next")); // select → ai
+      expect(screen.getByText(/planning\.ai\.focused/)).toBeInTheDocument();
+    });
+
+    it("warns when an urgent Q1 task with a due date is left unselected", async () => {
+      AI_HAS_KEY = true;
+      TASKS = [
+        makeTask({ id: "t1", title: { en: "Picked" }, quadrant: "Q1", due: null }),
+        makeTask({ id: "t2", title: { en: "Urgent" }, quadrant: "Q1", due: "2026-06-20" }),
+      ];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Picked")); // select non-urgent, leave Urgent
+      fireEvent.click(screen.getByText("planning.btn.next")); // select → ai
+      expect(screen.getByText(/planning\.ai\.q1skipped/)).toBeInTheDocument();
+    });
   });
 });
