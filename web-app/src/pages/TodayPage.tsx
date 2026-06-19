@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CompletedTimeline } from "@/components/CompletedTimeline";
+import { EveningReviewModal } from "@/components/EveningReviewModal";
 import { MorningPlanningModal } from "@/components/MorningPlanningModal";
 import { TaskRow } from "@/components/TaskRow";
 import { IconArrowRight } from "@/components/icons";
@@ -22,6 +23,14 @@ function getPlanningDoneDate(): string | null {
 
 function isTodayPlanned(): boolean {
   return getPlanningDoneDate() === toISODate(new Date());
+}
+
+function isEveningReviewDone(): boolean {
+  try {
+    return localStorage.getItem("lumo.evening_review_done_date") === toISODate(new Date());
+  } catch {
+    return false;
+  }
 }
 
 const Q_PRIORITY: Record<Task["quadrant"], number> = {
@@ -499,6 +508,38 @@ function PlanningBanner({ onOpen, planned }: { onOpen: () => void; planned: bool
   );
 }
 
+// ─── Evening Review Banner ──────────────────────────────────────────────────
+
+function EveningReviewBanner({ onOpen, done }: { onOpen: () => void; done: boolean }) {
+  const t = useT();
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left rounded-xl mb-6"
+      style={{
+        padding: "12px 16px",
+        border: "1px solid var(--border-faint)",
+        background: done ? "var(--bg-surface)" : "var(--bg-deep)",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        cursor: "pointer",
+        minHeight: 52,
+        transition: "opacity 0.15s",
+      }}
+    >
+      <span style={{ fontSize: 16, flexShrink: 0 }}>🌙</span>
+      <span
+        className="text-sm font-medium"
+        style={{ color: done ? "var(--text-faint)" : "var(--text-secondary)", flex: 1 }}
+      >
+        {done ? t("today.evening.btn.done") : t("today.evening.btn.start")}
+      </span>
+      <span style={{ color: "var(--text-faint)", fontSize: 14 }}>›</span>
+    </button>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export function TodayPage() {
@@ -509,11 +550,17 @@ export function TodayPage() {
   const loading = useTasksStore((s) => s.loading);
   const [planningOpen, setPlanningOpen] = useState(false);
   const [planned, setPlanned] = useState(isTodayPlanned);
+  const [eveningOpen, setEveningOpen] = useState(false);
+  const [eveningDone, setEveningDone] = useState(isEveningReviewDone);
 
-  // Re-check planned state after modal closes
   function handlePlanningClose() {
     setPlanningOpen(false);
     setPlanned(isTodayPlanned());
+  }
+
+  function handleEveningClose() {
+    setEveningOpen(false);
+    setEveningDone(isEveningReviewDone());
   }
 
   if (loading && tasks.length === 0) {
@@ -541,9 +588,11 @@ export function TodayPage() {
       <>
         <div className="px-4 sm:px-7 pt-6 sm:pt-7">
           <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+          <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
         </div>
         <TodayEmptyState />
         {planningOpen && <MorningPlanningModal onClose={handlePlanningClose} />}
+        {eveningOpen && <EveningReviewModal onClose={handleEveningClose} />}
       </>
     );
   }
@@ -552,6 +601,9 @@ export function TodayPage() {
     <div className="fade-in px-4 sm:px-7 py-6 sm:py-7">
       {/* Morning planning banner — always visible */}
       <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+
+      {/* Evening review banner — always visible */}
+      <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
 
       {!top && completed.length > 0 && (
         <AllDoneBanner />
@@ -590,6 +642,7 @@ export function TodayPage() {
       )}
 
       {planningOpen && <MorningPlanningModal onClose={handlePlanningClose} />}
+      {eveningOpen && <EveningReviewModal onClose={handleEveningClose} />}
     </div>
   );
 }
