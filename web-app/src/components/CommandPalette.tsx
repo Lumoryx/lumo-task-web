@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
-import { useLocaleString, useT } from "@/i18n/useT";
+import { useT } from "@/i18n/useT";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import type { Task } from "@/types/task";
 
@@ -35,7 +35,6 @@ interface Props {
 
 export function CommandPalette({ open, onClose }: Props) {
   const t = useT();
-  const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
 
