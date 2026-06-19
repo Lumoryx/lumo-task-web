@@ -8,11 +8,12 @@ interface TopbarProps {
   title: string;
   subtitle?: string;
   onQuickAdd: () => void;
+  onOpenSearch?: () => void;
 }
 
 const isElectron = typeof window !== "undefined" && !!window.electronAPI;
 
-export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
+export function Topbar({ title, subtitle, onQuickAdd, onOpenSearch }: TopbarProps) {
   const t = useT();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -31,26 +32,26 @@ export function Topbar({ title, subtitle, onQuickAdd }: TopbarProps) {
       </div>
       <div className="flex-1" />
 
-      {/* Search */}
-      <div
-        className="flex items-center gap-2 bg-surface border border-border-faint rounded-lg px-3 text-xs text-text-muted"
+      {/* Search — clicking opens the CommandPalette */}
+      <button
+        onClick={onOpenSearch}
+        className="flex items-center gap-2 bg-surface border border-border-faint rounded-lg px-3 text-xs text-text-muted hover:border-border-default transition-colors"
         style={{ height: 32, width: 240, WebkitAppRegion: "no-drag" }}
+        aria-label={t("topbar.search")}
       >
         <span className="inline-flex flex-shrink-0 text-text-muted">
           <IconSearch size={14} />
         </span>
-        <input
-          type="text"
-          placeholder={t("topbar.search")}
-          className="flex-1 min-w-0 h-full bg-transparent border-none outline-none text-[13px] text-text-primary placeholder:text-text-muted"
-        />
+        <span className="flex-1 min-w-0 text-left text-[13px] text-text-faint truncate">
+          {t("topbar.search")}
+        </span>
         <span
           className="text-[10px] font-mono text-text-faint border border-border-default rounded-[3px] bg-deep flex-shrink-0"
           style={{ padding: "1px 5px" }}
         >
           ⌘K
         </span>
-      </div>
+      </button>
 
       {/* Quick add */}
       <button

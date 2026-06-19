@@ -1,0 +1,201 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { CommandPalette } from "../CommandPalette";
+import type { Task } from "@/types/task";
+
+// ── Mocks ────────────────────────────────────────────────────────────────────
+
+const mockTasks: Task[] = [
+  {
+    id: "1",
+    title: { en: "Write proposal", zh: "撰写提案" },
+    quadrant: "Q1",
+    today: true,
+    due: "Fri",
+    duration: 60,
+    pomos_done: 0,
+    pomos_total: 2,
+    completed: false,
+  },
+  {
+    id: "2",
+    title: { en: "Review budget", zh: "审查预算" },
+    quadrant: "Q2",
+    today: false,
+    due: null,
+    duration: 30,
+    pomos_done: 0,
+    pomos_total: 1,
+    completed: false,
+  },
+  {
+    id: "3",
+    title: { en: "Done task", zh: "已完成任务" },
+    quadrant: "Q1",
+    today: false,
+    due: null,
+    duration: 20,
+    pomos_done: 1,
+    pomos_total: 1,
+    completed: true,
+  },
+];
+
+vi.mock("@/store/useTasksStore", () => ({
+  useTasksStore: (sel: any) => sel({ tasks: mockTasks }),
+}));
+
+vi.mock("@/store/useAppStore", () => ({
+  useAppStore: (sel: any) => sel({ locale: "en" }),
+}));
+
+vi.mock("@/i18n/useT", () => ({
+  useT: () => (key: string) => key,
+  useLocaleString: () => (ls: { en: string; zh?: string }) => ls.en,
+}));
+
+vi.mock("@/components/TaskDetailModal", () => ({
+  TaskDetailModal: ({ task, onClose }: { task: Task; onClose: () => void }) => (
+    <div data-testid="task-detail-modal">
+      <span>{task.title.en}</span>
+      <button onClick={onClose}>close-detail</button>
+    </div>
+  ),
+}));
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function setup(open = true) {
+  const onClose = vi.fn();
+  render(
+    <MemoryRouter>
+      <CommandPalette open={open} onClose={onClose} />
+    </MemoryRouter>,
+  );
+  return { onClose };
+}
+
+async function flushDebounce() {
+  await act(async () => {
+    vi.runAllTimers();
+  });
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+describe("CommandPalette", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders nothing when closed", () => {
+    setup(false);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("renders the search dialog when open", () => {
+    setup();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByPlaceholderText("search.placeholder")).toBeTruthy();
+  });
+
+  it("shows quick-access results when query is empty (today tasks first)", async () => {
+    setup();
+    await flushDebounce();
+    expect(screen.getByText("search.quickAccess")).toBeTruthy();
+    expect(screen.getByText("Write proposal")).toBeTruthy();
+  });
+
+  it("excludes completed tasks from results", async () => {
+    setup();
+    await flushDebounce();
+    expect(screen.queryByText("Done task")).toBeNull();
+  });
+
+  it("filters by query after debounce", async () => {
+    setup();
+    fireEvent.change(screen.getByPlaceholderText("search.placeholder"), {
+      target: { value: "budget" },
+    });
+    await flushDebounce();
+    // HighlightedText splits matched text into spans; check combined textContent
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).toContain("Review budget");
+    expect(dialog.textContent).not.toContain("Write proposal");
+  });
+
+  it("shows no-results message when nothing matches", async () => {
+    setup();
+    fireEvent.change(screen.getByPlaceholderText("search.placeholder"), {
+      target: { value: "xyznonexistent" },
+    });
+    await flushDebounce();
+    expect(screen.getByText("search.noResults")).toBeTruthy();
+  });
+
+  it("calls onClose when Escape is pressed in the input", () => {
+    const { onClose } = setup();
+    fireEvent.keyDown(screen.getByPlaceholderText("search.placeholder"), {
+      key: "Escape",
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("opens TaskDetailModal when Enter is pressed on the selected result", async () => {
+    setup();
+    await flushDebounce();
+    fireEvent.keyDown(screen.getByPlaceholderText("search.placeholder"), {
+      key: "Enter",
+    });
+    expect(screen.getByTestId("task-detail-modal")).toBeTruthy();
+  });
+
+  it("opens TaskDetailModal when a result is clicked", async () => {
+    setup();
+    await flushDebounce();
+    // Click the first result button (today task: "Write proposal")
+    const buttons = screen.getAllByRole("button");
+    const resultBtn = buttons.find((b) => b.textContent?.includes("Write proposal"))!;
+    fireEvent.click(resultBtn);
+    expect(screen.getByTestId("task-detail-modal")).toBeTruthy();
+  });
+
+  it("calls onClose when TaskDetailModal closes", async () => {
+    const { onClose } = setup();
+    await flushDebounce();
+    const buttons = screen.getAllByRole("button");
+    const resultBtn = buttons.find((b) => b.textContent?.includes("Write proposal"))!;
+    fireEvent.click(resultBtn);
+    fireEvent.click(screen.getByText("close-detail"));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId("task-detail-modal")).toBeNull();
+  });
+
+  it("calls onClose when backdrop is clicked", () => {
+    const { onClose } = setup();
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("shows Today badge on tasks with today: true", async () => {
+    setup();
+    await flushDebounce();
+    expect(screen.getByText("search.today")).toBeTruthy();
+  });
+
+  it("matches en title on query (write → Write proposal)", async () => {
+    setup();
+    fireEvent.change(screen.getByPlaceholderText("search.placeholder"), {
+      target: { value: "write" },
+    });
+    await flushDebounce();
+    // HighlightedText splits matched text; assert via combined textContent
+    expect(screen.getByRole("dialog").textContent).toContain("Write proposal");
+  });
+});
