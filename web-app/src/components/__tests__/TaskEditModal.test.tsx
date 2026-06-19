@@ -121,8 +121,22 @@ describe("TaskEditModal", () => {
     );
   });
 
-  it("sends desc as null when description is empty", async () => {
+  it("defaults desc to null when unset", async () => {
     setup();
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ desc: null })
+      )
+    );
+  });
+
+  it("sends desc as null after clearing existing description", async () => {
+    const task: Task = { ...TASK, desc: { en: "Old notes" } };
+    setup(task);
+    const textarea = screen.getByPlaceholderText("edit.desc.placeholder");
+    fireEvent.change(textarea, { target: { value: "" } });
     fireEvent.click(getSaveBtn());
     await waitFor(() =>
       expect(mockUpdate).toHaveBeenCalledWith(
@@ -152,8 +166,22 @@ describe("TaskEditModal", () => {
     );
   });
 
-  it("sends scheduled_start as null when cleared", async () => {
+  it("defaults scheduled_start to null when unset", async () => {
     setup();
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ scheduled_start: null })
+      )
+    );
+  });
+
+  it("sends scheduled_start as null after clicking Clear", async () => {
+    const task: Task = { ...TASK, scheduled_start: "2026-06-20T09:30:00" };
+    setup(task);
+    const clearBtn = screen.getByText("edit.clearSchedule");
+    fireEvent.click(clearBtn);
     fireEvent.click(getSaveBtn());
     await waitFor(() =>
       expect(mockUpdate).toHaveBeenCalledWith(
