@@ -100,4 +100,86 @@ describe("TaskEditModal", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("pre-fills description from task.desc", () => {
+    const task: Task = { ...TASK, desc: { en: "Pick up milk and eggs" } };
+    setup(task);
+    const textarea = screen.getByPlaceholderText("edit.desc.placeholder") as HTMLTextAreaElement;
+    expect(textarea.value).toBe("Pick up milk and eggs");
+  });
+
+  it("sends desc as LocalizedString when filled in", async () => {
+    setup();
+    const textarea = screen.getByPlaceholderText("edit.desc.placeholder");
+    fireEvent.change(textarea, { target: { value: "Some notes" } });
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ desc: { en: "Some notes", zh: "Some notes" } })
+      )
+    );
+  });
+
+  it("sends desc as null when description is empty", async () => {
+    setup();
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ desc: null })
+      )
+    );
+  });
+
+  it("pre-fills scheduled_start from task prop", () => {
+    const task: Task = { ...TASK, scheduled_start: "2026-06-20T09:30:00" };
+    setup(task);
+    const input = screen.getByDisplayValue("2026-06-20T09:30") as HTMLInputElement;
+    expect(input.value).toBe("2026-06-20T09:30");
+  });
+
+  it("sends scheduled_start to update when set", async () => {
+    setup();
+    const dtInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
+    fireEvent.change(dtInput, { target: { value: "2026-06-21T10:00" } });
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ scheduled_start: "2026-06-21T10:00" })
+      )
+    );
+  });
+
+  it("sends scheduled_start as null when cleared", async () => {
+    setup();
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ scheduled_start: null })
+      )
+    );
+  });
+
+  it("pre-fills recurrence from task prop", () => {
+    const task: Task = { ...TASK, recurrence: "weekly" };
+    setup(task);
+    const select = screen.getByDisplayValue("task.recurrence.weekly") as HTMLSelectElement;
+    expect(select.value).toBe("weekly");
+  });
+
+  it("sends recurrence to update", async () => {
+    setup();
+    const select = document.querySelector("select") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "daily" } });
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ recurrence: "daily" })
+      )
+    );
+  });
 });

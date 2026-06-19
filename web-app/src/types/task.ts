@@ -40,7 +40,7 @@ export interface Task {
   /** Person IDs — references People in the people list. Multiple allowed. */
   assignee_ids?: string[];
   title: LocalizedString;
-  desc?: LocalizedString;
+  desc?: LocalizedString | null;
   quadrant: Quadrant;
   /** Whether the task is included in today's plan. */
   today: boolean;
