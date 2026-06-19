@@ -1,5 +1,20 @@
 import type { Habit, HabitLog } from "@/types/task";
 
+/** Maps a habit's `color` field to a CSS token. Single source of truth shared
+ *  by HabitCard and the Stats habit-week section. */
+export const HABIT_COLOR_MAP: Record<string, string> = {
+  green:  "var(--status-success)",
+  cyan:   "var(--accent-primary)",
+  amber:  "var(--status-warning)",
+  red:    "var(--status-danger)",
+  purple: "#a78bfa",
+};
+
+/** Resolves a habit's colour token, falling back to green for unknown values. */
+export function habitColor(habit: Habit): string {
+  return HABIT_COLOR_MAP[habit.color] ?? HABIT_COLOR_MAP.green;
+}
+
 /** Returns YYYY-MM-DD for a given Date */
 export function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

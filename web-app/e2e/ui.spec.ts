@@ -982,7 +982,7 @@ test("TC59 – Stats: 'This week' section renders when signed in", async ({ page
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/stats");
-  await expect(page.getByText(/this week/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("heading", { name: "This Week", exact: true })).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC60 – Stats: 'All time' section renders", async ({ page }) => {
@@ -996,7 +996,7 @@ test("TC61 – Stats: Tasks, Focus, and Streak stat cards are visible", async ({
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/stats");
-  await expect(page.getByText(/this week/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("heading", { name: "This Week", exact: true })).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText(/tasks/i).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/focus|hours/i).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/streak/i).first()).toBeVisible({ timeout: 10_000 });

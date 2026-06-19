@@ -7,11 +7,12 @@ import { useHabitsStore } from "@/store/useHabitsStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import type { CompletedEntry } from "@/types/task";
 import { computeWeekStats, computeAllTimeStats, fmtHour } from "@/utils/stats";
-import { currentStreak as habitStreak } from "@/utils/habits";
+import { currentStreak as habitStreak, toDateStr } from "@/utils/habits";
 import { shouldShowWrapped, markWrappedShown, computePrevWeekStats } from "@/utils/wrapped";
 import { useNavigate } from "react-router-dom";
 import { ShareCard } from "@/components/ShareCard";
 import { WrappedCard } from "@/components/WrappedCard";
+import { HabitWeekSection } from "@/components/HabitWeekSection";
 
 const DAY_KEYS = ["stats.day.sun","stats.day.mon","stats.day.tue","stats.day.wed","stats.day.thu","stats.day.fri","stats.day.sat"];
 
@@ -80,6 +81,12 @@ export function StatsPage() {
     ? Math.max(...habits.map((h) => habitStreak(h, habitLogs)))
     : 0;
 
+  const weekStartStr = toDateStr(week.weekStart);
+  const weekEndStr = toDateStr(week.weekEnd);
+  const weekHabitDone = habitLogs.filter(
+    (l) => l.date >= weekStartStr && l.date <= weekEndStr,
+  ).length;
+
   const focusHours = (week.focusMinutes / 60).toFixed(1);
   const allFocusHours = (allTime.focusMinutes / 60).toFixed(0);
 
@@ -145,6 +152,13 @@ export function StatsPage() {
                     value={fmtHour(week.peakHour)}
                   />
                 )}
+                {weekHabitDone > 0 && (
+                  <StatCard
+                    label={t("stats.habits.total")}
+                    value={weekHabitDone}
+                    sub={t("stats.habits.totalUnit")}
+                  />
+                )}
               </div>
 
               {/* Daily bar chart */}
@@ -179,6 +193,14 @@ export function StatsPage() {
                 )}
               </div>
             </section>
+
+            {/* Habit week section */}
+            <HabitWeekSection
+              habits={habits}
+              logs={habitLogs}
+              weekStart={week.weekStart}
+              weekEnd={week.weekEnd}
+            />
 
             {/* Share card */}
             <section>
