@@ -6,6 +6,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useAIStore } from "@/store/useAIStore";
 import { PetSvg } from "@/components/PetSvg";
+import type { PetSpecies } from "@/components/PetSvg";
 import type { Task } from "@/types/task";
 
 const MAX_TODAY = 3;
@@ -137,7 +138,7 @@ function CarryStep({ prevToday, decisions, onToggle }: CarryStepProps) {
                   className="text-xs rounded-md"
                   style={{
                     padding: "4px 10px",
-                    minHeight: 32,
+                    minHeight: 44,
                     border: "1px solid",
                     borderColor: decision === "keep" ? "var(--accent-primary)" : "var(--border-default)",
                     background: decision === "keep" ? "var(--accent-dim)" : "transparent",
@@ -154,7 +155,7 @@ function CarryStep({ prevToday, decisions, onToggle }: CarryStepProps) {
                   className="text-xs rounded-md"
                   style={{
                     padding: "4px 10px",
-                    minHeight: 32,
+                    minHeight: 44,
                     border: "1px solid",
                     borderColor: decision === "defer" ? "var(--border-default)" : "var(--border-faint)",
                     background: decision === "defer" ? "var(--bg-elevated)" : "transparent",
@@ -303,6 +304,7 @@ function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
 // ─── Step: AI Review ───────────────────────────────────────────────────────
 
 function AIStep({ message }: { message: string | null }) {
+  const t = useT();
   return (
     <div
       className="flex flex-col items-center justify-center text-center"
@@ -315,7 +317,7 @@ function AIStep({ message }: { message: string | null }) {
             <div className="core" />
           </div>
           <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Analyzing…
+            {t("planning.ai.analyzing")}
           </span>
         </div>
       ) : (
@@ -338,12 +340,12 @@ function AIStep({ message }: { message: string | null }) {
 
 // ─── Step: Done ────────────────────────────────────────────────────────────
 
-function DoneStep({ quote, species }: { quote: string; species: string }) {
+function DoneStep({ quote, species }: { quote: string; species: PetSpecies }) {
   const t = useT();
 
   return (
     <div className="flex flex-col items-center text-center gap-4">
-      <PetSvg species={species as any} mood="excited" size={72} />
+      <PetSvg species={species} mood="excited" size={72} />
       <div>
         <div
           className="font-semibold text-base mb-2"
