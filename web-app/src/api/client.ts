@@ -66,6 +66,12 @@ async function req<T>(
   }
 
   if (!res.ok) {
+    // 401 on any non-signout endpoint means the session has expired.
+    // Clear the local token and notify the app so it can redirect to /login.
+    if (res.status === 401 && path !== "/auth/signout") {
+      clearToken();
+      window.dispatchEvent(new Event("lumo:session-expired"));
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     const errBody = (err as any).error;
     const errMsg =

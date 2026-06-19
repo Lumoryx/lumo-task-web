@@ -21,6 +21,8 @@ import { useHabitsStore } from "@/store/useHabitsStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
 import { ToastStack } from "@/components/ToastStack";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { toast } from "@/store/useToastStore";
+import { t } from "@/i18n/useT";
 
 /**
  * App root.
@@ -42,11 +44,21 @@ export default function App() {
   const clearHabits = useHabitsStore((s) => s.clear);
   const isSignedIn = useAuthStore(selectIsSignedIn);
   const userId = useAuthStore((s) => s.user.id);
+  const forceSignOut = useAuthStore((s) => s.forceSignOut);
   const location = useLocation();
 
   useEffect(() => {
     applyAccentTheme(accent);
   }, [accent]);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      forceSignOut();
+      toast.error(t("error.auth.sessionExpired"), "");
+    };
+    window.addEventListener("lumo:session-expired", handleSessionExpired);
+    return () => window.removeEventListener("lumo:session-expired", handleSessionExpired);
+  }, [forceSignOut]);
 
   useEffect(() => {
     if (isSignedIn) {
