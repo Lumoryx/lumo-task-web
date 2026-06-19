@@ -16,7 +16,7 @@ export function HabitsPage() {
   const navigate = useNavigate();
   const isSignedIn = useAuthStore(selectIsSignedIn);
   const userId = useAuthStore((s) => s.user.id);
-  const { habits, logs, create, update, remove, log, unlog } = useHabitsStore();
+  const { habits, logs, create, update, remove, log } = useHabitsStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Habit | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -113,7 +113,6 @@ export function HabitsPage() {
                 habit={habit}
                 logs={logs}
                 onCheckIn={() => setCheckInHabit(habit)}
-                onUndo={() => unlog(userId, habit.id, today)}
                 onEdit={() => handleEdit(habit)}
                 onDelete={() => setDeleteId(habit.id)}
                 onShowCalendar={() => setCalendarHabit(habit)}
@@ -127,6 +126,7 @@ export function HabitsPage() {
       {checkInHabit && (
         <HabitCheckInModal
           habit={checkInHabit}
+          logs={logs}
           onConfirm={() => log(userId, checkInHabit.id, today)}
           onClose={() => setCheckInHabit(null)}
         />
