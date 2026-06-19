@@ -126,7 +126,7 @@ describe("MorningPlanningModal", () => {
     TASKS = [];
     const onClose = vi.fn();
     render(<MorningPlanningModal onClose={onClose} />);
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "qc.close" }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 

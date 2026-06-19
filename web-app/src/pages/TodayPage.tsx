@@ -9,7 +9,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { fmtDuration } from "@/lib/format";
+import { fmtDuration, toISODate } from "@/lib/format";
 import type { Locale, Task } from "@/types/task";
 
 function getPlanningDoneDate(): string | null {
@@ -21,8 +21,7 @@ function getPlanningDoneDate(): string | null {
 }
 
 function isTodayPlanned(): boolean {
-  const today = new Date().toISOString().slice(0, 10);
-  return getPlanningDoneDate() === today;
+  return getPlanningDoneDate() === toISODate(new Date());
 }
 
 const Q_PRIORITY: Record<Task["quadrant"], number> = {

@@ -7,6 +7,7 @@ import { usePetStore } from "@/store/usePetStore";
 import { useAIStore } from "@/store/useAIStore";
 import { PetSvg } from "@/components/PetSvg";
 import type { PetSpecies } from "@/components/PetSvg";
+import { toISODate } from "@/lib/format";
 import type { Task } from "@/types/task";
 
 const MAX_TODAY = 3;
@@ -483,13 +484,14 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
           await update(id, { today: true });
         }
       }
-      // Store planning completion date
-      localStorage.setItem(
-        "lumo.planning_done_date",
-        new Date().toISOString().slice(0, 10)
-      );
+      // Store planning completion date (local time — matches TodayPage check)
+      localStorage.setItem("lumo.planning_done_date", toISODate(new Date()));
       usePetStore.getState().celebrate("pet.celebrate.alldone");
       onClose();
+    } catch {
+      // A task update failed mid-flight; the store already surfaces a toast.
+      // Leave the modal open (not marked done) so the user can retry — the
+      // today writes are idempotent, so re-running is safe.
     } finally {
       setBusy(false);
     }
@@ -582,7 +584,7 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
           </span>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("qc.close")}
             style={{
               background: "none",
               border: "none",
