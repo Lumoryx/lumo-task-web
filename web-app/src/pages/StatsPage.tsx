@@ -12,6 +12,7 @@ import { shouldShowWrapped, markWrappedShown, computePrevWeekStats } from "@/uti
 import { useNavigate } from "react-router-dom";
 import { ShareCard } from "@/components/ShareCard";
 import { WrappedCard } from "@/components/WrappedCard";
+import { HabitWeekSection } from "@/components/HabitWeekSection";
 
 const DAY_KEYS = ["stats.day.sun","stats.day.mon","stats.day.tue","stats.day.wed","stats.day.thu","stats.day.fri","stats.day.sat"];
 
@@ -80,6 +81,12 @@ export function StatsPage() {
     ? Math.max(...habits.map((h) => habitStreak(h, habitLogs)))
     : 0;
 
+  const weekStartStr = `${week.weekStart.getFullYear()}-${String(week.weekStart.getMonth() + 1).padStart(2, "0")}-${String(week.weekStart.getDate()).padStart(2, "0")}`;
+  const weekEndStr = `${week.weekEnd.getFullYear()}-${String(week.weekEnd.getMonth() + 1).padStart(2, "0")}-${String(week.weekEnd.getDate()).padStart(2, "0")}`;
+  const weekHabitDone = habitLogs.filter(
+    (l) => l.date >= weekStartStr && l.date <= weekEndStr,
+  ).length;
+
   const focusHours = (week.focusMinutes / 60).toFixed(1);
   const allFocusHours = (allTime.focusMinutes / 60).toFixed(0);
 
@@ -145,6 +152,13 @@ export function StatsPage() {
                     value={fmtHour(week.peakHour)}
                   />
                 )}
+                {weekHabitDone > 0 && (
+                  <StatCard
+                    label={t("stats.habits.total")}
+                    value={weekHabitDone}
+                    sub={t("stats.days")}
+                  />
+                )}
               </div>
 
               {/* Daily bar chart */}
@@ -179,6 +193,14 @@ export function StatsPage() {
                 )}
               </div>
             </section>
+
+            {/* Habit week section */}
+            <HabitWeekSection
+              habits={habits}
+              logs={habitLogs}
+              weekStart={week.weekStart}
+              weekEnd={week.weekEnd}
+            />
 
             {/* Share card */}
             <section>
