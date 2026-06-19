@@ -179,11 +179,10 @@ function CarryStep({ prevToday, decisions, onToggle }: CarryStepProps) {
 interface SelectStepProps {
   pool: Task[];
   selected: Set<string>;
-  showLimit: boolean;
   onToggle: (id: string) => void;
 }
 
-function SelectStep({ pool, selected, showLimit, onToggle }: SelectStepProps) {
+function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
   const t = useT();
   const ls = useLocaleString();
   const q1q2Count = pool.filter((tk) => selected.has(tk.id)).length;
@@ -420,7 +419,6 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
     () => new Set(prevToday.map((tk) => tk.id))
   );
 
-  const [showLimit, setShowLimit] = useState(false);
   const [aiMsg, setAiMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -459,16 +457,11 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
   function handleTaskToggle(id: string) {
     if (selected.has(id)) {
       setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
-      setShowLimit(false);
       return;
     }
     const q1q2Count = pool.filter((tk) => selected.has(tk.id)).length;
-    if (q1q2Count >= MAX_TODAY) {
-      setShowLimit(true);
-      return;
-    }
+    if (q1q2Count >= MAX_TODAY) return;
     setSelected((prev) => new Set(prev).add(id));
-    setShowLimit(false);
   }
 
   async function finish() {
@@ -635,7 +628,6 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
             <SelectStep
               pool={pool}
               selected={selected}
-              showLimit={showLimit}
               onToggle={handleTaskToggle}
             />
           )}
