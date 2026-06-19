@@ -6,7 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
-import type { Quadrant, Task } from "@/types/task";
+import type { Quadrant, Task, TaskRecurrence } from "@/types/task";
 
 interface Props {
   task: Task;
@@ -14,6 +14,8 @@ interface Props {
 }
 
 const QUADRANTS: Quadrant[] = ["Q1", "Q2", "Q3", "Q4"];
+
+const RECURRENCE_VALUES: TaskRecurrence[] = ["none", "daily", "weekdays", "weekly", "monthly"];
 
 const Q_META: Record<Quadrant, { en: string; zh: string; descEn: string; descZh: string }> = {
   Q1:           { en: "Do first",  zh: "立即做", descEn: "Urgent & important",    descZh: "紧急 + 重要" },
@@ -35,13 +37,24 @@ export function TaskEditModal({ task, onClose }: Props) {
   const initialTitle =
     typeof task.title === "string" ? task.title : (task.title as { en: string }).en;
 
+  const initialDesc =
+    task.desc ? (typeof task.desc === "string" ? task.desc : (task.desc as { en: string }).en) : "";
+
+  // datetime-local requires "YYYY-MM-DDTHH:MM" — strip seconds if present
+  const initialScheduledStart = task.scheduled_start
+    ? task.scheduled_start.slice(0, 16)
+    : "";
+
   const [title, setTitle] = useState(initialTitle);
+  const [desc, setDesc] = useState(initialDesc);
   const [quadrant, setQuadrant] = useState<Task["quadrant"]>(task.quadrant);
   const [duration, setDuration] = useState(task.duration);
   const [durationRaw, setDurationRaw] = useState(String(task.duration));
   const [dueDate, setDueDate] = useState<string>(
     task.due === "today" ? todayISO : task.due ?? todayISO
   );
+  const [scheduledStart, setScheduledStart] = useState<string>(initialScheduledStart);
+  const [recurrence, setRecurrence] = useState<TaskRecurrence>(task.recurrence ?? "none");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(task.assignee_ids ?? []);
   function toggleAssignee(id: string) {
     setAssigneeIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -69,10 +82,13 @@ export function TaskEditModal({ task, onClose }: Props) {
     try {
       await update(task.id, {
         title: { en: title.trim(), zh: title.trim() },
+        desc: desc.trim() ? { en: desc.trim(), zh: desc.trim() } : null,
         quadrant: quadrant as Task["quadrant"],
         duration,
         pomos_total: Math.max(1, Math.ceil(duration / 25)),
         due: dueDate || null,
+        scheduled_start: scheduledStart || null,
+        recurrence,
         assignee_ids: assigneeIds,
       });
       onClose();
@@ -124,7 +140,7 @@ export function TaskEditModal({ task, onClose }: Props) {
         </header>
 
         {/* Body */}
-        <div className="px-[18px] py-4 flex flex-col gap-4">
+        <div className="px-[18px] py-4 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: "60vh" }}>
           {/* Title */}
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
@@ -178,6 +194,21 @@ export function TaskEditModal({ task, onClose }: Props) {
                 );
               })}
             </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+              {t("edit.desc")}
+            </div>
+            <textarea
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder={t("edit.desc.placeholder")}
+              rows={3}
+              className="input resize-none"
+              style={{ fontSize: 13, paddingTop: 8, paddingBottom: 8, lineHeight: "1.5" }}
+            />
           </div>
 
           {/* Due + Duration */}
@@ -241,6 +272,51 @@ export function TaskEditModal({ task, onClose }: Props) {
                   +
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Scheduled Start + Recurrence */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint">
+                  {t("edit.scheduledStart")}
+                </div>
+                {scheduledStart && (
+                  <button
+                    type="button"
+                    onClick={() => setScheduledStart("")}
+                    className="text-[10px] transition-colors"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    {t("edit.clearSchedule")}
+                  </button>
+                )}
+              </div>
+              <input
+                type="datetime-local"
+                value={scheduledStart}
+                onChange={(e) => setScheduledStart(e.target.value)}
+                className="input"
+                style={{ colorScheme: "dark", cursor: "pointer", fontSize: 13 }}
+              />
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
+                {t("task.recurrence")}
+              </div>
+              <select
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value as TaskRecurrence)}
+                className="input"
+                style={{ colorScheme: "dark", cursor: "pointer", fontSize: 13 }}
+              >
+                {RECURRENCE_VALUES.map((r) => (
+                  <option key={r} value={r}>
+                    {t(`task.recurrence.${r}`)}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

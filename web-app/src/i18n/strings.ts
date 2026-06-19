@@ -220,6 +220,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "edit.title": "Edit task",
     "edit.save": "Save changes",
     "edit.delete": "Delete task",
+    "edit.desc": "Description",
+    "edit.desc.placeholder": "Add a description…",
+    "edit.scheduledStart": "Scheduled time",
+    "edit.clearSchedule": "Clear",
 
     "popover.edit": "Edit",
     "popover.delete": "Delete",
@@ -719,6 +723,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "edit.title": "编辑任务",
     "edit.save": "保存更改",
     "edit.delete": "删除任务",
+    "edit.desc": "备注",
+    "edit.desc.placeholder": "添加备注…",
+    "edit.scheduledStart": "排期时间",
+    "edit.clearSchedule": "清除",
 
     "popover.edit": "编辑",
     "popover.delete": "删除",
