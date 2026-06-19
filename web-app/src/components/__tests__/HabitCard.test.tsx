@@ -43,7 +43,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -58,7 +57,6 @@ describe("HabitCard", () => {
         habit={HABIT_WITH_EMOJI}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -74,7 +72,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={logs}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -91,7 +88,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={onCheckIn}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -101,26 +97,24 @@ describe("HabitCard", () => {
     expect(onCheckIn).toHaveBeenCalledOnce();
   });
 
-  it("does NOT call onUndo when check mark is interacted with after check-in (undo is disabled)", () => {
-    const onUndo = vi.fn();
+  it("renders a non-interactive check indicator (not a button) when done today", () => {
+    const onCheckIn = vi.fn();
     const logs = [log("h1", TODAY)];
     render(
       <HabitCard
         habit={HABIT}
         logs={logs}
-        onCheckIn={vi.fn()}
-        onUndo={onUndo}
+        onCheckIn={onCheckIn}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
       />
     );
-    // When done, the check indicator is a non-interactive div, not a button
-    const checkDone = screen.getByLabelText("habit.checkin.already");
-    expect(checkDone.tagName).toBe("DIV");
-    // Clicking it should not trigger undo
-    fireEvent.click(checkDone);
-    expect(onUndo).not.toHaveBeenCalled();
+    // The interactive check button is absent when done
+    expect(screen.queryByLabelText("habit.done")).not.toBeInTheDocument();
+    // Clicking the title should not invoke onCheckIn
+    fireEvent.click(screen.getByText("Morning run"));
+    expect(onCheckIn).not.toHaveBeenCalled();
   });
 
   it("shows completed badge when done today", () => {
@@ -130,14 +124,12 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={logs}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
       />
     );
-    // Should show the "already checked in" badge (appears twice: aria-label and badge text)
-    expect(screen.getAllByText("habit.checkin.already").length).toBeGreaterThan(0);
+    expect(screen.getByText("habit.checkin.already")).toBeInTheDocument();
   });
 
   it("applies strikethrough style to title when done today", () => {
@@ -147,7 +139,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={logs}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -164,7 +155,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={onEdit}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -182,7 +172,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={onDelete}
         onShowCalendar={vi.fn()}
@@ -199,7 +188,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}

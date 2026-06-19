@@ -16,7 +16,6 @@ interface Props {
   habit: Habit;
   logs: HabitLog[];
   onCheckIn: () => void;
-  onUndo: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onShowCalendar: () => void;
@@ -53,7 +52,7 @@ export function HabitCard({ habit, logs, onCheckIn, onEdit, onDelete, onShowCale
       {/* Check button — static when done (no undo) */}
       {done ? (
         <div
-          aria-label={t("habit.checkin.already")}
+          aria-hidden="true"
           className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2"
           style={{
             borderColor: color,
