@@ -33,8 +33,14 @@ function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+// Guards against a burst of "session expired" notifications when several
+// authenticated requests fail with 401 at once (e.g. the parallel bootstrap
+// loads). Reset whenever a fresh token is stored on sign-in/register.
+let sessionExpiredNotified = false;
+
 function setToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
+  sessionExpiredNotified = false;
 }
 
 function clearToken() {
@@ -66,9 +72,14 @@ async function req<T>(
   }
 
   if (!res.ok) {
-    // 401 on any non-signout endpoint means the session has expired.
-    // Clear the local token and notify the app so it can redirect to /login.
-    if (res.status === 401 && path !== "/auth/signout") {
+    // A 401 only means "session expired" when we actually sent a token and the
+    // server rejected it. A 401 without a token (e.g. wrong credentials on
+    // /auth/signin) is a normal auth failure, not an expiry — surfacing the
+    // "session expired" flow there would log out the login page and double-toast.
+    // /auth/signout is exempt to avoid a redirect loop. Notify at most once per
+    // session so a burst of parallel 401s doesn't spam toasts.
+    if (res.status === 401 && token && path !== "/auth/signout" && !sessionExpiredNotified) {
+      sessionExpiredNotified = true;
       clearToken();
       window.dispatchEvent(new Event("lumo:session-expired"));
     }

@@ -54,7 +54,7 @@ export default function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       forceSignOut();
-      toast.error(t("error.auth.sessionExpired"), "");
+      toast.error(t("error.auth.sessionExpired"));
     };
     window.addEventListener("lumo:session-expired", handleSessionExpired);
     return () => window.removeEventListener("lumo:session-expired", handleSessionExpired);
