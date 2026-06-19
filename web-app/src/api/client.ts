@@ -29,11 +29,15 @@ async function getBase(): Promise<string> {
 
 const TOKEN_KEY = "lumo.token";
 
+// Prevents concurrent 401s from firing multiple lumo:session-expired events.
+let sessionExpiredNotified = false;
+
 function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
 function setToken(token: string) {
+  sessionExpiredNotified = false;
   localStorage.setItem(TOKEN_KEY, token);
 }
 
@@ -66,6 +70,14 @@ async function req<T>(
   }
 
   if (!res.ok) {
+    // 401 with a token present (not during login/register) means session expired.
+    // Guard token && to avoid mis-firing on wrong-password 401s at the login page.
+    // Deduplicate concurrent 401s so only one event + one toast reaches the user.
+    if (res.status === 401 && token && path !== "/auth/signout" && !sessionExpiredNotified) {
+      sessionExpiredNotified = true;
+      clearToken();
+      window.dispatchEvent(new Event("lumo:session-expired"));
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     const errBody = (err as any).error;
     const errMsg =
