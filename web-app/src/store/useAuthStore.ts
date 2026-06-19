@@ -32,6 +32,8 @@ interface AuthState {
   signInWithProvider: (provider: "google" | "apple" | "github") => Promise<void>;
   register: (input: { email: string; password: string; confirm: string; nickname?: string }) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Force-logout without an API call — used when the server returns 401 (session expired). */
+  forceSignOut: () => void;
   clearError: () => void;
 }
 
@@ -96,6 +98,13 @@ export const useAuthStore = create<AuthState>()(
           set({ user: LOCAL_USER, loading: false });
           toast.error(t("error.auth.signout"), e instanceof Error ? e.message : String(e));
         }
+      },
+
+      forceSignOut() {
+        useAIStore.getState().closeChat();
+        useAIStore.getState().clearHistory();
+        useAIStore.persist.clearStorage();
+        set({ user: LOCAL_USER, loading: false, error: null });
       },
 
       clearError: () => set({ error: null }),

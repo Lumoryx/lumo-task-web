@@ -256,6 +256,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "error.auth.signin": "Sign in failed",
     "error.auth.register": "Registration failed",
     "error.auth.signout": "Sign out failed",
+    "error.auth.sessionExpired": "Session expired, please sign in again",
 
     "error.ai.config.load": "Failed to load AI config",
     "error.ai.config.save": "Failed to save AI config",
@@ -758,6 +759,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "error.auth.signin": "登录失败",
     "error.auth.register": "注册失败",
     "error.auth.signout": "退出登录失败",
+    "error.auth.sessionExpired": "登录已过期，请重新登录",
 
     "error.ai.config.load": "AI 配置加载失败",
     "error.ai.config.save": "AI 配置保存失败",
