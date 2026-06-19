@@ -27,13 +27,6 @@ function ResultsStep({ completed, allTodayDone, totalFocusMin, totalPomos }: Res
   const h = Math.floor(totalFocusMin / 60);
   const m = totalFocusMin % 60;
 
-  const focusLabel = h > 0
-    ? t("review.step.results.focus").replace("{h}", String(h)).replace("{m}", String(m))
-    : t("review.step.results.focus.min").replace("{m}", String(m));
-
-  const pomosKey = totalPomos === 1 ? "review.step.results.pomos" : "review.step.results.pomos.plural";
-  const pomosLabel = t(pomosKey).replace("{n}", String(totalPomos));
-
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
