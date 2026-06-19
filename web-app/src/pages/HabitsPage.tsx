@@ -127,6 +127,7 @@ export function HabitsPage() {
       {checkInHabit && (
         <HabitCheckInModal
           habit={checkInHabit}
+          logs={logs}
           onConfirm={() => log(userId, checkInHabit.id, today)}
           onClose={() => setCheckInHabit(null)}
         />

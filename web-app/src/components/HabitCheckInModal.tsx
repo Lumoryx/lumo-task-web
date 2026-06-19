@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { IconCheck } from "@/components/icons";
 import { useT } from "@/i18n/useT";
-import type { Habit } from "@/types/task";
+import type { Habit, HabitLog } from "@/types/task";
+import { currentStreak } from "@/utils/habits";
 
 const COLOR_MAP: Record<string, string> = {
   green:  "var(--status-success)",
@@ -11,16 +12,24 @@ const COLOR_MAP: Record<string, string> = {
   purple: "#a78bfa",
 };
 
+const MOTIVATION_COUNT = 5;
+
 interface Props {
   habit: Habit;
+  logs: HabitLog[];
   onConfirm: () => void;
   onClose: () => void;
 }
 
-export function HabitCheckInModal({ habit, onConfirm, onClose }: Props) {
+export function HabitCheckInModal({ habit, logs, onConfirm, onClose }: Props) {
   const t = useT();
   const color = COLOR_MAP[habit.color] ?? COLOR_MAP.green;
   const [confirmed, setConfirmed] = useState(false);
+  const streak = currentStreak(habit, logs);
+
+  // Pick a daily-stable motivational message
+  const motivationIndex = new Date().getDate() % MOTIVATION_COUNT;
+  const motivation = t(`habit.checkin.motivation.${motivationIndex}`);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -44,25 +53,45 @@ export function HabitCheckInModal({ habit, onConfirm, onClose }: Props) {
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-sm rounded-2xl bg-surface border border-border-faint shadow-2xl overflow-hidden">
-        {/* Color accent strip */}
-        <div className="h-1 w-full" style={{ background: color }} />
+        {/* Color accent header band */}
+        <div
+          className="h-24 w-full flex items-center justify-center relative"
+          style={{ background: `linear-gradient(135deg, ${color}33 0%, ${color}18 100%)` }}
+        >
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{ background: `radial-gradient(circle at 50% 80%, ${color} 0%, transparent 70%)` }}
+          />
+          {habit.emoji ? (
+            <span className="text-5xl leading-none relative z-10 select-none">{habit.emoji}</span>
+          ) : (
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center relative z-10"
+              style={{ background: `${color}33`, border: `2px solid ${color}55` }}
+            >
+              <IconCheck size={28} style={{ color }} />
+            </div>
+          )}
+        </div>
 
-        <div className="p-6 space-y-5">
+        <div className="px-6 pt-5 pb-6 space-y-4">
           {/* Habit identity */}
-          <div className="flex flex-col items-center gap-2 text-center">
-            {habit.emoji ? (
-              <span className="text-4xl leading-none">{habit.emoji}</span>
-            ) : (
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: `${color}22` }}
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h2 className="text-[18px] font-semibold text-text-primary">{habit.title}</h2>
+            {streak > 0 && (
+              <span
+                className="inline-flex items-center gap-1 text-[12px] font-medium px-2.5 py-0.5 rounded-full"
+                style={{ background: `${color}22`, color }}
               >
-                <IconCheck size={22} style={{ color }} />
-              </div>
+                🔥 {streak} {t("habit.checkin.streak")}
+              </span>
             )}
-            <h2 className="text-[17px] font-semibold text-text-primary mt-1">{habit.title}</h2>
-            <p className="text-[13px] text-text-muted">{t("habit.checkin.sub")}</p>
           </div>
+
+          {/* Motivational message */}
+          <p className="text-[13px] text-text-muted text-center leading-relaxed px-2">
+            {motivation}
+          </p>
 
           {/* Confirm button */}
           <button
