@@ -91,13 +91,14 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   async complete(id) {
     try {
       const completingTask = get().tasks.find((tk) => tk.id === id);
-      await api.completeTask(id);
+      const result = await api.completeTask(id);
       const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
       set({ tasks, completed });
       if (completingTask?.quadrant === "Q1") {
         usePetStore.getState().celebrate("pet.celebrate.q1");
       }
       useDogStore.getState().addXP(XP_PER_TASK);
+      return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(t("error.task.complete"), msg);
