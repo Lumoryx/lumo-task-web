@@ -29,6 +29,12 @@ jobs:
           cache: npm
           cache-dependency-path: web-app/package-lock.json
 
+      # @lumo/contracts (shared API contract, a file: dependency) must be built
+      # before the web app can resolve its types / serve under Playwright.
+      - name: Build shared contracts (@lumo/contracts)
+        working-directory: packages/contracts
+        run: npm ci && npm run build
+
       - name: Install dependencies
         run: npm ci
         env:
