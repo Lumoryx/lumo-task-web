@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { fmtScheduledStart, fmtDuration, parseDueISO } from "@/lib/format";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { fmtScheduledStart, fmtDuration, parseDueISO, isDueOverdue, isDueToday } from "@/lib/format";
 
 describe("fmtScheduledStart", () => {
   it("formats English with am/pm, dropping :00 minutes", () => {
@@ -32,5 +32,68 @@ describe("parseDueISO", () => {
     expect(parseDueISO("2026-06-10")).toBe("2026-06-10");
     expect(parseDueISO("Fri")).toBeNull();
     expect(parseDueISO(null)).toBeNull();
+  });
+});
+
+describe("isDueOverdue", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("returns true for a date strictly before today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+    expect(isDueOverdue("2026-06-19")).toBe(true);
+    expect(isDueOverdue("2026-01-01")).toBe(true);
+  });
+
+  it("returns false for today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+    expect(isDueOverdue("2026-06-20")).toBe(false);
+  });
+
+  it("returns false for a future date", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+    expect(isDueOverdue("2026-06-21")).toBe(false);
+  });
+
+  it("returns false for null", () => {
+    expect(isDueOverdue(null)).toBe(false);
+  });
+
+  it("returns false for loose labels that can't be pinned", () => {
+    expect(isDueOverdue("Fri")).toBe(false);
+  });
+});
+
+describe("isDueToday", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("returns true when due is today's ISO date", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+    expect(isDueToday("2026-06-20")).toBe(true);
+  });
+
+  it("returns true when due is 'today' keyword", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+    expect(isDueToday("today")).toBe(true);
+  });
+
+  it("returns false for yesterday", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+    expect(isDueToday("2026-06-19")).toBe(false);
+  });
+
+  it("returns false for tomorrow", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+    expect(isDueToday("2026-06-21")).toBe(false);
+  });
+
+  it("returns false for null", () => {
+    expect(isDueToday(null)).toBe(false);
   });
 });

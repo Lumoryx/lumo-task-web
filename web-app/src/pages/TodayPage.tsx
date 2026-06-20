@@ -9,7 +9,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { fmtDuration, toISODate } from "@/lib/format";
+import { fmtDuration, toISODate, isDueOverdue, isDueToday } from "@/lib/format";
 import type { Locale, Task } from "@/types/task";
 
 function getPlanningDoneDate(): string | null {
@@ -375,6 +375,58 @@ function TodayEmptyState() {
 // Confetti colors for the all-done celebration
 const CONFETTI_COLORS = ["#3dffa0", "#ff6b6b", "#a8e64b", "#5bc8d4", "#ffb347"];
 
+// ─── Urgency Banner ─────────────────────────────────────────────────────────
+
+const URGENCY_DISMISSED_KEY = "lumo-urgency-dismissed-";
+
+function getUrgencyDismissedKey(): string {
+  return `${URGENCY_DISMISSED_KEY}${toISODate(new Date())}`;
+}
+
+interface UrgencyBannerProps {
+  overdueCount: number;
+  todayCount: number;
+}
+
+function UrgencyBanner({ overdueCount, todayCount }: UrgencyBannerProps) {
+  const t = useT();
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(getUrgencyDismissedKey()) === "1"; } catch { return false; }
+  });
+
+  if (dismissed) return null;
+
+  function dismiss() {
+    setDismissed(true);
+    try { localStorage.setItem(getUrgencyDismissedKey(), "1"); } catch { /* ignore */ }
+  }
+
+  const parts: string[] = [];
+  if (overdueCount > 0) parts.push(t("today.urgentBanner.overdue").replace("{n}", String(overdueCount)));
+  if (todayCount > 0) parts.push(t("today.urgentBanner.today").replace("{n}", String(todayCount)));
+  const message = `⚠️ ${parts.join("，")}`;
+
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl mb-4"
+      style={{
+        padding: "10px 14px",
+        border: "1px solid rgba(239,68,68,0.35)",
+        background: "rgba(239,68,68,0.08)",
+      }}
+    >
+      <span className="flex-1 text-sm font-medium" style={{ color: "#EF4444" }}>{message}</span>
+      <button
+        onClick={dismiss}
+        className="text-[11px] flex-shrink-0 rounded-md px-2 py-0.5"
+        style={{ color: "#EF4444", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.25)" }}
+      >
+        {t("today.urgentBanner.dismiss")}
+      </button>
+    </div>
+  );
+}
+
 // ─── All-done Banner ────────────────────────────────────────────────────────
 
 function AllDoneBanner() {
@@ -536,6 +588,11 @@ export function TodayPage() {
   const todayAllDone =
     tasks.filter((x) => x.today && !x.completed).length === 0 && completed.length > 0;
 
+  const todayTasks = tasks.filter((x) => x.today && !x.completed);
+  const overdueCount = todayTasks.filter((x) => isDueOverdue(x.due)).length;
+  const dueTodayCount = todayTasks.filter((x) => isDueToday(x.due)).length;
+  const showUrgencyBanner = (overdueCount > 0 || dueTodayCount > 0) && !todayAllDone;
+
   if (!top && completed.length === 0) {
     return (
       <>
@@ -552,6 +609,11 @@ export function TodayPage() {
     <div className="fade-in px-4 sm:px-7 py-6 sm:py-7">
       {/* Morning planning banner — always visible */}
       <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+
+      {/* Urgency banner — overdue / today-due tasks */}
+      {showUrgencyBanner && (
+        <UrgencyBanner overdueCount={overdueCount} todayCount={dueTodayCount} />
+      )}
 
       {!top && completed.length > 0 && (
         <AllDoneBanner />

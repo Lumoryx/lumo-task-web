@@ -54,12 +54,16 @@ interface AppState {
   /** Whether the user has completed (or skipped) onboarding. */
   onboarded: boolean;
   matrixView: MatrixView;
+  notificationsEnabled: boolean;
+  reminderTime: string;
   setLocale: (l: Locale) => void;
   setAccent: (a: Accent) => void;
   setDensity: (d: Density) => void;
   setReducedMotion: (b: boolean) => void;
   setOnboarded: (b: boolean) => void;
   setMatrixView: (v: MatrixView) => void;
+  setNotificationsEnabled: (b: boolean) => void;
+  setReminderTime: (t: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -71,6 +75,8 @@ export const useAppStore = create<AppState>()(
       reducedMotion: false,
       onboarded: false,
       matrixView: "matrix",
+      notificationsEnabled: true,
+      reminderTime: "14:00",
       setLocale: (locale) => set({ locale }),
       setAccent: (accent) => {
         applyAccentTheme(accent);
@@ -80,6 +86,8 @@ export const useAppStore = create<AppState>()(
       setReducedMotion: (reducedMotion) => set({ reducedMotion }),
       setOnboarded: (onboarded) => set({ onboarded }),
       setMatrixView: (matrixView) => set({ matrixView }),
+      setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
+      setReminderTime: (reminderTime) => set({ reminderTime }),
     }),
     { name: "lumo.app.v1" }
   )

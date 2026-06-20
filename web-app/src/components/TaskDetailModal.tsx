@@ -8,7 +8,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
-import { fmtDuration, fmtScheduledStart, getDueLabel } from "@/lib/format";
+import { fmtDuration, fmtScheduledStart, getDueLabel, isDueOverdue } from "@/lib/format";
 import type { Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
@@ -58,6 +58,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
 
   const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(liveTask.due, locale);
+  const dueOverdue = isDueOverdue(liveTask.due);
   const qColor = Q_COLOR[liveTask.quadrant] ?? "var(--text-faint)";
   const qLabel = locale === "zh" ? Q_LABEL_ZH[liveTask.quadrant] : Q_LABEL_EN[liveTask.quadrant];
   const subtasks: Subtask[] = liveTask.subtasks ?? [];
@@ -156,6 +157,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
               icon={<IconCalendar size={13} />}
               label={t("detail.due")}
               value={due}
+              valueStyle={dueOverdue ? { color: "#EF4444", fontWeight: 600 } : undefined}
             />
           )}
 
@@ -339,12 +341,12 @@ export function TaskDetailModal({ task, onClose }: Props) {
   );
 }
 
-function MetaRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function MetaRow({ icon, label, value, valueStyle }: { icon: React.ReactNode; label: string; value: string; valueStyle?: React.CSSProperties }) {
   return (
     <div className="flex items-center gap-2">
       <span style={{ color: "var(--text-faint)" }}>{icon}</span>
       <span className="text-[11px] font-medium" style={{ color: "var(--text-faint)", minWidth: 40 }}>{label}</span>
-      <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>{value}</span>
+      <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)", ...valueStyle }}>{value}</span>
     </div>
   );
 }

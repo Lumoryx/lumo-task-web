@@ -547,6 +547,21 @@ export const STRINGS: Record<Locale, Dict> = {
     "outlook.error.connect": "Failed to connect Outlook",
     "outlook.serverMode": "Server Mode",
     "outlook.serverConfigured": "Configured via server",
+
+    "due.overdue": "Overdue",
+    "due.today": "Due Today",
+    "today.urgentBanner": "⚠️ {overdue} overdue, {today} due today",
+    "today.urgentBanner.overdue": "{n} overdue",
+    "today.urgentBanner.today": "{n} due today",
+    "today.urgentBanner.dismiss": "Dismiss",
+
+    "settings.notifications": "Notifications",
+    "settings.notifications.enabled": "Enable reminders",
+    "settings.notifications.reminderTime": "Daily reminder time",
+    "settings.notifications.reminderTime.helper": "You'll be notified at this time if you have unfinished today tasks.",
+    "settings.notifications.permission.denied": "Notification permission denied. Enable it in your browser settings.",
+    "settings.notifications.permission.request": "Enable browser notifications",
+    "notification.reminder.body": "You have {n} unfinished tasks for today — let's get them done!",
   },
   zh: {
     "brand.name": "Lumo",
@@ -1085,5 +1100,20 @@ export const STRINGS: Record<Locale, Dict> = {
     "outlook.error.connect": "连接 Outlook 失败",
     "outlook.serverMode": "服务端模式",
     "outlook.serverConfigured": "通过服务端配置",
+
+    "due.overdue": "已逾期",
+    "due.today": "今日截止",
+    "today.urgentBanner": "⚠️ {overdue} 已逾期，{today} 今日截止",
+    "today.urgentBanner.overdue": "{n} 个已逾期",
+    "today.urgentBanner.today": "{n} 个今日截止",
+    "today.urgentBanner.dismiss": "关闭",
+
+    "settings.notifications": "通知",
+    "settings.notifications.enabled": "开启提醒",
+    "settings.notifications.reminderTime": "每日提醒时间",
+    "settings.notifications.reminderTime.helper": "在此时间若存在未完成的今日任务，将发送浏览器通知。",
+    "settings.notifications.permission.denied": "通知权限已被拒绝，请在浏览器设置中开启。",
+    "settings.notifications.permission.request": "开启浏览器通知",
+    "notification.reminder.body": "今天还有 {n} 个任务未完成，加油！",
   },
 };

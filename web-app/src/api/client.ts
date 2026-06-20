@@ -323,6 +323,8 @@ export const api = {
     density?: string;
     reduced_motion?: boolean;
     ai_enabled?: boolean;
+    notifications_enabled?: boolean;
+    reminder_time?: string;
     onboarding_complete?: boolean;
     ai_provider?: "openai" | "deepseek" | "claude" | "custom";
     ai_configs_update?: {

@@ -4,7 +4,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { useT, useLocaleString } from "@/i18n/useT";
 import type { Quadrant, Task } from "@/types/task";
 import { useAppStore } from "@/store/useAppStore";
-import { fmtDuration, getDueLabel } from "@/lib/format";
+import { fmtDuration, getDueLabel, isDueOverdue, isDueToday } from "@/lib/format";
 import { IconArrowRight, IconCheck, IconMore, IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
@@ -306,6 +306,8 @@ function MatrixTaskCard({ task }: { task: Task }) {
 
   const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(task.due, locale);
+  const overdue = isDueOverdue(task.due);
+  const dueToday = !overdue && isDueToday(task.due);
 
   return (
     <>
@@ -345,12 +347,22 @@ function MatrixTaskCard({ task }: { task: Task }) {
           className="flex-1 min-w-0 cursor-pointer"
           onClick={() => setDetailOpen(true)}
         >
-          <div className="text-[13px] font-medium text-text-primary truncate leading-snug">
-            {ls(task.title)}
+          <div className="flex items-center gap-1.5 text-[13px] font-medium text-text-primary leading-snug">
+            <span className="truncate">{ls(task.title)}</span>
+            {overdue && (
+              <span className="flex-shrink-0 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "rgba(239,68,68,0.15)", color: "#EF4444" }}>
+                ● {t("due.overdue")}
+              </span>
+            )}
+            {dueToday && (
+              <span className="flex-shrink-0 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--accent-fog)", color: "var(--accent-primary)" }}>
+                ● {t("due.today")}
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-text-muted tabular-nums">
+          <div className="flex items-center gap-2 mt-0.5 text-[11px] tabular-nums" style={{ color: overdue ? "#EF4444" : "var(--text-muted)" }}>
             {due && <span>{due}</span>}
-            {task.duration > 0 && <span>{fmtDuration(task.duration, locale)}</span>}
+            {task.duration > 0 && <span style={{ color: "var(--text-muted)" }}>{fmtDuration(task.duration, locale)}</span>}
             <span className="pip">
               {Array.from({ length: task.pomos_total }).map((_, i) => (
                 <i key={i} className={i < task.pomos_done ? "on" : ""} />

@@ -7,6 +7,7 @@ import { FloatingPet } from "@/components/FloatingPet";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useDueReminderScheduler } from "@/hooks/useDueReminderScheduler";
 
 /**
  * Full-viewport app frame — web / Windows desktop pattern (per Jalen's
@@ -40,6 +41,7 @@ export function Shell() {
   const density = useAppStore((s) => s.density);
   const isMobile = useIsMobile();
   const [quickOpen, setQuickOpen] = useState(false);
+  useDueReminderScheduler();
 
   const titleMap: Record<string, { title: string; sub: string }> = {
     "/today": { title: t("today.title"), sub: t("today.sub") },

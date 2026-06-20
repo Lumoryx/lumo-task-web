@@ -20,12 +20,13 @@ const ACCENT_SWATCHES: Array<{ id: Accent; hex: string; label: string }> = [
   { id: "graphite", hex: "#A0ADB0", label: "Graphite" },
 ];
 
-type TabId = "appearance" | "language" | "pet" | "members" | "ai" | "integrations" | "storage" | "sync" | "data";
+type TabId = "appearance" | "language" | "notifications" | "pet" | "members" | "ai" | "integrations" | "storage" | "sync" | "data";
 
 export function SettingsPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { accent, setAccent, density, setDensity, reducedMotion, setReducedMotion, locale, setLocale, setOnboarded } =
+  const { accent, setAccent, density, setDensity, reducedMotion, setReducedMotion, locale, setLocale, setOnboarded,
+    notificationsEnabled, setNotificationsEnabled, reminderTime, setReminderTime } =
     useAppStore();
   const reset = useTasksStore((s) => s.reset);
   const { people, create: createPerson, update: updatePerson, remove: removePerson } = usePeopleStore();
@@ -36,6 +37,7 @@ export function SettingsPage() {
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: "appearance", label: t("settings.appearance") },
     { id: "language",   label: t("settings.language") },
+    { id: "notifications", label: t("settings.notifications") },
     { id: "pet",        label: t("settings.pet") },
     { id: "members",    label: t("settings.members") },
     { id: "ai",         label: t("ai.config.title") },
@@ -130,6 +132,16 @@ export function SettingsPage() {
                 />
               </Row>
             </Panel>
+          )}
+
+          {activeTab === "notifications" && (
+            <NotificationsPanel
+              enabled={notificationsEnabled}
+              reminderTime={reminderTime}
+              onToggle={setNotificationsEnabled}
+              onReminderTimeChange={setReminderTime}
+              t={t}
+            />
           )}
 
           {activeTab === "pet" && (
@@ -237,6 +249,69 @@ function Row({
       </div>
       <div>{children}</div>
     </div>
+  );
+}
+
+/* ── Notifications panel ──────────────────────────────────────────── */
+
+function NotificationsPanel({
+  enabled,
+  reminderTime,
+  onToggle,
+  onReminderTimeChange,
+  t,
+}: {
+  enabled: boolean;
+  reminderTime: string;
+  onToggle: (v: boolean) => void;
+  onReminderTimeChange: (v: string) => void;
+  t: (k: string) => string;
+}) {
+  const permission = typeof Notification !== "undefined" ? Notification.permission : "default";
+
+  async function requestPermission() {
+    if (typeof Notification === "undefined") return;
+    await Notification.requestPermission();
+  }
+
+  return (
+    <Panel title={t("settings.notifications")}>
+      <Row label={t("settings.notifications.enabled")}>
+        <Toggle value={enabled} onChange={onToggle} />
+      </Row>
+      <Row
+        label={t("settings.notifications.reminderTime")}
+        helper={t("settings.notifications.reminderTime.helper")}
+      >
+        <input
+          type="time"
+          value={reminderTime}
+          disabled={!enabled}
+          onChange={(e) => onReminderTimeChange(e.target.value)}
+          className="rounded-lg border px-3 py-1.5 text-[13px]"
+          style={{
+            background: "var(--bg-elevated)",
+            borderColor: "var(--border-default)",
+            color: enabled ? "var(--text-primary)" : "var(--text-faint)",
+            opacity: enabled ? 1 : 0.5,
+          }}
+        />
+      </Row>
+      {permission === "denied" && (
+        <Row label={t("settings.notifications.permission.denied")}>
+          <span className="text-[12px]" style={{ color: "#EF4444" }}>
+            {t("settings.notifications.permission.denied")}
+          </span>
+        </Row>
+      )}
+      {permission === "default" && enabled && (
+        <Row label={t("settings.notifications.permission.request")}>
+          <button className="btn btn-secondary text-[12px]" onClick={requestPermission}>
+            {t("settings.notifications.permission.request")}
+          </button>
+        </Row>
+      )}
+    </Panel>
   );
 }
 

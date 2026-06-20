@@ -40,6 +40,20 @@ export function fmtMMSS(secs: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** Returns true if `due` resolves to a date strictly before today (and is not null). */
+export function isDueOverdue(due: string | null): boolean {
+  const iso = parseDueISO(due);
+  if (!iso) return false;
+  return iso < toISODate(new Date());
+}
+
+/** Returns true if `due` resolves to today's date. */
+export function isDueToday(due: string | null): boolean {
+  const iso = parseDueISO(due);
+  if (!iso) return false;
+  return iso === toISODate(new Date());
+}
+
 export function getDueLabel(due: string | null, locale: Locale): string | null {
   if (!due) return null;
   const map: Record<Locale, Record<string, string>> = {

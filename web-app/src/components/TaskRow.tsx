@@ -3,7 +3,7 @@ import type { Task } from "@/types/task";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useNavigate } from "react-router-dom";
-import { fmtDuration, getDueLabel } from "@/lib/format";
+import { fmtDuration, getDueLabel, isDueOverdue, isDueToday } from "@/lib/format";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { usePeopleStore } from "@/store/usePeopleStore";
@@ -37,6 +37,8 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
+  const overdue = isDueOverdue(task.due);
+  const dueToday = !overdue && isDueToday(task.due);
 
   return (
     <>
@@ -84,7 +86,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
           <div className="text-sm font-medium text-text-primary truncate leading-snug">
             {ls(task.title)}
           </div>
-          <div className="flex items-center gap-3 mt-0.5 text-xs text-text-muted tabular-nums">
+          <div className="flex items-center gap-3 mt-0.5 text-xs tabular-nums" style={{ color: overdue ? "#EF4444" : dueToday ? "var(--accent-primary)" : "var(--text-muted)" }}>
             {due && <span>{due}</span>}
             {task.duration > 0 && <span>{fmtDuration(task.duration, locale)}</span>}
             <span className="pip">
