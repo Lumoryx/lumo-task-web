@@ -21,5 +21,6 @@ export const QuadrantSchema = z.enum(["Q1", "Q2", "Q3", "Q4", "unclassified"]);
 export const RecurrenceSchema = z.enum(["none", "daily", "weekdays", "weekly", "monthly"]);
 
 export type LocalizedString = z.infer<typeof LocalizedStringSchema>;
+export type LongLocalizedString = z.infer<typeof LongLocalizedStringSchema>;
 export type Quadrant = z.infer<typeof QuadrantSchema>;
 export type TaskRecurrence = z.infer<typeof RecurrenceSchema>;
