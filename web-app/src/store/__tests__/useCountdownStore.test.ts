@@ -13,20 +13,25 @@ function mockFetch(status: number, body: unknown) {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(res));
 }
 
-function makeEvent(overrides: Partial<ReturnType<typeof sampleEvent>> = {}) {
+type TestEvent = {
+  id: string;
+  title: string;
+  date: string;
+  color: "green" | "cyan" | "amber" | "red";
+  repeat: "none" | "yearly";
+  createdAt: string;
+};
+
+function makeEvent(overrides: Partial<TestEvent> = {}): TestEvent {
   return {
     id: "cd_test1",
     title: "My Birthday",
     date: "2026-08-14",
-    color: "amber" as const,
-    repeat: "yearly" as const,
+    color: "amber",
+    repeat: "yearly",
     createdAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
-}
-
-function sampleEvent() {
-  return makeEvent();
 }
 
 beforeEach(() => {
