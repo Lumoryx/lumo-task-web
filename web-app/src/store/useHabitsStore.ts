@@ -52,16 +52,23 @@ export const useHabitsStore = create<HabitsState>((set) => ({
     if (userId === "local") { set({ habits: [], logs: [] }); return; }
 
     // One-time migration from localStorage → server
+    let migrationFailed = false;
     if (!localStorage.getItem(migrationKey(userId))) {
       const oldHabits = readLocalHabits(userId);
       const oldLogs = readLocalLogs(userId);
-      try {
-        await habitApi.migrate(userId, oldHabits, oldLogs);
+      if (oldHabits.length === 0 && oldLogs.length === 0) {
+        // Nothing to migrate — mark done, skip the round-trip
         localStorage.setItem(migrationKey(userId), "1");
-        localStorage.removeItem(`lumo.habits.v1.${userId}`);
-        localStorage.removeItem(`lumo.habit-logs.v1.${userId}`);
-      } catch {
-        // Keep localStorage data intact — will retry on next load
+      } else {
+        try {
+          await habitApi.migrate(userId, oldHabits, oldLogs);
+          localStorage.setItem(migrationKey(userId), "1");
+          localStorage.removeItem(`lumo.habits.v1.${userId}`);
+          localStorage.removeItem(`lumo.habit-logs.v1.${userId}`);
+        } catch {
+          // Keep localStorage data intact — will retry on next load
+          migrationFailed = true;
+        }
       }
     }
 
@@ -70,6 +77,18 @@ export const useHabitsStore = create<HabitsState>((set) => ({
         habitApi.listHabits(userId),
         habitApi.listLogs(userId),
       ]);
+      // If migration never persisted and the server has nothing yet, show the
+      // un-migrated local data rather than a misleading empty list (never
+      // silently drop the user's data from the UI).
+      if (migrationFailed && habits.length === 0 && logs.length === 0) {
+        const localHabits = readLocalHabits(userId);
+        const localLogs = readLocalLogs(userId);
+        if (localHabits.length > 0 || localLogs.length > 0) {
+          set({ habits: localHabits, logs: localLogs });
+          toast.error(t("habit.error.load"));
+          return;
+        }
+      }
       set({ habits, logs });
     } catch (e) {
       toast.error(t("habit.error.load"), e instanceof Error ? e.message : String(e));

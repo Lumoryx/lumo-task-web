@@ -40,19 +40,37 @@ export const useCountdownStore = create<CountdownState>((set) => ({
     if (userId === "local") { set({ events: [] }); return; }
 
     // One-time migration from localStorage → server
+    let migrationFailed = false;
     if (!localStorage.getItem(migrationKey(userId))) {
       const oldEvents = readLocalCountdowns(userId);
-      try {
-        await countdownApi.migrate(userId, oldEvents);
+      if (oldEvents.length === 0) {
+        // Nothing to migrate — mark done, skip the round-trip
         localStorage.setItem(migrationKey(userId), "1");
-        localStorage.removeItem(`lumo.countdowns.v1.${userId}`);
-      } catch {
-        // Keep localStorage data intact — will retry on next load
+      } else {
+        try {
+          await countdownApi.migrate(userId, oldEvents);
+          localStorage.setItem(migrationKey(userId), "1");
+          localStorage.removeItem(`lumo.countdowns.v1.${userId}`);
+        } catch {
+          // Keep localStorage data intact — will retry on next load
+          migrationFailed = true;
+        }
       }
     }
 
     try {
       const events = await countdownApi.list(userId);
+      // If migration never persisted and the server has nothing yet, show the
+      // un-migrated local data rather than a misleading empty list (never
+      // silently drop the user's data from the UI).
+      if (migrationFailed && events.length === 0) {
+        const localEvents = readLocalCountdowns(userId);
+        if (localEvents.length > 0) {
+          set({ events: localEvents });
+          toast.error(t("countdown.error.load"));
+          return;
+        }
+      }
       set({ events });
     } catch (e) {
       toast.error(t("countdown.error.load"), e instanceof Error ? e.message : String(e));

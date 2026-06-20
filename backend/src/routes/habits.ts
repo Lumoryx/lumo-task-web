@@ -122,15 +122,27 @@ app.post("/migrate", zValidator("json", MigrateBody), async (c) => {
     );
   }
 
+  // Only import logs that reference a habit owned by this user. A log's
+  // habit_id is client-supplied, so without this guard a caller could write
+  // rows keyed to another user's habit and pollute the shared key space.
+  const owned = await query<{ id: string }>(
+    "SELECT id FROM habits WHERE user_id = :uid",
+    { uid: userId }
+  );
+  const ownedIds = new Set(owned.map((h) => h.id));
+
+  let migratedLogs = 0;
   for (const l of logs) {
+    if (!ownedIds.has(l.habitId)) continue;
     await execute(
       `INSERT OR IGNORE INTO habit_logs (habit_id, user_id, date, completed_at)
        VALUES (:habit_id, :user_id, :date, :completed_at)`,
       { habit_id: l.habitId, user_id: userId, date: l.date, completed_at: l.completedAt }
     );
+    migratedLogs++;
   }
 
-  return c.json({ ok: true, migrated: { habits: habits.length, logs: logs.length } });
+  return c.json({ ok: true, migrated: { habits: habits.length, logs: migratedLogs } });
 });
 
 // POST /habits
@@ -245,8 +257,8 @@ app.post(
     );
 
     const row = await queryOne<HabitLogRow>(
-      "SELECT * FROM habit_logs WHERE habit_id = :id AND date = :date",
-      { id: habitId, date }
+      "SELECT * FROM habit_logs WHERE habit_id = :id AND user_id = :uid AND date = :date",
+      { id: habitId, uid: userId, date }
     );
     return c.json(rowToLog(row!), 201);
   }
