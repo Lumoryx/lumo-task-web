@@ -38,6 +38,28 @@ refactors, and reviews must follow the ECC quality standards below.
 
 ## Architecture Rules (enforced every session)
 
+### API Contract — Contract-First (non-negotiable)
+- **The single source of truth for every API request/response shape is the Zod
+  schema in `packages/contracts` (`@lumo/contracts`).** Any change that touches an
+  API — adding/removing/renaming an endpoint, changing a request or response field,
+  changing an enum or a validation rule — **MUST start by editing the contract**,
+  then flow to the backend implementation and the frontend consumer. In that order.
+- **Never** redefine an API shape anywhere else: no inline request/response Zod in a
+  route, no hand-written domain type in `web-app/src/types/*` that mirrors a backend
+  shape, no hardcoded schema in the OpenAPI doc. Import from `@lumo/contracts` and,
+  on the frontend, re-export the inferred type.
+- Backend route handlers validate with the contract schema (`zValidator(...)`) and
+  type their responses against the contract's wire type (e.g. `TaskWire`).
+- **OpenAPI is generated from the contract**, never hand-edited. The backend serves
+  the live spec at `GET /docs/openapi.json`; `docs/openapi.generated.json` is built
+  by `npm run gen:openapi -w @lumo/contracts`. Do not edit generated specs by hand.
+- This is enforced, not advisory: a **contract-conformance test** parses real backend
+  responses with the contract schema, and the frontend infers its types from it — so
+  any drift fails `make ci`. A PR that changes an API without changing the contract
+  first is non-compliant.
+- Migrating a not-yet-migrated domain into `@lumo/contracts`? Follow the Task domain
+  as the reference pattern (schema → backend → frontend → conformance test → OpenAPI).
+
 ### Frontend (`web-app/`)
 - Types live in `src/types/`. Never redefine `Task`, `User`, etc.
 - Components → Store actions → `src/api/client.ts` → backend. No shortcuts.

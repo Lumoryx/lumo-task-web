@@ -8,12 +8,14 @@
 # Requires: Node 20+, npm, git, gh (GitHub CLI)
 # -----------------------------------------------------------------------
 
-APP     := web-app
-BACKEND := backend
+APP       := web-app
+BACKEND   := backend
+CONTRACTS := packages/contracts
 
 .DEFAULT_GOAL := dev
 .PHONY: dev install build preview typecheck lint ci clean reset \
         backend-install backend-build backend-dev backend-migrate backend-seed \
+        backend-ci contracts-build contracts-ci \
         dev-full package-win \
         test-integration test-integration-backend test-integration-web test-integration-electron \
         help
@@ -28,6 +30,11 @@ $(BACKEND)/node_modules: $(BACKEND)/package-lock.json
 	@echo ">>> Installing backend dependencies..."
 	cd $(BACKEND) && npm ci
 	@touch $(BACKEND)/node_modules
+
+$(CONTRACTS)/node_modules: $(CONTRACTS)/package-lock.json
+	@echo ">>> Installing @lumo/contracts dependencies..."
+	cd $(CONTRACTS) && npm ci
+	@touch $(CONTRACTS)/node_modules
 
 # -----------------------------------------------------------------------
 # Development
@@ -47,18 +54,30 @@ preview: build             ## Preview the production build locally
 # Quality checks
 # -----------------------------------------------------------------------
 
-typecheck: $(APP)/node_modules   ## TypeScript type check (tsc --noEmit)
+typecheck: $(APP)/node_modules contracts-build   ## TypeScript type check (tsc --noEmit)
 	cd $(APP) && npm run typecheck
 
 lint: $(APP)/node_modules        ## ESLint
 	cd $(APP) && npm run lint
 
-build: $(APP)/node_modules       ## Production build (tsc -b + vite build)
+build: $(APP)/node_modules contracts-build       ## Production build (tsc -b + vite build)
 	cd $(APP) && npm run build
 
-ci: typecheck lint build         ## Run all CI checks locally (mirrors GitHub Actions)
+# Contract package (single source of truth) — build its dist before anything
+# that imports @lumo/contracts (backend + web-app typecheck/build).
+contracts-build: $(CONTRACTS)/node_modules        ## Build @lumo/contracts → dist
+	cd $(CONTRACTS) && npm run build
+
+contracts-ci: $(CONTRACTS)/node_modules           ## Typecheck + test + build the contract package
+	cd $(CONTRACTS) && npm run typecheck && npm test && npm run build
+
+backend-ci: $(BACKEND)/node_modules contracts-build  ## Backend typecheck + tests (incl. contract conformance)
+	cd $(BACKEND) && npm run typecheck && npm test
+
+# Full gate: contract → backend → frontend. Catches front/back protocol drift.
+ci: contracts-ci backend-ci typecheck lint build   ## Run all CI checks locally (mirrors GitHub Actions)
 	@echo ""
-	@echo ">>> All CI checks passed."
+	@echo ">>> All CI checks passed (contracts + backend + web-app)."
 
 # -----------------------------------------------------------------------
 # Backend
@@ -66,7 +85,7 @@ ci: typecheck lint build         ## Run all CI checks locally (mirrors GitHub Ac
 
 backend-install: $(BACKEND)/node_modules   ## Install backend dependencies
 
-backend-build: $(BACKEND)/node_modules     ## Compile backend TypeScript → backend/dist/
+backend-build: $(BACKEND)/node_modules contracts-build  ## Compile backend TypeScript → backend/dist/
 	@echo ">>> Building backend..."
 	cd $(BACKEND) && npm run build
 	@echo ">>> Backend built."
@@ -168,10 +187,13 @@ help:   ## Show this help
 	@echo "  backend-seed     Seed DB with demo data"
 	@echo ""
 	@echo "Quality:"
+	@echo "  contracts-build  Build @lumo/contracts (shared API contract) → dist"
+	@echo "  contracts-ci     Typecheck + test + build the contract package"
+	@echo "  backend-ci       Backend typecheck + tests (incl. contract conformance)"
 	@echo "  typecheck    TypeScript type check (tsc --noEmit)"
 	@echo "  lint         ESLint"
 	@echo "  build        Frontend production build"
-	@echo "  ci           typecheck + lint + build  (mirrors CI gate)"
+	@echo "  ci           contracts + backend + web-app gate (mirrors CI)"
 	@echo ""
 	@echo "Integration tests (real API + Playwright):"
 	@echo "  test-integration           All suites: backend + web + electron"
