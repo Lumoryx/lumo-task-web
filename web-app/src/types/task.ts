@@ -1,20 +1,40 @@
 /**
  * Core domain types.
  *
- * Mirrors the shape that the mock API returns. Keep in sync with
- * `src/mocks/tasks.ts`. When wiring a real backend, change the
- * implementation of `src/api/client.ts` but keep these types stable.
+ * `Task`, `Quadrant`, `LocalizedString`, `TaskRecurrence` and `Subtask` are the
+ * single source of truth from `@lumo/contracts` (the shared API contract) and
+ * are re-exported here so existing imports (`@/types/task`) keep working.
+ *
+ * Contract-First: to change a task field, edit the Zod schema in
+ * `@lumo/contracts` first — do not redefine these shapes here.
+ *
+ * The remaining types below (User, CompletedEntry, AppSettings, Habit, …) are
+ * not yet migrated to the contract package and are still defined locally.
  */
 
-export type Quadrant = "Q1" | "Q2" | "Q3" | "Q4" | "unclassified";
+import type {
+  Task,
+  Quadrant,
+  LocalizedString,
+  TaskRecurrence,
+  Subtask,
+  TaskCreateInput,
+  TaskUpdateInput,
+  TaskCompleteResponse,
+} from "@lumo/contracts";
+
+export type {
+  Task,
+  Quadrant,
+  LocalizedString,
+  TaskRecurrence,
+  Subtask,
+  TaskCreateInput,
+  TaskUpdateInput,
+  TaskCompleteResponse,
+};
 
 export type Locale = "en" | "zh";
-
-/** A localized string that resolves on read via i18n helpers. */
-export interface LocalizedString {
-  en: string;
-  zh?: string;
-}
 
 /** A person who can be assigned to tasks. */
 export interface Person {
@@ -25,49 +45,6 @@ export interface Person {
   /** Hex color for the avatar background. */
   color: string;
   email?: string;
-}
-
-export type TaskRecurrence = "none" | "daily" | "weekdays" | "weekly" | "monthly";
-
-export interface Subtask {
-  id: string;
-  title: string;
-  completed: boolean;
-}
-
-export interface Task {
-  id: string;
-  /** Person IDs — references People in the people list. Multiple allowed. */
-  assignee_ids?: string[];
-  title: LocalizedString;
-  desc?: LocalizedString | null;
-  quadrant: Quadrant;
-  /** Whether the task is included in today's plan. */
-  today: boolean;
-  /** ISO-ish loose due descriptor — e.g. "today", "Fri", "next wk", "Aug 14". */
-  due: string | null;
-  /** Estimated minutes. */
-  duration: number;
-  pomos_done: number;
-  pomos_total: number;
-  /** Conviction score 0..1, used by the Today recommendation card. */
-  conviction?: number;
-  /** Lumo's suggested next step. */
-  next_step?: LocalizedString;
-  /** Why Lumo deprioritized other items in favor of this one. */
-  reason?: LocalizedString;
-  /** AI suggested quadrant (used when `quadrant === "unclassified"`). */
-  ai_suggest?: Quadrant;
-  /** Done-state. */
-  completed?: boolean;
-  /** Counter-recommendations to be transparent about what's NOT being shown. */
-  not_now?: Array<{ id: string; reason: LocalizedString }>;
-  /** Recurrence rule — when task is completed, a copy is spawned for the next occurrence. */
-  recurrence?: TaskRecurrence;
-  /** Inline sub-tasks for breaking a task into smaller steps. */
-  subtasks?: Subtask[];
-  /** ISO datetime (YYYY-MM-DDTHH:MM:SS) for a specific time block on the calendar. */
-  scheduled_start?: string | null;
 }
 
 export interface CompletedEntry {

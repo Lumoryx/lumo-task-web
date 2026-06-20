@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { swaggerUI } from "@hono/swagger-ui";
+import { taskComponentSchemas } from "@lumo/contracts";
 
 const app = new Hono();
 
@@ -23,37 +24,11 @@ const spec = {
       },
     },
     schemas: {
-      LocalizedString: {
-        type: "object",
-        required: ["en"],
-        properties: {
-          en: { type: "string" },
-          zh: { type: "string" },
-        },
-      },
-      Task: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          assignee_ids: { type: "array", items: { type: "string" } },
-          title: { $ref: "#/components/schemas/LocalizedString" },
-          desc: { $ref: "#/components/schemas/LocalizedString", nullable: true },
-          quadrant: { type: "string", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
-          today: { type: "boolean" },
-          due: { type: "string", nullable: true, example: "2026-05-20" },
-          duration: { type: "integer", description: "Estimated minutes" },
-          pomos_done: { type: "integer" },
-          pomos_total: { type: "integer" },
-          conviction: { type: "number", nullable: true },
-          next_step: { $ref: "#/components/schemas/LocalizedString", nullable: true },
-          reason: { $ref: "#/components/schemas/LocalizedString", nullable: true },
-          ai_suggest: { type: "string", nullable: true },
-          completed: { type: "boolean" },
-          not_now: { type: "array", items: { type: "object" } },
-          created_at: { type: "string", format: "date-time" },
-          updated_at: { type: "string", format: "date-time" },
-        },
-      },
+      // `Task`, `LocalizedString`, `LongLocalizedString` and `TaskCreateBody` are
+      // generated from the @lumo/contracts Zod schemas — the single source of
+      // truth — so the docs can never drift from validation/implementation.
+      // (Contract-First: edit the contract, not this file, to change these.)
+      ...taskComponentSchemas(),
       Person: {
         type: "object",
         properties: {
@@ -287,24 +262,7 @@ const spec = {
           required: true,
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                required: ["title"],
-                properties: {
-                  title: { $ref: "#/components/schemas/LocalizedString" },
-                  desc: { $ref: "#/components/schemas/LocalizedString" },
-                  quadrant: { type: "string", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"], default: "unclassified" },
-                  today: { type: "boolean", default: false },
-                  due: { type: "string", nullable: true, example: "2026-05-20" },
-                  duration: { type: "integer", default: 0 },
-                  pomos_total: { type: "integer", default: 0 },
-                  assignee_ids: { type: "array", items: { type: "string" }, default: [] },
-                  conviction: { type: "number", nullable: true },
-                  next_step: { $ref: "#/components/schemas/LocalizedString" },
-                  reason: { $ref: "#/components/schemas/LocalizedString" },
-                  ai_suggest: { type: "string", nullable: true },
-                },
-              },
+              schema: { $ref: "#/components/schemas/TaskCreateBody" },
             },
           },
         },
@@ -333,23 +291,7 @@ const spec = {
           required: true,
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  title: { $ref: "#/components/schemas/LocalizedString" },
-                  desc: { $ref: "#/components/schemas/LocalizedString" },
-                  quadrant: { type: "string", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
-                  today: { type: "boolean" },
-                  due: { type: "string", nullable: true },
-                  duration: { type: "integer" },
-                  pomos_total: { type: "integer" },
-                  assignee_ids: { type: "array", items: { type: "string" } },
-                  conviction: { type: "number", nullable: true },
-                  next_step: { $ref: "#/components/schemas/LocalizedString" },
-                  reason: { $ref: "#/components/schemas/LocalizedString" },
-                  ai_suggest: { type: "string", nullable: true },
-                },
-              },
+              schema: { $ref: "#/components/schemas/TaskUpdateBody" },
             },
           },
         },
@@ -363,7 +305,7 @@ const spec = {
         tags: ["Tasks"],
         summary: "Delete a task",
         responses: {
-          "200": { description: "OK", content: { "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" } } } } } },
+          "204": { description: "Deleted (no content)" },
           "401": { description: "Unauthorized" },
           "404": { description: "Not found" },
         },
@@ -375,7 +317,7 @@ const spec = {
         tags: ["Tasks"],
         summary: "Mark a task as completed",
         responses: {
-          "200": { description: "OK + completed entry id", content: { "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" }, entry_id: { type: "string" } } } } } },
+          "200": { description: "OK + completed entry id", content: { "application/json": { schema: { $ref: "#/components/schemas/TaskCompleteResponse" } } } },
           "401": { description: "Unauthorized" },
           "404": { description: "Not found" },
         },

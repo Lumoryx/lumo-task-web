@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, User } from "@/types/task";
+import type { AppSettings, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, TaskCreateInput, TaskUpdateInput, TaskCompleteResponse, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -234,7 +234,7 @@ export const api = {
     return req("POST", "/ai/parse", { text, locale });
   },
 
-  async createTask(input: Omit<Task, "id">): Promise<Task> {
+  async createTask(input: TaskCreateInput): Promise<Task> {
     const raw = await req<any>("POST", "/tasks", {
       title: input.title,
       desc: input.desc ?? null,
@@ -256,7 +256,7 @@ export const api = {
     return adaptTask(raw);
   },
 
-  async updateTask(id: string, patch: Partial<Task>): Promise<Task> {
+  async updateTask(id: string, patch: TaskUpdateInput): Promise<Task> {
     const raw = await req<any>("PATCH", `/tasks/${id}`, {
       ...(patch.title !== undefined && { title: patch.title }),
       ...(patch.desc !== undefined && { desc: patch.desc }),
@@ -278,8 +278,8 @@ export const api = {
     return adaptTask(raw);
   },
 
-  async completeTask(id: string): Promise<void> {
-    await req("POST", `/tasks/${id}/complete`);
+  async completeTask(id: string): Promise<TaskCompleteResponse> {
+    return req<TaskCompleteResponse>("POST", `/tasks/${id}/complete`);
   },
 
   async uncompleteTask(logId: string): Promise<void> {

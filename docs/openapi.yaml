@@ -6,24 +6,28 @@ info:
   description: |
     REST API specification for the Lumo Task backend.
 
-    This document is the authoritative contract between the frontend (`web-app/`)
-    and any backend implementation. The frontend currently runs against a local
-    mock layer (`src/api/client.ts`). To wire a real backend, implement these
-    endpoints and set `VITE_API_MODE=real` + `VITE_API_BASE=<url>`.
+    **⚠️ Source of truth is moving.** The authoritative contract is being migrated
+    to Zod schemas in `@lumo/contracts`, from which the live spec is generated and
+    served by the backend at `GET /docs/openapi.json` (Swagger UI at `/docs`). The
+    `Task` schema below is already generated from the contract; remaining schemas
+    are still hand-maintained here and will be replaced domain-by-domain. When this
+    file and the generated spec disagree, the generated spec wins.
 
-    **Authentication**: All endpoints except `/auth/*` require a valid session
-    cookie (`lumo_session`) or Bearer token in the `Authorization` header.
+    The frontend (`web-app/src/api/client.ts`) talks to the real Hono/SQLite
+    backend; configure it with `VITE_API_BASE=<url>`.
+
+    **Authentication**: All endpoints except `/auth/*` require a Bearer token in the
+    `Authorization` header.
 
     **Locale**: Clients may send `Accept-Language: en` or `Accept-Language: zh`.
-    Endpoints that return `LocalizedString` objects always include both `en` and
-    optionally `zh` fields; the client resolves which to display.
+    Endpoints that return `LocalizedString` objects always include `en` and
+    optionally `zh`; the client resolves which to display.
 
-    **Pagination**: List endpoints support `limit` and `offset` query parameters.
-    Responses wrap items in a `PaginatedResponse` envelope.
-
-    **Dev-only**: The mock client exposes a `reset()` helper that clears
-    localStorage and reloads seed data. This has no corresponding production
-    endpoint and must not be exposed in the real backend.
+    **Response shape**: Responses are **flat** — single resources are returned as
+    bare objects and list endpoints return **bare JSON arrays** (no `data`/`items`
+    envelope). The `PaginatedTasks` / `PaginatedCompleted` envelopes described below
+    are historical and do not match the current implementation; treat them as flat
+    arrays until those domains are migrated to the generated contract.
 
 servers:
   - url: https://api.lumotask.app/v1

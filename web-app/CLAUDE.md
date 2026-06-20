@@ -4,17 +4,23 @@ This file gives Claude Code shared rules whenever it opens this project.
 
 ## What is this
 
-Lumo Task is a React + TypeScript focus + Eisenhower matrix app with a
-**mock API layer** that persists to `localStorage`. The current build is
-a scaffold — feature areas (Today, Matrix, Focus, Settings) are stubbed
-end-to-end but the deeper interactions (drag-between-quadrants,
-AI-classify, onboarding, account sync) are intentionally left to grow.
+Lumo Task is a React + TypeScript focus + Eisenhower matrix app. The frontend
+(`src/api/client.ts`) talks to the real Hono + SQLite backend in `backend/`
+over REST; configure the base URL with `VITE_API_BASE`. API request/response
+shapes are defined once in `@lumo/contracts` and shared by both sides.
 
 ## Architecture rules
 
+- **Contract-First (non-negotiable).** API shapes live in `@lumo/contracts`
+  (`packages/contracts`) as Zod schemas — the single source of truth shared
+  with the backend. `src/types/task.ts` re-exports the inferred `Task`,
+  `Quadrant`, `LocalizedString`, etc. from there. To change an API field,
+  edit the contract schema FIRST, then the backend, then the frontend. Never
+  hand-write a type in `src/types/*` that mirrors a backend response.
 - **Types live in `src/types/task.ts`.** Don't redefine `Task`, `User`,
-  etc. — import from there. If a field is missing, add it to the type
-  first, then wire through.
+  etc. — import from there (which re-exports from `@lumo/contracts`). Types
+  not yet migrated to the contract (User, AppSettings, Habit, …) are still
+  defined locally for now.
 - **All data goes through `src/api/client.ts`.** Components never touch
   `localStorage`, never import seed data directly. To add an endpoint,
   add a function to the `api` object.

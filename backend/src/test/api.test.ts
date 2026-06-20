@@ -24,6 +24,7 @@
 
 import { test, describe, before } from "node:test";
 import assert from "node:assert/strict";
+import { TaskWireSchema, TaskCompleteResponseSchema } from "@lumo/contracts";
 import { runMigrations, ensureDefaultUser } from "../db/migrate.js";
 import { app } from "../app.js";
 
@@ -366,6 +367,8 @@ describe("GET /v1/tasks", () => {
     assert.ok(Array.isArray(body));
     // All returned tasks must be incomplete
     for (const t of body) assert.equal(t.completed, false);
+    // Contract conformance: every item must match the @lumo/contracts wire shape.
+    for (const t of body) TaskWireSchema.parse(t);
   });
 
   test("401 → no token", async () => {
@@ -413,6 +416,8 @@ describe("POST /v1/tasks", () => {
     assert.equal(body.conviction, 0.9);
     assert.equal(body.next_step?.en, "Next action");
     assert.equal(body.not_now.length, 1);
+    // Contract conformance: the POST response must match the wire contract.
+    TaskWireSchema.parse(body);
     taskId = body.id; // save for subsequent tests
   });
 
@@ -446,6 +451,7 @@ describe("GET /v1/tasks/:id", () => {
     assert.equal(status, 200);
     assert.equal(body.id, taskId);
     assert.equal(body.title.en, "Full task");
+    TaskWireSchema.parse(body); // contract conformance
   });
 
   test("404 → unknown id", async () => {
@@ -469,6 +475,7 @@ describe("PATCH /v1/tasks/:id", () => {
     assert.equal(body.quadrant, "Q2");
     assert.equal(body.today, false);
     assert.equal(body.title.en, "Full task", "title should be unchanged");
+    TaskWireSchema.parse(body); // contract conformance
   });
 
   test("200 → can clear optional fields with null", async () => {
@@ -514,6 +521,7 @@ describe("POST /v1/tasks/:id/complete", () => {
     assert.equal(status, 200);
     assert.equal(body.ok, true);
     assert.ok(body.entry_id, "entry_id missing");
+    TaskCompleteResponseSchema.parse(body); // contract conformance
     completedEntryId = body.entry_id; // save for reopen test
 
     // Task should no longer appear in the active list

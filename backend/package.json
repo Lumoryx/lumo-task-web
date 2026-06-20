@@ -19,6 +19,7 @@
     "test:integration": "node --env-file src/test/.env.integration --import tsx/esm --test src/test/integration.test.ts"
   },
   "dependencies": {
+    "@lumo/contracts": "file:../packages/contracts",
     "@hono/node-server": "^1.13.7",
     "@hono/swagger-ui": "^0.6.1",
     "@hono/zod-validator": "^0.8.0",
