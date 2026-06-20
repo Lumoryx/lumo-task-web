@@ -155,12 +155,12 @@ const MOCK_TASKS = [
   },
 ];
 
-const _MOCK_HABITS = [
+const MOCK_HABITS = [
   { id: "h1", title: "Morning exercise", frequency: "daily", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
   { id: "h2", title: "Read 30 minutes", frequency: "daily", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
 
-const _MOCK_COUNTDOWNS = [
+const MOCK_COUNTDOWNS = [
   { id: "c1", title: "Product launch", date: "2026-12-01", repeat: "none", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
   { id: "c2", title: "Team offsite", date: "2026-08-15", repeat: "yearly", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
@@ -294,16 +294,37 @@ async function mockAPIWithData(page: Page) {
       });
     }
 
-    // Habits (localStorage-based — HTTP routes not used, but catch any calls)
+    // Habits
+    if (method === "POST" && url.includes("/v1/habits/migrate")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, migrated: 2 }),
+      });
+    }
+    if (url.includes("/v1/habits/logs")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+    }
     if (url.includes("/v1/habits")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({}),
+        body: JSON.stringify(MOCK_HABITS),
       });
     }
 
     // Countdowns
+    if (method === "POST" && url.includes("/v1/countdowns/migrate")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, migrated: 2 }),
+      });
+    }
     if (method === "POST" && url.includes("/v1/countdowns")) {
       return route.fulfill({
         status: 201,
@@ -321,7 +342,7 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({}),
+        body: JSON.stringify(MOCK_COUNTDOWNS),
       });
     }
 
