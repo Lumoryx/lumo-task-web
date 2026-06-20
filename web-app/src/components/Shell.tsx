@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { QuickCreate } from "@/components/QuickCreate";
+import { CommandPalette } from "@/components/CommandPalette";
 import { FloatingPet } from "@/components/FloatingPet";
 import { useT } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
@@ -40,6 +41,22 @@ export function Shell() {
   const density = useAppStore((s) => s.density);
   const isMobile = useIsMobile();
   const [quickOpen, setQuickOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  // Register ⌘K / Ctrl+K global shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const titleMap: Record<string, { title: string; sub: string }> = {
     "/today": { title: t("today.title"), sub: t("today.sub") },
@@ -62,6 +79,7 @@ export function Shell() {
               title={meta.title}
               subtitle={meta.sub}
               onQuickAdd={() => setQuickOpen(true)}
+              onOpenSearch={openSearch}
             />
           )}
           <div
@@ -80,6 +98,8 @@ export function Shell() {
               }}
             />
           )}
+
+          <CommandPalette open={searchOpen} onClose={closeSearch} />
         </main>
       </div>
 
