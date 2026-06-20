@@ -390,6 +390,7 @@ interface UrgencyBannerProps {
 
 function UrgencyBanner({ overdueCount, todayCount }: UrgencyBannerProps) {
   const t = useT();
+  const locale = useAppStore((s) => s.locale);
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(getUrgencyDismissedKey()) === "1"; } catch { return false; }
   });
@@ -404,7 +405,7 @@ function UrgencyBanner({ overdueCount, todayCount }: UrgencyBannerProps) {
   const parts: string[] = [];
   if (overdueCount > 0) parts.push(t("today.urgentBanner.overdue").replace("{n}", String(overdueCount)));
   if (todayCount > 0) parts.push(t("today.urgentBanner.today").replace("{n}", String(todayCount)));
-  const message = `⚠️ ${parts.join("，")}`;
+  const message = `⚠️ ${parts.join(locale === "zh" ? "，" : ", ")}`;
 
   return (
     <div
