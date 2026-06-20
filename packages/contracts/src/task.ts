@@ -80,7 +80,7 @@ export const TaskWireSchema = z.object({
   conviction: z.number().nullable(),
   next_step: LongLocalizedStringSchema.nullable(),
   reason: LongLocalizedStringSchema.nullable(),
-  ai_suggest: QuadrantSchema.nullable(),
+  ai_suggest: QuadrantSchema.nullable().catch(null),
   completed: z.boolean(),
   not_now: z.array(NotNowItemSchema),
   recurrence: RecurrenceSchema,

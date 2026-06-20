@@ -9,7 +9,7 @@
 
 import { create } from "zustand";
 import { api } from "@/api/client";
-import type { CompletedEntry, Subtask, Task, TaskCreateInput, TaskUpdateInput } from "@/types/task";
+import type { CompletedEntry, Subtask, Task, TaskCompleteResponse, TaskCreateInput, TaskUpdateInput } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
 import { usePetStore } from "@/store/usePetStore";
@@ -28,7 +28,7 @@ interface TasksState {
   clear: () => void;
   create: (input: TaskCreateInput) => Promise<Task>;
   update: (id: string, patch: TaskUpdateInput) => Promise<void>;
-  complete: (id: string) => Promise<void>;
+  complete: (id: string) => Promise<TaskCompleteResponse>;
   reopen: (logId: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   reset: () => Promise<void>;
