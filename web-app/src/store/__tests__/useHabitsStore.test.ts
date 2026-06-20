@@ -116,6 +116,40 @@ describe("useHabitsStore", () => {
     expect(localStorage.getItem(`lumo.habits.v1.${UID}`)).not.toBeNull();
   });
 
+  it("load surfaces un-migrated local data when migration permanently fails and the server is empty", async () => {
+    localStorage.setItem(`lumo.habits.v1.${UID}`, JSON.stringify([makeHabit({ id: "habit_local1" })]));
+
+    const fetchMock = vi.fn()
+      // POST /habits/migrate rejects (e.g. permanent 4xx)
+      .mockRejectedValueOnce(new Error("400 bad request"))
+      // GET /habits — server has nothing yet
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] } as Response)
+      // GET /habits/logs
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await useHabitsStore.getState().load(UID);
+
+    // Local data must remain visible rather than being replaced by an empty list
+    expect(useHabitsStore.getState().habits).toHaveLength(1);
+    expect(useHabitsStore.getState().habits[0].id).toBe("habit_local1");
+  });
+
+  it("load skips the migrate request entirely when there is no local data", async () => {
+    const fetchMock = vi.fn()
+      // GET /habits
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] } as Response)
+      // GET /habits/logs
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await useHabitsStore.getState().load(UID);
+
+    // No POST /habits/migrate — only the two GETs
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem("lumo.habits.migrated.v1." + UID)).toBe("1");
+  });
+
   it("create calls POST /habits and appends the habit to state", async () => {
     mockFetch(201, makeHabit());
 

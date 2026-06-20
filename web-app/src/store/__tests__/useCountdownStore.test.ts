@@ -95,6 +95,34 @@ describe("useCountdownStore", () => {
     expect(localStorage.getItem(`lumo.countdowns.v1.${UID}`)).not.toBeNull();
   });
 
+  it("load surfaces un-migrated local data when migration permanently fails and the server is empty", async () => {
+    localStorage.setItem(`lumo.countdowns.v1.${UID}`, JSON.stringify([makeEvent({ id: "cd_local1" })]));
+
+    const fetchMock = vi.fn()
+      // POST /countdowns/migrate rejects (e.g. permanent 4xx)
+      .mockRejectedValueOnce(new Error("400 bad request"))
+      // GET /countdowns — server has nothing yet
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await useCountdownStore.getState().load(UID);
+
+    expect(useCountdownStore.getState().events).toHaveLength(1);
+    expect(useCountdownStore.getState().events[0].id).toBe("cd_local1");
+  });
+
+  it("load skips the migrate request entirely when there is no local data", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await useCountdownStore.getState().load(UID);
+
+    // No POST /countdowns/migrate — only the single GET
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem("lumo.countdowns.migrated.v1." + UID)).toBe("1");
+  });
+
   it("create calls POST /countdowns and adds event to state", async () => {
     const created = makeEvent();
     mockFetch(201, created);
