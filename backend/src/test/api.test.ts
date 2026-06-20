@@ -24,7 +24,7 @@
 
 import { test, describe, before } from "node:test";
 import assert from "node:assert/strict";
-import { TaskWireSchema } from "@lumo/contracts";
+import { TaskWireSchema, TaskCompleteResponseSchema } from "@lumo/contracts";
 import { runMigrations, ensureDefaultUser } from "../db/migrate.js";
 import { app } from "../app.js";
 
@@ -521,6 +521,7 @@ describe("POST /v1/tasks/:id/complete", () => {
     assert.equal(status, 200);
     assert.equal(body.ok, true);
     assert.ok(body.entry_id, "entry_id missing");
+    TaskCompleteResponseSchema.parse(body); // contract conformance
     completedEntryId = body.entry_id; // save for reopen test
 
     // Task should no longer appear in the active list

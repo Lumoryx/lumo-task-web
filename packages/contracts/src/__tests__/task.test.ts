@@ -4,6 +4,7 @@ import {
   TaskWireSchema,
   TaskCreateBodySchema,
   TaskUpdateBodySchema,
+  TaskCompleteResponseSchema,
 } from "../task.js";
 
 // A canonical, full backend response payload (mirrors rowToTask in
@@ -51,6 +52,24 @@ describe("TaskWireSchema (backend response contract)", () => {
     const bad = { ...wireTask, quadrant: "Q9" };
     assert.throws(() => TaskWireSchema.parse(bad));
   });
+
+  test("ai_suggest must be a quadrant (not an arbitrary string)", () => {
+    assert.doesNotThrow(() => TaskWireSchema.parse({ ...wireTask, ai_suggest: "Q3" }));
+    assert.doesNotThrow(() => TaskWireSchema.parse({ ...wireTask, ai_suggest: null }));
+    assert.throws(() => TaskWireSchema.parse({ ...wireTask, ai_suggest: "maybe" }));
+  });
+});
+
+describe("TaskCompleteResponseSchema", () => {
+  test("accepts { ok: true, entry_id }", () => {
+    const parsed = TaskCompleteResponseSchema.parse({ ok: true, entry_id: "c_123" });
+    assert.equal(parsed.entry_id, "c_123");
+  });
+
+  test("rejects ok: false or missing entry_id", () => {
+    assert.throws(() => TaskCompleteResponseSchema.parse({ ok: false, entry_id: "c_1" }));
+    assert.throws(() => TaskCompleteResponseSchema.parse({ ok: true }));
+  });
 });
 
 describe("TaskCreateBodySchema (request contract)", () => {
@@ -64,6 +83,11 @@ describe("TaskCreateBodySchema (request contract)", () => {
 
   test("rejects a due date that is not YYYY-MM-DD", () => {
     assert.throws(() => TaskCreateBodySchema.parse({ title: { en: "Hi" }, due: "tomorrow" }));
+  });
+
+  test("rejects ai_suggest that is not a quadrant", () => {
+    assert.doesNotThrow(() => TaskCreateBodySchema.parse({ title: { en: "Hi" }, ai_suggest: "Q1" }));
+    assert.throws(() => TaskCreateBodySchema.parse({ title: { en: "Hi" }, ai_suggest: "foo" }));
   });
 });
 

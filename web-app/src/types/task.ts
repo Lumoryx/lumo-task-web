@@ -18,9 +18,21 @@ import type {
   LocalizedString,
   TaskRecurrence,
   Subtask,
+  TaskCreateInput,
+  TaskUpdateInput,
+  TaskCompleteResponse,
 } from "@lumo/contracts";
 
-export type { Task, Quadrant, LocalizedString, TaskRecurrence, Subtask };
+export type {
+  Task,
+  Quadrant,
+  LocalizedString,
+  TaskRecurrence,
+  Subtask,
+  TaskCreateInput,
+  TaskUpdateInput,
+  TaskCompleteResponse,
+};
 
 export type Locale = "en" | "zh";
 

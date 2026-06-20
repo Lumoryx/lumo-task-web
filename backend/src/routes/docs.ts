@@ -262,24 +262,7 @@ const spec = {
           required: true,
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                required: ["title"],
-                properties: {
-                  title: { $ref: "#/components/schemas/LocalizedString" },
-                  desc: { $ref: "#/components/schemas/LocalizedString" },
-                  quadrant: { type: "string", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"], default: "unclassified" },
-                  today: { type: "boolean", default: false },
-                  due: { type: "string", nullable: true, example: "2026-05-20" },
-                  duration: { type: "integer", default: 0 },
-                  pomos_total: { type: "integer", default: 0 },
-                  assignee_ids: { type: "array", items: { type: "string" }, default: [] },
-                  conviction: { type: "number", nullable: true },
-                  next_step: { $ref: "#/components/schemas/LocalizedString" },
-                  reason: { $ref: "#/components/schemas/LocalizedString" },
-                  ai_suggest: { type: "string", nullable: true },
-                },
-              },
+              schema: { $ref: "#/components/schemas/TaskCreateBody" },
             },
           },
         },
@@ -308,23 +291,7 @@ const spec = {
           required: true,
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  title: { $ref: "#/components/schemas/LocalizedString" },
-                  desc: { $ref: "#/components/schemas/LocalizedString" },
-                  quadrant: { type: "string", enum: ["Q1", "Q2", "Q3", "Q4", "unclassified"] },
-                  today: { type: "boolean" },
-                  due: { type: "string", nullable: true },
-                  duration: { type: "integer" },
-                  pomos_total: { type: "integer" },
-                  assignee_ids: { type: "array", items: { type: "string" } },
-                  conviction: { type: "number", nullable: true },
-                  next_step: { $ref: "#/components/schemas/LocalizedString" },
-                  reason: { $ref: "#/components/schemas/LocalizedString" },
-                  ai_suggest: { type: "string", nullable: true },
-                },
-              },
+              schema: { $ref: "#/components/schemas/TaskUpdateBody" },
             },
           },
         },
@@ -338,7 +305,7 @@ const spec = {
         tags: ["Tasks"],
         summary: "Delete a task",
         responses: {
-          "200": { description: "OK", content: { "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" } } } } } },
+          "204": { description: "Deleted (no content)" },
           "401": { description: "Unauthorized" },
           "404": { description: "Not found" },
         },
@@ -350,7 +317,7 @@ const spec = {
         tags: ["Tasks"],
         summary: "Mark a task as completed",
         responses: {
-          "200": { description: "OK + completed entry id", content: { "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" }, entry_id: { type: "string" } } } } } },
+          "200": { description: "OK + completed entry id", content: { "application/json": { schema: { $ref: "#/components/schemas/TaskCompleteResponse" } } } },
           "401": { description: "Unauthorized" },
           "404": { description: "Not found" },
         },

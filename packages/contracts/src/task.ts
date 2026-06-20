@@ -52,7 +52,7 @@ export const TaskCreateBodySchema = z.object({
   next_step: LongLocalizedStringSchema.optional().nullable(),
   recurrence: RecurrenceSchema.default("none"),
   reason: LongLocalizedStringSchema.optional().nullable(),
-  ai_suggest: z.string().nullable().optional(),
+  ai_suggest: QuadrantSchema.nullable().optional(),
   not_now: z.array(NotNowItemSchema).default([]),
   subtasks: z.array(SubtaskSchema).default([]),
   scheduled_start: z
@@ -80,7 +80,7 @@ export const TaskWireSchema = z.object({
   conviction: z.number().nullable(),
   next_step: LongLocalizedStringSchema.nullable(),
   reason: LongLocalizedStringSchema.nullable(),
-  ai_suggest: z.string().nullable(),
+  ai_suggest: QuadrantSchema.nullable(),
   completed: z.boolean(),
   not_now: z.array(NotNowItemSchema),
   recurrence: RecurrenceSchema,
@@ -90,11 +90,24 @@ export const TaskWireSchema = z.object({
   updated_at: z.string(),
 });
 
-// ── Inferred request/wire types ───────────────────────────────────────────────
+// ── Complete-task response ────────────────────────────────────────────────────
+// POST /tasks/:id/complete does not return a Task; it acknowledges the write and
+// returns the id of the created completed-log entry.
 
-export type TaskCreateInput = z.infer<typeof TaskCreateBodySchema>;
-export type TaskUpdateInput = z.infer<typeof TaskUpdateBodySchema>;
+export const TaskCompleteResponseSchema = z.object({
+  ok: z.literal(true),
+  entry_id: z.string(),
+});
+
+// ── Inferred request/wire types ───────────────────────────────────────────────
+// Request payload types use z.input so fields with a Zod default (quadrant,
+// today, duration, …) are optional in what the client sends. The wire/response
+// types use z.infer (defaults already applied by the server).
+
+export type TaskCreateInput = z.input<typeof TaskCreateBodySchema>;
+export type TaskUpdateInput = z.input<typeof TaskUpdateBodySchema>;
 export type TaskWire = z.infer<typeof TaskWireSchema>;
+export type TaskCompleteResponse = z.infer<typeof TaskCompleteResponseSchema>;
 
 // ── Normalized client view (re-exported by web-app/src/types/task.ts) ─────────
 // Re-export shared primitive view types so consumers import them from one place.

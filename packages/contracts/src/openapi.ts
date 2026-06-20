@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { TaskWireSchema, TaskCreateBodySchema } from "./task.js";
+import {
+  TaskWireSchema,
+  TaskCreateBodySchema,
+  TaskUpdateBodySchema,
+  TaskCompleteResponseSchema,
+} from "./task.js";
 import { LocalizedStringSchema, LongLocalizedStringSchema } from "./primitives.js";
 
 /**
@@ -49,6 +54,11 @@ function toOpenApi(schema: z.ZodTypeAny): { schema: OpenApiSchema; optional: boo
       return { schema: { type: "array", items: toOpenApi(def.type).schema }, optional: false };
     case "ZodEnum":
       return { schema: { type: "string", enum: def.values }, optional: false };
+    case "ZodLiteral": {
+      const v = def.value;
+      const t = typeof v === "number" ? "number" : typeof v === "boolean" ? "boolean" : "string";
+      return { schema: { type: t, enum: [v] }, optional: false };
+    }
     case "ZodString":
       return { schema: { type: "string" }, optional: false };
     case "ZodNumber":
@@ -76,5 +86,7 @@ export function taskComponentSchemas(): Record<string, OpenApiSchema> {
     LongLocalizedString: zodToOpenApi(LongLocalizedStringSchema),
     Task: zodToOpenApi(TaskWireSchema),
     TaskCreateBody: zodToOpenApi(TaskCreateBodySchema),
+    TaskUpdateBody: zodToOpenApi(TaskUpdateBodySchema),
+    TaskCompleteResponse: zodToOpenApi(TaskCompleteResponseSchema),
   };
 }
