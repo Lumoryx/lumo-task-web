@@ -191,6 +191,49 @@ export async function runMigrations() {
     await execRaw("ALTER TABLE settings ADD COLUMN remote_url TEXT");
     await execRaw("ALTER TABLE settings ADD COLUMN remote_token TEXT");
   }
+
+  // Habits cloud persistence
+  await execRaw(`
+    CREATE TABLE IF NOT EXISTS habits (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      title TEXT NOT NULL,
+      emoji TEXT,
+      color TEXT NOT NULL DEFAULT 'green',
+      frequency TEXT NOT NULL DEFAULT 'daily',
+      frequency_days TEXT,
+      frequency_times INTEGER,
+      frequency_interval INTEGER,
+      note TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  await execRaw(`
+    CREATE TABLE IF NOT EXISTS habit_logs (
+      habit_id TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      date TEXT NOT NULL,
+      completed_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (habit_id, date)
+    )
+  `);
+
+  await execRaw(`
+    CREATE TABLE IF NOT EXISTS countdown_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      title TEXT NOT NULL,
+      date TEXT NOT NULL,
+      emoji TEXT,
+      color TEXT NOT NULL DEFAULT 'green',
+      repeat TEXT NOT NULL DEFAULT 'none',
+      note TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
 }
 
 // When run directly as a script
