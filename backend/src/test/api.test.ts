@@ -1376,6 +1376,49 @@ describe("Habits & Countdowns — cross-user isolation", () => {
     await req("DELETE", `/v1/habits/${habit.id}`, { token: demoToken });
   });
 
+  test("migrate does not import logs for habits the user does not own", async () => {
+    // User A owns a habit
+    const { body: habit } = await req("POST", "/v1/habits", {
+      token: demoToken,
+      body: { title: "A-owned habit", color: "green", frequency: "daily" },
+    });
+
+    // User B tries to migrate a log keyed to user A's habit id
+    const { status, body } = await req("POST", "/v1/habits/migrate", {
+      token: otherToken,
+      body: {
+        habits: [],
+        logs: [{ habitId: habit.id, date: "2026-06-22", completedAt: "2026-06-22T08:00:00.000Z" }],
+      },
+    });
+    assert.equal(status, 200);
+    assert.equal(body.migrated.logs, 0, "a log for a foreign habit must not be imported");
+
+    const { body: bLogs } = await req("GET", "/v1/habits/logs", { token: otherToken });
+    assert.equal(
+      (bLogs as any[]).some((l) => l.habitId === habit.id),
+      false,
+      "user B must not hold a log for user A's habit",
+    );
+
+    // The shared (habit_id, date) key must not be pre-occupied: user A's own
+    // check-in must succeed and be visible to user A.
+    const { status: logStatus, body: log } = await req("POST", `/v1/habits/${habit.id}/log`, {
+      token: demoToken,
+      body: { date: "2026-06-22" },
+    });
+    assert.equal(logStatus, 201);
+    assert.equal(log.habitId, habit.id);
+    const { body: aLogs } = await req("GET", "/v1/habits/logs", { token: demoToken });
+    assert.equal(
+      (aLogs as any[]).some((l) => l.habitId === habit.id && l.date === "2026-06-22"),
+      true,
+      "the habit owner's check-in must be visible to them",
+    );
+
+    await req("DELETE", `/v1/habits/${habit.id}`, { token: demoToken });
+  });
+
   test("user B cannot see, patch, or delete user A's countdown", async () => {
     const { body: event } = await req("POST", "/v1/countdowns", {
       token: demoToken,

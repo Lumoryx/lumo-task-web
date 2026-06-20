@@ -216,7 +216,7 @@ export async function runMigrations() {
       user_id TEXT NOT NULL REFERENCES users(id),
       date TEXT NOT NULL,
       completed_at TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (habit_id, date)
+      PRIMARY KEY (habit_id, user_id, date)
     )
   `);
 
