@@ -5,6 +5,7 @@ import {
   QuadrantSchema,
   RecurrenceSchema,
   type LocalizedString,
+  type LongLocalizedString,
   type Quadrant,
   type TaskRecurrence,
 } from "./primitives.js";
@@ -124,7 +125,7 @@ export interface Task {
   /** Person IDs — references People in the people list. Multiple allowed. */
   assignee_ids?: string[];
   title: LocalizedString;
-  desc?: LocalizedString | null;
+  desc?: LongLocalizedString | null;
   quadrant: Quadrant;
   /** Whether the task is included in today's plan. */
   today: boolean;
@@ -137,9 +138,9 @@ export interface Task {
   /** Conviction score 0..1, used by the Today recommendation card. */
   conviction?: number;
   /** Lumo's suggested next step. */
-  next_step?: LocalizedString;
+  next_step?: LongLocalizedString;
   /** Why Lumo deprioritized other items in favor of this one. */
-  reason?: LocalizedString;
+  reason?: LongLocalizedString;
   /** AI suggested quadrant (used when `quadrant === "unclassified"`). */
   ai_suggest?: Quadrant;
   /** Done-state. */

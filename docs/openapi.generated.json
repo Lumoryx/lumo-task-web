@@ -136,7 +136,17 @@
             ],
             "nullable": true
           },
-          "ai_suggest": {},
+          "ai_suggest": {
+            "type": "string",
+            "enum": [
+              "Q1",
+              "Q2",
+              "Q3",
+              "Q4",
+              "unclassified"
+            ],
+            "nullable": true
+          },
           "completed": {
             "type": "boolean"
           },
@@ -226,7 +236,6 @@
           "conviction",
           "next_step",
           "reason",
-          "ai_suggest",
           "completed",
           "not_now",
           "recurrence",
