@@ -22,6 +22,14 @@ export const STRINGS: Record<Locale, Dict> = {
     "topbar.search": "Search tasks…",
     "topbar.quickadd": "Quick add",
 
+    "search.placeholder": "Search tasks…",
+    "search.noResults": "No matching tasks",
+    "search.quickAccess": "Quick access",
+    "search.today": "Today",
+    "search.hint.navigate": "navigate",
+    "search.hint.open": "open",
+    "search.hint.close": "close",
+
     "today.title": "Today",
     "today.sub": "What matters most, right now.",
     "today.recommended": "Recommended",
@@ -559,6 +567,14 @@ export const STRINGS: Record<Locale, Dict> = {
     "status.local.alone": "所有数据保留在本机。",
     "topbar.search": "搜索任务…",
     "topbar.quickadd": "快速添加",
+
+    "search.placeholder": "搜索任务…",
+    "search.noResults": "未找到匹配任务",
+    "search.quickAccess": "快速访问",
+    "search.today": "今日",
+    "search.hint.navigate": "导航",
+    "search.hint.open": "打开",
+    "search.hint.close": "关闭",
 
     "today.title": "今天",
     "today.sub": "现在最重要的事。",

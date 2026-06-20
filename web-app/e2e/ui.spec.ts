@@ -945,11 +945,11 @@ test("TC56 – Habits: 'Add' button opens habit creation modal", async ({ page }
   await mockAPIWithData(page);
   await page.goto("/#/habits");
   await expect(page.getByText("Habits").first()).toBeVisible({ timeout: 8_000 });
-  await page.getByRole("button", { name: /add/i }).first().click();
-  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10_000 });
-  const cancelBtn = page.getByRole("button", { name: /cancel/i });
-  if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await cancelBtn.click();
+  await page.getByRole("button", { name: /new habit/i }).first().click();
+  await expect(page.locator('[role="dialog"] input').first()).toBeVisible({ timeout: 10_000 });
+  const closeBtn = page.getByRole("button", { name: /close/i });
+  if (await closeBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await closeBtn.click();
   } else {
     await page.keyboard.press("Escape");
   }
@@ -1029,11 +1029,11 @@ test("TC64 – Countdown: 'Add' button opens creation modal", async ({ page }) =
   await mockAPIWithData(page);
   await page.goto("/#/countdown");
   await expect(page.getByText(/countdown/i).first()).toBeVisible({ timeout: 8_000 });
-  await page.getByRole("button", { name: /add/i }).first().click();
-  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10_000 });
-  const cancelBtn = page.getByRole("button", { name: /cancel/i });
-  if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await cancelBtn.click();
+  await page.getByRole("button", { name: /new event/i }).first().click();
+  await expect(page.locator('[role="dialog"] input').first()).toBeVisible({ timeout: 10_000 });
+  const closeBtn = page.getByRole("button", { name: /close/i });
+  if (await closeBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await closeBtn.click();
   } else {
     await page.keyboard.press("Escape");
   }
