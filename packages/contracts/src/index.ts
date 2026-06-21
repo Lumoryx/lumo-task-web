@@ -8,5 +8,12 @@
 
 export * from "./primitives.js";
 export * from "./task.js";
+export * from "./person.js";
+export * from "./error.js";
 export * from "./ai.js";
-export { zodToOpenApi, taskComponentSchemas } from "./openapi.js";
+export {
+  zodToOpenApi,
+  taskComponentSchemas,
+  personComponentSchemas,
+  errorComponentSchemas,
+} from "./openapi.js";

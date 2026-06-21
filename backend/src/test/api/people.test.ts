@@ -5,6 +5,7 @@
  */
 import { test, describe, before } from "node:test";
 import assert from "node:assert/strict";
+import { PersonWireSchema } from "@lumo/contracts";
 import { req, setupDb, signInDemo } from "../helpers/index.js";
 
 let demoToken = "";
@@ -20,6 +21,7 @@ describe("GET /v1/people", () => {
     const { status, body } = await req("GET", "/v1/people", { token: demoToken });
     assert.equal(status, 200);
     assert.ok(Array.isArray(body));
+    for (const p of body) PersonWireSchema.parse(p); // contract conformance
   });
 
   test("401 → no token", async () => {
@@ -40,6 +42,7 @@ describe("POST /v1/people", () => {
     assert.equal(body.color, "#5bc8d4");
     assert.equal(body.email, "alice@example.com");
     assert.ok(body.id, "id missing");
+    PersonWireSchema.parse(body); // contract conformance
     personId = body.id;
   });
 

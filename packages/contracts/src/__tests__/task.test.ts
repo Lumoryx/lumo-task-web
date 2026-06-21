@@ -53,10 +53,12 @@ describe("TaskWireSchema (backend response contract)", () => {
     assert.throws(() => TaskWireSchema.parse(bad));
   });
 
-  test("ai_suggest must be a quadrant (not an arbitrary string)", () => {
-    assert.doesNotThrow(() => TaskWireSchema.parse({ ...wireTask, ai_suggest: "Q3" }));
-    assert.doesNotThrow(() => TaskWireSchema.parse({ ...wireTask, ai_suggest: null }));
-    assert.throws(() => TaskWireSchema.parse({ ...wireTask, ai_suggest: "maybe" }));
+  test("ai_suggest accepts a quadrant or null, and coerces legacy junk to null", () => {
+    assert.equal(TaskWireSchema.parse({ ...wireTask, ai_suggest: "Q3" }).ai_suggest, "Q3");
+    assert.equal(TaskWireSchema.parse({ ...wireTask, ai_suggest: null }).ai_suggest, null);
+    // Read path is lenient: a non-enum legacy value is coerced to null (.catch(null))
+    // rather than throwing, so one bad row can't 500 the whole list.
+    assert.equal(TaskWireSchema.parse({ ...wireTask, ai_suggest: "maybe" }).ai_suggest, null);
   });
 });
 
