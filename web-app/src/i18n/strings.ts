@@ -570,8 +570,7 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "due.today": "Today",
     "due.tomorrow": "Tomorrow",
-    "due.friday": "This Friday",
-    "due.nextFriday": "Next Friday",
+    "due.nextWeek": "Next week",
     "due.none": "Clear",
 
 
@@ -1211,8 +1210,7 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "due.today": "今天",
     "due.tomorrow": "明天",
-    "due.friday": "本周五",
-    "due.nextFriday": "下周五",
+    "due.nextWeek": "下周",
     "due.none": "清空",
 
 
