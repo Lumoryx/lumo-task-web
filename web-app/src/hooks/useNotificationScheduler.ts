@@ -27,8 +27,7 @@ function msUntil(hhmm: string): number {
 }
 
 function taskTitle(task: Task, locale: string): string {
-  const title = task.title as { en: string; zh?: string };
-  return (locale === "zh" ? title.zh : undefined) ?? title.en ?? "";
+  return (locale === "zh" ? task.title.zh : undefined) ?? task.title.en;
 }
 
 export function useNotificationScheduler(): void {

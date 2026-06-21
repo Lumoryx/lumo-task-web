@@ -170,6 +170,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.notifications.due.helper": "Alert 30 min before morning reminder when Q1 tasks are due today",
     "settings.notifications.evening": "Evening Review Time",
     "settings.notifications.evening.helper": "Daily reminder to review your day",
+    "settings.notifications.error.save": "Failed to save notification settings",
 
     "matrix.aiClassify": "AI classify",
     "matrix.aiClassify.title": "Let me sort these for you",
@@ -788,6 +789,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.notifications.due.helper": "当 Q1 任务今日到期时，在晨间提醒前 30 分钟发送预警",
     "settings.notifications.evening": "晚间复盘提醒时间",
     "settings.notifications.evening.helper": "每天在此时间发送晚间复盘提醒",
+    "settings.notifications.error.save": "保存通知设置失败",
 
     "matrix.aiClassify": "AI 分类",
     "matrix.aiClassify.title": "我来帮你分类",

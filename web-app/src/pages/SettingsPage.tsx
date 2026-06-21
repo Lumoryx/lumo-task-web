@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
@@ -1330,15 +1330,18 @@ function Segmented<T extends string>({
   );
 }
 
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ value, onChange, disabled }: { value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <button
-      onClick={() => onChange(!value)}
+      onClick={() => { if (!disabled) onChange(!value); }}
+      disabled={disabled}
       className="relative rounded-full transition-colors"
       style={{
         width: 36,
         height: 20,
         background: value ? "var(--accent-primary)" : "var(--border-default)",
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
       }}
     >
       <span
@@ -1364,7 +1367,6 @@ function NotificationsPanel({ t, locale: _locale }: { t: (k: string) => string; 
 
   const [permDenied, setPermDenied] = useState(false);
   const [busy, setBusy] = useState(false);
-  const deniedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function handleToggleEnabled(next: boolean) {
     if (busy) return;
@@ -1375,46 +1377,54 @@ function NotificationsPanel({ t, locale: _locale }: { t: (k: string) => string; 
       if (next) {
         if (typeof Notification === "undefined") {
           setPermDenied(true);
-          setBusy(false);
           return;
         }
         if (Notification.permission === "denied") {
           setPermDenied(true);
-          setBusy(false);
           return;
         }
         if (Notification.permission === "default") {
           const result = await Notification.requestPermission();
           if (result !== "granted") {
             setPermDenied(true);
-            setBusy(false);
             return;
           }
         }
       }
 
       setEnabled(next);
-      await api.patchSettings({ notifications_enabled: next });
+      try {
+        await api.patchSettings({ notifications_enabled: next });
+      } catch {
+        setEnabled(!next);
+        toast.error(t("settings.notifications.error.save"));
+      }
     } finally {
       setBusy(false);
     }
   }
 
   async function handleMorningChange(v: string) {
+    const prev = morningTime;
     setMorningTime(v);
-    await api.patchSettings({ morning_reminder_time: v }).catch(() => {});
+    try {
+      await api.patchSettings({ morning_reminder_time: v });
+    } catch {
+      setMorningTime(prev);
+      toast.error(t("settings.notifications.error.save"));
+    }
   }
 
   async function handleEveningChange(v: string) {
+    const prev = eveningTime;
     setEveningTime(v);
-    await api.patchSettings({ evening_reminder_time: v }).catch(() => {});
+    try {
+      await api.patchSettings({ evening_reminder_time: v });
+    } catch {
+      setEveningTime(prev);
+      toast.error(t("settings.notifications.error.save"));
+    }
   }
-
-  useEffect(() => {
-    return () => {
-      if (deniedTimerRef.current) clearTimeout(deniedTimerRef.current);
-    };
-  }, []);
 
   return (
     <Panel title={t("settings.notifications")}>
@@ -1424,7 +1434,11 @@ function NotificationsPanel({ t, locale: _locale }: { t: (k: string) => string; 
       {permDenied && (
         <div
           className="mx-5 mb-4 rounded-lg px-4 py-3 text-[12px] leading-relaxed"
-          style={{ background: "rgba(255,80,80,0.08)", color: "var(--text-secondary)", border: "1px solid rgba(255,80,80,0.2)" }}
+          style={{
+            background: "color-mix(in srgb, var(--status-urgent) 10%, transparent)",
+            color: "var(--text-secondary)",
+            border: "1px solid color-mix(in srgb, var(--status-urgent) 25%, transparent)",
+          }}
         >
           {t("settings.notifications.permission.denied")}
         </div>
@@ -1445,7 +1459,7 @@ function NotificationsPanel({ t, locale: _locale }: { t: (k: string) => string; 
         />
       </Row>
       <Row label={t("settings.notifications.due")} helper={t("settings.notifications.due.helper")}>
-        <Toggle value={dueAlertsEnabled && enabled} onChange={(v) => setDueAlertsEnabled(v)} />
+        <Toggle value={dueAlertsEnabled} onChange={setDueAlertsEnabled} disabled={!enabled} />
       </Row>
       <Row label={t("settings.notifications.evening")} helper={t("settings.notifications.evening.helper")}>
         <input
