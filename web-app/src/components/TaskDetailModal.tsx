@@ -8,7 +8,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
-import { fmtDuration, fmtScheduledStart, getDueLabel } from "@/lib/format";
+import { fmtDuration, fmtScheduledStart, getDueLabel, getDueColor } from "@/lib/format";
 import { toast } from "@/store/useToastStore";
 import type { Subtask, Task } from "@/types/task";
 
@@ -62,6 +62,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
 
   const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(liveTask.due, locale);
+  const dueColor = getDueColor(liveTask.due);
   const qColor = Q_COLOR[liveTask.quadrant] ?? "var(--text-faint)";
   const qLabel = locale === "zh" ? Q_LABEL_ZH[liveTask.quadrant] : Q_LABEL_EN[liveTask.quadrant];
   const subtasks: Subtask[] = liveTask.subtasks ?? [];
@@ -192,6 +193,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
               icon={<IconCalendar size={13} />}
               label={t("detail.due")}
               value={due}
+              valueColor={dueColor}
             />
           )}
 
@@ -458,12 +460,12 @@ export function TaskDetailModal({ task, onClose }: Props) {
   );
 }
 
-function MetaRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function MetaRow({ icon, label, value, valueColor }: { icon: React.ReactNode; label: string; value: string; valueColor?: string }) {
   return (
     <div className="flex items-center gap-2">
       <span style={{ color: "var(--text-faint)" }}>{icon}</span>
       <span className="text-[11px] font-medium" style={{ color: "var(--text-faint)", minWidth: 40 }}>{label}</span>
-      <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>{value}</span>
+      <span className="text-[12px] font-medium" style={{ color: valueColor ?? "var(--text-secondary)" }}>{value}</span>
     </div>
   );
 }

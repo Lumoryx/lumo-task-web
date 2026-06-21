@@ -534,6 +534,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "task.recurrence.weekly": "Weekly",
     "task.recurrence.monthly": "Monthly",
 
+    "due.today": "Today",
+    "due.tomorrow": "Tomorrow",
+    "due.friday": "This Friday",
+    "due.none": "Clear",
+    "due.overdue": "Overdue",
+
 
     "matrix.aiClassify.tasks": "tasks",
     "matrix.aiClassify.unclassified": "unclassified",
@@ -1134,6 +1140,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "task.recurrence.weekdays": "工作日",
     "task.recurrence.weekly": "每周",
     "task.recurrence.monthly": "每月",
+
+    "due.today": "今天",
+    "due.tomorrow": "明天",
+    "due.friday": "本周五",
+    "due.none": "清空",
+    "due.overdue": "已过期",
 
 
     "matrix.aiClassify.tasks": "个任务",

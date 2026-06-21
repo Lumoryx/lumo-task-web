@@ -178,6 +178,22 @@ export async function runMigrations() {
     await execRaw("ALTER TABLE tasks ADD COLUMN scheduled_start TEXT");
   }
 
+  // Migrate: normalize due field to strict ISO YYYY-MM-DD (or null)
+  {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const tmr = new Date(now.getTime() + 86400000);
+    const tomorrowISO = `${tmr.getFullYear()}-${pad(tmr.getMonth() + 1)}-${pad(tmr.getDate())}`;
+    await execute("UPDATE tasks SET due = :d WHERE due IN ('today', '今天')", { d: todayISO });
+    await execute("UPDATE tasks SET due = :d WHERE due IN ('tomorrow', '明天')", { d: tomorrowISO });
+    // Null out anything that is not a 10-char YYYY-MM-DD string
+    await execRaw(
+      "UPDATE tasks SET due = NULL WHERE due IS NOT NULL AND NOT " +
+      "(LENGTH(due) = 10 AND SUBSTR(due, 5, 1) = '-' AND SUBSTR(due, 8, 1) = '-')"
+    );
+  }
+
   // Migrate: cloud AI usage tracking
   const settingsColsV2 = await query<{ name: string }>("PRAGMA table_info(settings)");
   if (!settingsColsV2.some((c) => c.name === "ai_cloud_used")) {

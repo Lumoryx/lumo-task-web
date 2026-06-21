@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
+import { toISODate } from "@/lib/format";
 import type { Quadrant, Task, TaskRecurrence } from "@/types/task";
 
 interface Props {
@@ -25,6 +26,14 @@ const Q_META: Record<Quadrant, { en: string; zh: string; descEn: string; descZh:
   unclassified: { en: "Unsorted",  zh: "未分类", descEn: "Not yet placed",        descZh: "尚未归位" },
 };
 
+function getThisFriday(): string {
+  const d = new Date();
+  const day = d.getDay();
+  // If today is Friday (5), go to next Friday (+7); otherwise go to this Friday
+  const daysUntilFriday = ((5 - day + 7) % 7) || 7;
+  return toISODate(new Date(d.getTime() + daysUntilFriday * 86400000));
+}
+
 export function TaskEditModal({ task, onClose }: Props) {
   const t = useT();
   const locale = useAppStore((s) => s.locale);
@@ -32,7 +41,9 @@ export function TaskEditModal({ task, onClose }: Props) {
   const remove = useTasksStore((s) => s.remove);
   const people = usePeopleStore((s) => s.people);
 
-  const todayISO = new Date().toISOString().split("T")[0];
+  const todayISO = toISODate(new Date());
+  const tomorrowISO = toISODate(new Date(Date.now() + 86400000));
+  const thisFridayISO = getThisFriday();
 
   const initialTitle =
     typeof task.title === "string" ? task.title : (task.title as { en: string }).en;
@@ -51,7 +62,7 @@ export function TaskEditModal({ task, onClose }: Props) {
   const [duration, setDuration] = useState(task.duration);
   const [durationRaw, setDurationRaw] = useState(String(task.duration));
   const [dueDate, setDueDate] = useState<string>(
-    task.due === "today" ? todayISO : task.due ?? todayISO
+    task.due === "today" ? todayISO : (task.due ?? "")
   );
   const [scheduledStart, setScheduledStart] = useState<string>(initialScheduledStart);
   const [recurrence, setRecurrence] = useState<TaskRecurrence>(task.recurrence ?? "none");
@@ -214,8 +225,41 @@ export function TaskEditModal({ task, onClose }: Props) {
           {/* Due + Duration */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
-                {t("qc.due")}
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint">
+                  {t("qc.due")}
+                </div>
+                {dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => setDueDate("")}
+                    className="text-[10px] transition-colors"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    {t("due.none")}
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {([
+                  { key: "due.today", value: todayISO },
+                  { key: "due.tomorrow", value: tomorrowISO },
+                  { key: "due.friday", value: thisFridayISO },
+                ] as const).map(({ key, value }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setDueDate(value)}
+                    className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                    style={{
+                      background: dueDate === value ? "var(--accent-fog)" : "var(--bg-surface)",
+                      border: `1px solid ${dueDate === value ? "var(--accent-edge)" : "var(--border-default)"}`,
+                      color: dueDate === value ? "var(--accent-primary)" : "var(--text-muted)",
+                    }}
+                  >
+                    {t(key)}
+                  </button>
+                ))}
               </div>
               <input
                 type="date"
