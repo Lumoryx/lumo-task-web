@@ -19,8 +19,12 @@ import { usePeopleStore } from "@/store/usePeopleStore";
 import { useCountdownStore } from "@/store/useCountdownStore";
 import { useHabitsStore } from "@/store/useHabitsStore";
 import { selectIsSignedIn, useAuthStore } from "@/store/useAuthStore";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import { useNotificationScheduler } from "@/hooks/useNotificationScheduler";
 import { ToastStack } from "@/components/ToastStack";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { toast } from "@/store/useToastStore";
+import { t } from "@/i18n/useT";
 
 /**
  * App root.
@@ -40,8 +44,10 @@ export default function App() {
   const clearCountdowns = useCountdownStore((s) => s.clear);
   const loadHabits = useHabitsStore((s) => s.load);
   const clearHabits = useHabitsStore((s) => s.clear);
+  const loadNotifications = useNotificationStore((s) => s.load);
   const isSignedIn = useAuthStore(selectIsSignedIn);
   const userId = useAuthStore((s) => s.user.id);
+  const forceSignOut = useAuthStore((s) => s.forceSignOut);
   const location = useLocation();
 
   useEffect(() => {
@@ -49,18 +55,30 @@ export default function App() {
   }, [accent]);
 
   useEffect(() => {
+    const handleSessionExpired = () => {
+      forceSignOut();
+      toast.error(t("error.auth.sessionExpired"));
+    };
+    window.addEventListener("lumo:session-expired", handleSessionExpired);
+    return () => window.removeEventListener("lumo:session-expired", handleSessionExpired);
+  }, [forceSignOut]);
+
+  useEffect(() => {
     if (isSignedIn) {
       loadTasks();
       loadPeople();
       loadCountdowns(userId);
       loadHabits(userId);
+      loadNotifications();
     } else {
       clearTasks();
       clearPeople();
       clearCountdowns();
       clearHabits();
     }
-  }, [isSignedIn, userId, loadTasks, loadPeople, loadCountdowns, loadHabits, clearTasks, clearPeople, clearCountdowns, clearHabits]);
+  }, [isSignedIn, userId, loadTasks, loadPeople, loadCountdowns, loadHabits, clearTasks, clearPeople, clearCountdowns, clearHabits, loadNotifications]);
+
+  useNotificationScheduler();
 
   const authPaths = ["/login", "/register", "/onboarding"];
   const isAuthPath = authPaths.includes(location.pathname);

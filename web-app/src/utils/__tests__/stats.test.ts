@@ -1,0 +1,95 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { computeWeekStats } from "../stats";
+import type { CompletedEntry } from "@/types/task";
+
+// Pin time to a known Wednesday (2026-06-17)
+const FIXED_NOW = new Date("2026-06-17T12:00:00Z");
+
+function makeEntry(overrides: Partial<CompletedEntry> = {}): CompletedEntry {
+  return {
+    id: Math.random().toString(),
+    title: { en: "Task", zh: "任务" },
+    duration: 25,
+    completedAt: FIXED_NOW.toISOString(),
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(FIXED_NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("computeWeekStats — quadrantBreakdown", () => {
+  it("always returns 5 rows in order Q1 Q2 Q3 Q4 unclassified", () => {
+    const result = computeWeekStats([makeEntry({ quadrant: "Q1" })]);
+    expect(result.quadrantBreakdown.map((b) => b.quadrant)).toEqual([
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4",
+      "unclassified",
+    ]);
+  });
+
+  it("counts each quadrant correctly", () => {
+    const entries = [
+      makeEntry({ quadrant: "Q1" }),
+      makeEntry({ quadrant: "Q1" }),
+      makeEntry({ quadrant: "Q2" }),
+      makeEntry({ quadrant: "Q3" }),
+      makeEntry({ quadrant: undefined }),
+    ];
+    const { quadrantBreakdown } = computeWeekStats(entries);
+    const find = (q: string) => quadrantBreakdown.find((b) => b.quadrant === q)!;
+    expect(find("Q1").count).toBe(2);
+    expect(find("Q2").count).toBe(1);
+    expect(find("Q3").count).toBe(1);
+    expect(find("Q4").count).toBe(0);
+    expect(find("unclassified").count).toBe(1);
+  });
+
+  it("percentages sum to ≤ 101 (rounding tolerance)", () => {
+    const entries = Array.from({ length: 3 }, (_, i) =>
+      makeEntry({ quadrant: (["Q1", "Q2", "Q3"] as const)[i] })
+    );
+    const { quadrantBreakdown } = computeWeekStats(entries);
+    const sum = quadrantBreakdown.reduce((s, b) => s + b.percent, 0);
+    expect(sum).toBeGreaterThanOrEqual(99);
+    expect(sum).toBeLessThanOrEqual(101);
+  });
+
+  it("returns 0% for all quadrants when no entries", () => {
+    const { quadrantBreakdown } = computeWeekStats([]);
+    for (const b of quadrantBreakdown) {
+      expect(b.count).toBe(0);
+      expect(b.percent).toBe(0);
+    }
+  });
+
+  it("only counts entries completed this week", () => {
+    const lastWeek = new Date(FIXED_NOW);
+    lastWeek.setDate(lastWeek.getDate() - 8);
+    const entries = [
+      makeEntry({ quadrant: "Q1", completedAt: FIXED_NOW.toISOString() }),
+      makeEntry({ quadrant: "Q2", completedAt: lastWeek.toISOString() }),
+    ];
+    const { quadrantBreakdown } = computeWeekStats(entries);
+    expect(quadrantBreakdown.find((b) => b.quadrant === "Q1")!.count).toBe(1);
+    expect(quadrantBreakdown.find((b) => b.quadrant === "Q2")!.count).toBe(0);
+  });
+
+  it("q1Tasks matches the Q1 count in quadrantBreakdown", () => {
+    const entries = [
+      makeEntry({ quadrant: "Q1" }),
+      makeEntry({ quadrant: "Q1" }),
+      makeEntry({ quadrant: "Q2" }),
+    ];
+    const result = computeWeekStats(entries);
+    expect(result.q1Tasks).toBe(result.quadrantBreakdown.find((b) => b.quadrant === "Q1")!.count);
+  });
+});

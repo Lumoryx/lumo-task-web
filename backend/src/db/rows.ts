@@ -84,6 +84,9 @@ export interface SettingsRow {
   ai_configs: string | null;
   ai_cloud_used: number;
   ai_cloud_month: string;
+  morning_reminder_time: string;
+  evening_reminder_time: string;
+  due_alerts_enabled: number;
 }
 
 export interface FocusTaskRow {
@@ -95,4 +98,39 @@ export interface FocusTaskRow {
   title_en: string;
   title_zh: string | null;
   quadrant: string;
+}
+
+export interface HabitRow {
+  id: string;
+  user_id: string;
+  title: string;
+  emoji: string | null;
+  color: string;
+  frequency: string;
+  frequency_days: string | null;
+  frequency_times: number | null;
+  frequency_interval: number | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HabitLogRow {
+  habit_id: string;
+  user_id: string;
+  date: string;
+  completed_at: string;
+}
+
+export interface CountdownEventRow {
+  id: string;
+  user_id: string;
+  title: string;
+  date: string;
+  emoji: string | null;
+  color: string;
+  repeat: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
 }

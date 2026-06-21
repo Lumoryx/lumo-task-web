@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { TaskCreateBodySchema, TaskUpdateBodySchema, TaskWireSchema, type TaskWire, type TaskCompleteResponse } from "@lumo/contracts";
 import { nanoid } from "nanoid";
 import { query, queryOne, execute, batch } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -33,52 +34,17 @@ function calcNextDue(currentDue: string | null, recurrence: string): string | nu
   return d.toISOString().slice(0, 10);
 }
 
-const LocalizedString = z.object({
-  en: z.string().max(500),
-  zh: z.string().max(500).optional(),
-});
-
-const LongLocalizedString = z.object({
-  en: z.string().max(2000),
-  zh: z.string().max(2000).optional(),
-});
-
-const TaskCreateBody = z.object({
-  title: LocalizedString,
-  desc: LongLocalizedString.optional().nullable(),
-  quadrant: z.enum(["Q1", "Q2", "Q3", "Q4", "unclassified"]).default("unclassified"),
-  today: z.boolean().default(false),
-  due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  duration: z.number().int().min(0).max(1440).default(0),
-  pomos_total: z.number().int().default(0),
-  assignee_ids: z.array(z.string()).default([]),
-  conviction: z.number().nullable().optional(),
-  next_step: LongLocalizedString.optional().nullable(),
-  recurrence: z.enum(["none", "daily", "weekdays", "weekly", "monthly"]).default("none"),
-  reason: LongLocalizedString.optional().nullable(),
-  ai_suggest: z.string().nullable().optional(),
-  not_now: z.array(z.object({
-    id: z.string(),
-    reason: LocalizedString,
-  })).default([]),
-  subtasks: z.array(z.object({
-    id: z.string(),
-    title: z.string().max(500),
-    completed: z.boolean(),
-  })).default([]),
-  scheduled_start: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/).nullable().optional(),
-});
-
-const TaskUpdateBody = TaskCreateBody.partial();
-
 const IdParam = z.object({ id: z.string().min(1).max(50) });
 
 function safeParse<T>(raw: string | null | undefined, fallback: T): T {
   try { return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
 
-function rowToTask(row: TaskRow) {
-  return {
+// Validate the DB row → wire mapping against the contract on every read, so the
+// response is guaranteed conformant (writes always pass through the contract, so
+// this never throws for clean data; it surfaces drift instead of leaking it).
+function rowToTask(row: TaskRow): TaskWire {
+  return TaskWireSchema.parse({
     id: row.id,
     assignee_ids: safeParse<string[]>(row.assignee_ids, []),
     title: { en: row.title_en, ...(row.title_zh ? { zh: row.title_zh } : {}) },
@@ -94,13 +60,13 @@ function rowToTask(row: TaskRow) {
     reason: row.reason_en ? { en: row.reason_en, ...(row.reason_zh ? { zh: row.reason_zh } : {}) } : null,
     ai_suggest: row.ai_suggest ?? null,
     completed: Boolean(row.completed),
-    not_now: safeParse<any[]>(row.not_now_json, []),
+    not_now: safeParse<unknown[]>(row.not_now_json, []),
     recurrence: row.recurrence ?? "none",
-    subtasks: safeParse<any[]>(row.subtasks_json, []),
+    subtasks: safeParse<unknown[]>(row.subtasks_json, []),
     scheduled_start: row.scheduled_start ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
-  };
+  });
 }
 
 // GET /tasks
@@ -114,7 +80,7 @@ app.get("/", async (c) => {
 });
 
 // POST /tasks
-app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), async (c) => {
+app.post("/", taskMutateLimit, zValidator("json", TaskCreateBodySchema), async (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
   const id = "t_" + nanoid(10);
@@ -169,7 +135,7 @@ app.get("/:id", zValidator("param", IdParam), async (c) => {
 });
 
 // PATCH /tasks/:id
-app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("json", TaskUpdateBody), async (c) => {
+app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("json", TaskUpdateBodySchema), async (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
   const body = c.req.valid("json");
@@ -294,7 +260,8 @@ app.post("/:id/complete", zValidator("param", IdParam), async (c) => {
   }
 
   await batch(stmts);
-  return c.json({ ok: true, entry_id: entryId });
+  const body: TaskCompleteResponse = { ok: true, entry_id: entryId };
+  return c.json(body);
 });
 
 // POST /tasks/:id/uncomplete

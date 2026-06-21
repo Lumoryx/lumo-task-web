@@ -43,7 +43,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -58,7 +57,6 @@ describe("HabitCard", () => {
         habit={HABIT_WITH_EMOJI}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -74,7 +72,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={logs}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -91,7 +88,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={onCheckIn}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -101,22 +97,55 @@ describe("HabitCard", () => {
     expect(onCheckIn).toHaveBeenCalledOnce();
   });
 
-  it("calls onUndo when check button is clicked and already done today", () => {
-    const onUndo = vi.fn();
+  it("renders a non-interactive check indicator (not a button) when done today", () => {
+    const onCheckIn = vi.fn();
+    const logs = [log("h1", TODAY)];
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={logs}
+        onCheckIn={onCheckIn}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
+      />
+    );
+    // The interactive check button is absent when done
+    expect(screen.queryByLabelText("habit.done")).not.toBeInTheDocument();
+    // Clicking the title should not invoke onCheckIn
+    fireEvent.click(screen.getByText("Morning run"));
+    expect(onCheckIn).not.toHaveBeenCalled();
+  });
+
+  it("shows completed badge when done today", () => {
     const logs = [log("h1", TODAY)];
     render(
       <HabitCard
         habit={HABIT}
         logs={logs}
         onCheckIn={vi.fn()}
-        onUndo={onUndo}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByLabelText("habit.undo"));
-    expect(onUndo).toHaveBeenCalledOnce();
+    expect(screen.getByText("habit.checkin.already")).toBeInTheDocument();
+  });
+
+  it("applies strikethrough style to title when done today", () => {
+    const logs = [log("h1", TODAY)];
+    render(
+      <HabitCard
+        habit={HABIT}
+        logs={logs}
+        onCheckIn={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onShowCalendar={vi.fn()}
+      />
+    );
+    const title = screen.getByText("Morning run");
+    expect(title.className).toMatch(/line-through/);
   });
 
   it("calls onEdit when Edit menu item is clicked", () => {
@@ -126,7 +155,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={onEdit}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}
@@ -144,7 +172,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={onDelete}
         onShowCalendar={vi.fn()}
@@ -161,7 +188,6 @@ describe("HabitCard", () => {
         habit={HABIT}
         logs={[]}
         onCheckIn={vi.fn()}
-        onUndo={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
         onShowCalendar={vi.fn()}

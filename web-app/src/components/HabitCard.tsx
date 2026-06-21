@@ -2,34 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { IconCalendar, IconCheck, IconMore } from "@/components/icons";
 import { useT } from "@/i18n/useT";
 import type { Habit, HabitLog } from "@/types/task";
-import { currentStreak, isCompletedToday, longestStreak } from "@/utils/habits";
-
-const COLOR_MAP: Record<string, string> = {
-  green:  "var(--status-success)",
-  cyan:   "var(--accent-primary)",
-  amber:  "var(--status-warning)",
-  red:    "var(--status-danger)",
-  purple: "#a78bfa",
-};
+import { currentStreak, habitColor, isCompletedToday, longestStreak } from "@/utils/habits";
 
 interface Props {
   habit: Habit;
   logs: HabitLog[];
   onCheckIn: () => void;
-  onUndo: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onShowCalendar: () => void;
 }
 
-export function HabitCard({ habit, logs, onCheckIn, onUndo, onEdit, onDelete, onShowCalendar }: Props) {
+export function HabitCard({ habit, logs, onCheckIn, onEdit, onDelete, onShowCalendar }: Props) {
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const done = isCompletedToday(habit, logs);
   const streak = currentStreak(habit, logs);
   const best = longestStreak(habit, logs);
-  const color = COLOR_MAP[habit.color] ?? COLOR_MAP.green;
+  const color = habitColor(habit);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -42,46 +33,57 @@ export function HabitCard({ habit, logs, onCheckIn, onUndo, onEdit, onDelete, on
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [menuOpen]);
 
-  function handleCheckClick() {
-    if (done) {
-      onUndo();
-    } else {
-      onCheckIn();
-    }
-  }
-
   return (
     <div
       className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-border-faint transition-all"
-      style={{ borderLeft: `3px solid ${color}` }}
+      style={{
+        borderLeft: `3px solid ${color}`,
+        ...(done ? { background: `${color}0a` } : {}),
+      }}
     >
-      {/* Check button */}
-      <button
-        onClick={handleCheckClick}
-        aria-label={done ? t("habit.undo") : t("habit.done")}
-        className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors"
-        style={{
-          borderColor: done ? color : "var(--border-faint)",
-          background: done ? color : "transparent",
-          color: done ? "var(--text-inverse)" : "var(--text-muted)",
-        }}
-      >
-        {done && <IconCheck size={14} />}
-      </button>
+      {/* Check button — static when done (no undo) */}
+      {done ? (
+        <div
+          aria-hidden="true"
+          className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2"
+          style={{
+            borderColor: color,
+            background: color,
+            color: "var(--text-inverse)",
+          }}
+        >
+          <IconCheck size={14} />
+        </div>
+      ) : (
+        <button
+          onClick={onCheckIn}
+          aria-label={t("habit.done")}
+          className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors hover:border-current"
+          style={{
+            borderColor: "var(--border-faint)",
+            background: "transparent",
+            color: "var(--text-muted)",
+          }}
+        />
+      )}
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           {habit.emoji && (
-            <span className="text-base leading-none">{habit.emoji}</span>
+            <span className={`text-base leading-none${done ? " opacity-70" : ""}`}>{habit.emoji}</span>
           )}
-          <span className="font-medium text-text-primary truncate">{habit.title}</span>
+          <span
+            className={`font-medium truncate${done ? " text-text-muted line-through decoration-1" : " text-text-primary"}`}
+          >
+            {habit.title}
+          </span>
         </div>
         <div className="flex items-center gap-3 mt-0.5">
           {done ? (
             <span
-              className="text-[11px] font-medium px-1.5 py-0.5 rounded-md"
-              style={{ background: `${color}22`, color }}
+              className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+              style={{ background: `${color}28`, color }}
             >
               {t("habit.checkin.already")}
             </span>
@@ -149,14 +151,6 @@ export function HabitCard({ habit, logs, onCheckIn, onUndo, onEdit, onDelete, on
           </div>
         )}
       </div>
-
-      {/* Done overlay glow */}
-      {done && (
-        <div
-          className="absolute inset-0 rounded-xl pointer-events-none"
-          style={{ background: `${color}08` }}
-        />
-      )}
     </div>
   );
 }

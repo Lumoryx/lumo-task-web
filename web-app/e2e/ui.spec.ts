@@ -155,12 +155,12 @@ const MOCK_TASKS = [
   },
 ];
 
-const _MOCK_HABITS = [
+const MOCK_HABITS = [
   { id: "h1", title: "Morning exercise", frequency: "daily", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
   { id: "h2", title: "Read 30 minutes", frequency: "daily", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
 
-const _MOCK_COUNTDOWNS = [
+const MOCK_COUNTDOWNS = [
   { id: "c1", title: "Product launch", date: "2026-12-01", repeat: "none", color: "green", createdAt: "2026-01-01T00:00:00.000Z" },
   { id: "c2", title: "Team offsite", date: "2026-08-15", repeat: "yearly", color: "cyan", createdAt: "2026-01-01T00:00:00.000Z" },
 ];
@@ -294,16 +294,37 @@ async function mockAPIWithData(page: Page) {
       });
     }
 
-    // Habits (localStorage-based — HTTP routes not used, but catch any calls)
+    // Habits
+    if (method === "POST" && url.includes("/v1/habits/migrate")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, migrated: 2 }),
+      });
+    }
+    if (url.includes("/v1/habits/logs")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+    }
     if (url.includes("/v1/habits")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({}),
+        body: JSON.stringify(MOCK_HABITS),
       });
     }
 
     // Countdowns
+    if (method === "POST" && url.includes("/v1/countdowns/migrate")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, migrated: 2 }),
+      });
+    }
     if (method === "POST" && url.includes("/v1/countdowns")) {
       return route.fulfill({
         status: 201,
@@ -321,7 +342,7 @@ async function mockAPIWithData(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({}),
+        body: JSON.stringify(MOCK_COUNTDOWNS),
       });
     }
 
@@ -945,11 +966,11 @@ test("TC56 – Habits: 'Add' button opens habit creation modal", async ({ page }
   await mockAPIWithData(page);
   await page.goto("/#/habits");
   await expect(page.getByText("Habits").first()).toBeVisible({ timeout: 8_000 });
-  await page.getByRole("button", { name: /add/i }).first().click();
-  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10_000 });
-  const cancelBtn = page.getByRole("button", { name: /cancel/i });
-  if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await cancelBtn.click();
+  await page.getByRole("button", { name: /new habit/i }).first().click();
+  await expect(page.locator('[role="dialog"] input').first()).toBeVisible({ timeout: 10_000 });
+  const closeBtn = page.getByRole("button", { name: /close/i });
+  if (await closeBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await closeBtn.click();
   } else {
     await page.keyboard.press("Escape");
   }
@@ -982,7 +1003,7 @@ test("TC59 – Stats: 'This week' section renders when signed in", async ({ page
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/stats");
-  await expect(page.getByText(/this week/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("heading", { name: "This Week", exact: true })).toBeVisible({ timeout: 8_000 });
 });
 
 test("TC60 – Stats: 'All time' section renders", async ({ page }) => {
@@ -996,7 +1017,7 @@ test("TC61 – Stats: Tasks, Focus, and Streak stat cards are visible", async ({
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/stats");
-  await expect(page.getByText(/this week/i)).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("heading", { name: "This Week", exact: true })).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText(/tasks/i).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/focus|hours/i).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/streak/i).first()).toBeVisible({ timeout: 10_000 });
@@ -1029,11 +1050,11 @@ test("TC64 – Countdown: 'Add' button opens creation modal", async ({ page }) =
   await mockAPIWithData(page);
   await page.goto("/#/countdown");
   await expect(page.getByText(/countdown/i).first()).toBeVisible({ timeout: 8_000 });
-  await page.getByRole("button", { name: /add/i }).first().click();
-  await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 10_000 });
-  const cancelBtn = page.getByRole("button", { name: /cancel/i });
-  if (await cancelBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await cancelBtn.click();
+  await page.getByRole("button", { name: /new event/i }).first().click();
+  await expect(page.locator('[role="dialog"] input').first()).toBeVisible({ timeout: 10_000 });
+  const closeBtn = page.getByRole("button", { name: /close/i });
+  if (await closeBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await closeBtn.click();
   } else {
     await page.keyboard.press("Escape");
   }

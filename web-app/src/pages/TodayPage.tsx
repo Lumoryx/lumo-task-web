@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CompletedTimeline } from "@/components/CompletedTimeline";
+import { EveningReviewModal } from "@/components/EveningReviewModal";
+import { MorningPlanningModal } from "@/components/MorningPlanningModal";
 import { TaskRow } from "@/components/TaskRow";
 import { IconArrowRight } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
@@ -8,8 +10,28 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { fmtDuration } from "@/lib/format";
+import { fmtDuration, toISODate } from "@/lib/format";
 import type { Locale, Task } from "@/types/task";
+
+function getPlanningDoneDate(): string | null {
+  try {
+    return localStorage.getItem("lumo.planning_done_date");
+  } catch {
+    return null;
+  }
+}
+
+function isTodayPlanned(): boolean {
+  return getPlanningDoneDate() === toISODate(new Date());
+}
+
+function isEveningReviewDone(): boolean {
+  try {
+    return localStorage.getItem("lumo.evening_review_done_date") === toISODate(new Date());
+  } catch {
+    return false;
+  }
+}
 
 const Q_PRIORITY: Record<Task["quadrant"], number> = {
   Q1: 0, Q2: 1, Q3: 2, Q4: 3, unclassified: 4,
@@ -449,6 +471,75 @@ function AllDoneBanner() {
   );
 }
 
+// ─── Planning Banner ────────────────────────────────────────────────────────
+
+function PlanningBanner({ onOpen, planned }: { onOpen: () => void; planned: boolean }) {
+  const t = useT();
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left rounded-xl mb-6"
+      style={{
+        padding: "12px 16px",
+        border: "1px solid var(--accent-edge)",
+        background: planned
+          ? "var(--bg-surface)"
+          : "linear-gradient(135deg, var(--accent-fog) 0%, var(--bg-surface) 70%)",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        cursor: "pointer",
+        minHeight: 52,
+        transition: "opacity 0.15s",
+      }}
+    >
+      <div className="lumo-glyph flex-shrink-0" style={{ width: 18, height: 18 }}>
+        <div className="halo" />
+        <div className="core" />
+      </div>
+      <span
+        className="text-sm font-medium"
+        style={{ color: planned ? "var(--text-secondary)" : "var(--accent-primary)", flex: 1 }}
+      >
+        {planned ? t("today.planning.btn.adjust") : t("today.planning.btn.start")}
+      </span>
+      <span style={{ color: "var(--text-faint)", fontSize: 14 }}>›</span>
+    </button>
+  );
+}
+
+// ─── Evening Review Banner ──────────────────────────────────────────────────
+
+function EveningReviewBanner({ onOpen, done }: { onOpen: () => void; done: boolean }) {
+  const t = useT();
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left rounded-xl mb-6"
+      style={{
+        padding: "12px 16px",
+        border: "1px solid var(--border-faint)",
+        background: done ? "var(--bg-surface)" : "var(--bg-deep)",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        cursor: "pointer",
+        minHeight: 52,
+        transition: "opacity 0.15s",
+      }}
+    >
+      <span style={{ fontSize: 16, flexShrink: 0 }}>🌙</span>
+      <span
+        className="text-sm font-medium"
+        style={{ color: done ? "var(--text-faint)" : "var(--text-secondary)", flex: 1 }}
+      >
+        {done ? t("today.evening.btn.done") : t("today.evening.btn.start")}
+      </span>
+      <span style={{ color: "var(--text-faint)", fontSize: 14 }}>›</span>
+    </button>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export function TodayPage() {
@@ -457,6 +548,20 @@ export function TodayPage() {
   const tasks = useTasksStore((s) => s.tasks);
   const completed = useTasksStore((s) => s.completed);
   const loading = useTasksStore((s) => s.loading);
+  const [planningOpen, setPlanningOpen] = useState(false);
+  const [planned, setPlanned] = useState(isTodayPlanned);
+  const [eveningOpen, setEveningOpen] = useState(false);
+  const [eveningDone, setEveningDone] = useState(isEveningReviewDone);
+
+  function handlePlanningClose() {
+    setPlanningOpen(false);
+    setPlanned(isTodayPlanned());
+  }
+
+  function handleEveningClose() {
+    setEveningOpen(false);
+    setEveningDone(isEveningReviewDone());
+  }
 
   if (loading && tasks.length === 0) {
     return <div className="p-8 text-text-muted text-sm">Loading…</div>;
@@ -479,11 +584,27 @@ export function TodayPage() {
     tasks.filter((x) => x.today && !x.completed).length === 0 && completed.length > 0;
 
   if (!top && completed.length === 0) {
-    return <TodayEmptyState />;
+    return (
+      <>
+        <div className="px-4 sm:px-7 pt-6 sm:pt-7">
+          <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+          <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
+        </div>
+        <TodayEmptyState />
+        {planningOpen && <MorningPlanningModal onClose={handlePlanningClose} />}
+        {eveningOpen && <EveningReviewModal onClose={handleEveningClose} />}
+      </>
+    );
   }
 
   return (
     <div className="fade-in px-4 sm:px-7 py-6 sm:py-7">
+      {/* Morning planning banner — always visible */}
+      <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+
+      {/* Evening review banner — always visible */}
+      <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
+
       {!top && completed.length > 0 && (
         <AllDoneBanner />
       )}
@@ -519,6 +640,9 @@ export function TodayPage() {
       {completed.length > 0 && (
         <CompletedTimeline entries={completed} locale={locale} />
       )}
+
+      {planningOpen && <MorningPlanningModal onClose={handlePlanningClose} />}
+      {eveningOpen && <EveningReviewModal onClose={handleEveningClose} />}
     </div>
   );
 }

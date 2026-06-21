@@ -4,9 +4,22 @@ import type { CountdownColor, CountdownEvent, CountdownRepeat } from "@/types/ta
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
 
+function migrationKey(userId: string) {
+  return `lumo.countdowns.migrated.v1.${userId}`;
+}
+
+function readLocalCountdowns(userId: string): CountdownEvent[] {
+  try {
+    const raw = localStorage.getItem(`lumo.countdowns.v1.${userId}`);
+    return raw ? (JSON.parse(raw) as CountdownEvent[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 interface CountdownState {
   events: CountdownEvent[];
-  load: (userId: string) => void;
+  load: (userId: string) => Promise<void>;
   clear: () => void;
   create: (userId: string, input: {
     title: string;
@@ -15,18 +28,50 @@ interface CountdownState {
     color: CountdownColor;
     repeat: CountdownRepeat;
     note?: string;
-  }) => CountdownEvent;
-  update: (userId: string, id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>) => void;
-  remove: (userId: string, id: string) => void;
+  }) => Promise<CountdownEvent>;
+  update: (userId: string, id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>) => Promise<void>;
+  remove: (userId: string, id: string) => Promise<void>;
 }
 
 export const useCountdownStore = create<CountdownState>((set) => ({
   events: [],
 
-  load(userId) {
+  async load(userId) {
     if (userId === "local") { set({ events: [] }); return; }
+
+    // One-time migration from localStorage → server
+    let migrationFailed = false;
+    if (!localStorage.getItem(migrationKey(userId))) {
+      const oldEvents = readLocalCountdowns(userId);
+      if (oldEvents.length === 0) {
+        // Nothing to migrate — mark done, skip the round-trip
+        localStorage.setItem(migrationKey(userId), "1");
+      } else {
+        try {
+          await countdownApi.migrate(userId, oldEvents);
+          localStorage.setItem(migrationKey(userId), "1");
+          localStorage.removeItem(`lumo.countdowns.v1.${userId}`);
+        } catch {
+          // Keep localStorage data intact — will retry on next load
+          migrationFailed = true;
+        }
+      }
+    }
+
     try {
-      set({ events: countdownApi.list(userId) });
+      const events = await countdownApi.list(userId);
+      // If migration never persisted and the server has nothing yet, show the
+      // un-migrated local data rather than a misleading empty list (never
+      // silently drop the user's data from the UI).
+      if (migrationFailed && events.length === 0) {
+        const localEvents = readLocalCountdowns(userId);
+        if (localEvents.length > 0) {
+          set({ events: localEvents });
+          toast.error(t("countdown.error.load"));
+          return;
+        }
+      }
+      set({ events });
     } catch (e) {
       toast.error(t("countdown.error.load"), e instanceof Error ? e.message : String(e));
     }
@@ -36,9 +81,9 @@ export const useCountdownStore = create<CountdownState>((set) => ({
     set({ events: [] });
   },
 
-  create(userId, input) {
+  async create(userId, input) {
     try {
-      const event = countdownApi.create(userId, input);
+      const event = await countdownApi.create(userId, input);
       set((s) => ({ events: [...s.events, event] }));
       return event;
     } catch (e) {
@@ -47,18 +92,18 @@ export const useCountdownStore = create<CountdownState>((set) => ({
     }
   },
 
-  update(userId, id, patch) {
+  async update(userId, id, patch) {
     try {
-      const updated = countdownApi.update(userId, id, patch);
+      const updated = await countdownApi.update(userId, id, patch);
       set((s) => ({ events: s.events.map((e) => (e.id === id ? updated : e)) }));
     } catch (e) {
       toast.error(t("countdown.error.update"), e instanceof Error ? e.message : String(e));
     }
   },
 
-  remove(userId, id) {
+  async remove(userId, id) {
     try {
-      countdownApi.delete(userId, id);
+      await countdownApi.delete(userId, id);
       set((s) => ({ events: s.events.filter((e) => e.id !== id) }));
       toast.success(t("countdown.deleted"));
     } catch (e) {

@@ -12,6 +12,8 @@ import outlookRoutes from "./routes/outlook.js";
 import storageRoutes from "./routes/storage.js";
 import syncRoutes from "./routes/sync.js";
 import docsRoutes from "./routes/docs.js";
+import habitsRoutes from "./routes/habits.js";
+import countdownsRoutes from "./routes/countdowns.js";
 
 const allowedOrigins = (process.env.LUMO_ALLOWED_ORIGINS ?? "")
   .split(",")
@@ -52,6 +54,8 @@ v1.route("/ai", aiRoutes);
 v1.route("/outlook", outlookRoutes);
 v1.route("/storage", storageRoutes);
 v1.route("/sync", syncRoutes);
+v1.route("/habits", habitsRoutes);
+v1.route("/countdowns", countdownsRoutes);
 
 app.route("/v1", v1);
 app.route("/docs", docsRoutes);

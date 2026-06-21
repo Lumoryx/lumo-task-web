@@ -9,7 +9,7 @@
 
 import { create } from "zustand";
 import { api } from "@/api/client";
-import type { CompletedEntry, Subtask, Task } from "@/types/task";
+import type { CompletedEntry, Subtask, Task, TaskCompleteResponse, TaskCreateInput, TaskUpdateInput } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
 import { usePetStore } from "@/store/usePetStore";
@@ -26,9 +26,9 @@ interface TasksState {
   // actions
   load: () => Promise<void>;
   clear: () => void;
-  create: (input: Omit<Task, "id">) => Promise<Task>;
-  update: (id: string, patch: Partial<Task>) => Promise<void>;
-  complete: (id: string) => Promise<void>;
+  create: (input: TaskCreateInput) => Promise<Task>;
+  update: (id: string, patch: TaskUpdateInput) => Promise<void>;
+  complete: (id: string) => Promise<TaskCompleteResponse>;
   reopen: (logId: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   reset: () => Promise<void>;
@@ -38,6 +38,7 @@ interface TasksState {
   addSubtask: (taskId: string, title: string) => Promise<void>;
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
+  breakdownSubtasks: (taskId: string, locale?: string) => Promise<{ subtasks: string[]; cloudLimitReached: boolean }>;
 }
 
 export const useTasksStore = create<TasksState>((set, get) => ({
@@ -91,13 +92,14 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   async complete(id) {
     try {
       const completingTask = get().tasks.find((tk) => tk.id === id);
-      await api.completeTask(id);
+      const result = await api.completeTask(id);
       const [tasks, completed] = await Promise.all([api.listTasks(), api.listCompletedToday()]);
       set({ tasks, completed });
       if (completingTask?.quadrant === "Q1") {
         usePetStore.getState().celebrate("pet.celebrate.q1");
       }
       useDogStore.getState().addXP(XP_PER_TASK);
+      return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(t("error.task.complete"), msg);
@@ -187,5 +189,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       set({ tasks: get().tasks.map((tk) => tk.id === taskId ? task : tk) });
       throw e;
     }
+  },
+
+  async breakdownSubtasks(taskId, locale) {
+    return api.breakdownSubtasks(taskId, locale);
   },
 }));

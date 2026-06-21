@@ -39,8 +39,8 @@ export function AIClassifyModal({ onClose }: AIClassifyModalProps) {
     const m: Record<string, Quadrant> = {};
     candidates.forEach((task) => {
       m[task.id] = task.quadrant === "unclassified"
-        ? ((task.ai_suggest as Quadrant) ?? "Q2")
-        : (task.quadrant as Quadrant);
+        ? (task.ai_suggest ?? "Q2")
+        : task.quadrant;
     });
     return m;
   });

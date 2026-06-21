@@ -26,6 +26,15 @@ jobs:
         with:
           node-version: '22'
 
+      # ── Shared contract ────────────────────────────────────────────────────
+      # @lumo/contracts (file: dependency) must be built before backend/frontend
+      # resolve its types. (It is bundled into backend/dist by esbuild, so it is
+      # not needed inside the packaged Electron app at runtime.)
+      - name: Build shared contracts (@lumo/contracts)
+        run: npm ci && npm run build
+        working-directory: packages/contracts
+        shell: bash
+
       # ── Backend ────────────────────────────────────────────────────────────
       - name: Install backend deps
         run: npm ci --include=dev

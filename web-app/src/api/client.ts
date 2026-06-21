@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, User } from "@/types/task";
+import type { AppSettings, BreakdownResponse, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, TaskCreateInput, TaskUpdateInput, TaskCompleteResponse, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -29,11 +29,15 @@ async function getBase(): Promise<string> {
 
 const TOKEN_KEY = "lumo.token";
 
+// Prevents concurrent 401s from firing multiple lumo:session-expired events.
+let sessionExpiredNotified = false;
+
 function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
 function setToken(token: string) {
+  sessionExpiredNotified = false;
   localStorage.setItem(TOKEN_KEY, token);
 }
 
@@ -66,6 +70,14 @@ async function req<T>(
   }
 
   if (!res.ok) {
+    // 401 with a token present (not during login/register) means session expired.
+    // Guard token && to avoid mis-firing on wrong-password 401s at the login page.
+    // Deduplicate concurrent 401s so only one event + one toast reaches the user.
+    if (res.status === 401 && token && path !== "/auth/signout" && !sessionExpiredNotified) {
+      sessionExpiredNotified = true;
+      clearToken();
+      window.dispatchEvent(new Event("lumo:session-expired"));
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     const errBody = (err as any).error;
     const errMsg =
@@ -222,7 +234,11 @@ export const api = {
     return req("POST", "/ai/parse", { text, locale });
   },
 
-  async createTask(input: Omit<Task, "id">): Promise<Task> {
+  async breakdownSubtasks(taskId: string, locale?: string): Promise<BreakdownResponse> {
+    return req("POST", "/ai/breakdown", { taskId, locale });
+  },
+
+  async createTask(input: TaskCreateInput): Promise<Task> {
     const raw = await req<any>("POST", "/tasks", {
       title: input.title,
       desc: input.desc ?? null,
@@ -244,7 +260,7 @@ export const api = {
     return adaptTask(raw);
   },
 
-  async updateTask(id: string, patch: Partial<Task>): Promise<Task> {
+  async updateTask(id: string, patch: TaskUpdateInput): Promise<Task> {
     const raw = await req<any>("PATCH", `/tasks/${id}`, {
       ...(patch.title !== undefined && { title: patch.title }),
       ...(patch.desc !== undefined && { desc: patch.desc }),
@@ -266,8 +282,8 @@ export const api = {
     return adaptTask(raw);
   },
 
-  async completeTask(id: string): Promise<void> {
-    await req("POST", `/tasks/${id}/complete`);
+  async completeTask(id: string): Promise<TaskCompleteResponse> {
+    return req<TaskCompleteResponse>("POST", `/tasks/${id}/complete`);
   },
 
   async uncompleteTask(logId: string): Promise<void> {
@@ -311,6 +327,10 @@ export const api = {
     density?: string;
     reduced_motion?: boolean;
     ai_enabled?: boolean;
+    notifications_enabled?: boolean;
+    morning_reminder_time?: string | null;
+    evening_reminder_time?: string | null;
+    due_alerts_enabled?: boolean;
     onboarding_complete?: boolean;
     ai_provider?: "openai" | "deepseek" | "claude" | "custom";
     ai_configs_update?: {
@@ -370,138 +390,171 @@ export const api = {
   },
 };
 
-// ── Countdown localStorage API ────────────────────────────────────────────────
+export type ApiClient = typeof api;
 
-function cdKey(userId: string) {
-  return `lumo.countdowns.v1.${userId}`;
+// ── Adapter helpers ───────────────────────────────────────────────────────────
+
+function adaptHabit(raw: any): Habit {
+  return {
+    id: raw.id,
+    title: raw.title,
+    emoji: raw.emoji ?? undefined,
+    color: raw.color,
+    frequency: raw.frequency,
+    frequencyDays: raw.frequencyDays ?? undefined,
+    frequencyTimes: raw.frequencyTimes ?? undefined,
+    frequencyInterval: raw.frequencyInterval ?? undefined,
+    note: raw.note ?? undefined,
+    createdAt: raw.createdAt,
+  };
 }
 
-function cdLoad(userId: string): CountdownEvent[] {
-  if (userId === "local") return [];
-  const raw = localStorage.getItem(cdKey(userId));
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as CountdownEvent[];
-  } catch {
-    return [];
-  }
+function adaptHabitLog(raw: any): HabitLog {
+  return {
+    habitId: raw.habitId,
+    date: raw.date,
+    completedAt: raw.completedAt,
+  };
 }
 
-function cdSave(userId: string, items: CountdownEvent[]) {
-  localStorage.setItem(cdKey(userId), JSON.stringify(items));
+function adaptCountdownEvent(raw: any): CountdownEvent {
+  return {
+    id: raw.id,
+    title: raw.title,
+    date: raw.date,
+    emoji: raw.emoji ?? undefined,
+    color: raw.color,
+    repeat: raw.repeat,
+    note: raw.note ?? undefined,
+    createdAt: raw.createdAt,
+  };
 }
 
-export const countdownApi = {
-  list(userId: string): CountdownEvent[] {
-    return cdLoad(userId);
+// ── Habits REST API ───────────────────────────────────────────────────────────
+
+export const habitApi = {
+  async listHabits(_userId: string): Promise<Habit[]> {
+    const rows = await req<any[]>("GET", "/habits");
+    return rows.map(adaptHabit);
   },
 
-  create(userId: string, input: Omit<CountdownEvent, "id" | "createdAt">): CountdownEvent {
-    const items = cdLoad(userId);
-    const event: CountdownEvent = {
-      ...input,
-      id: `cd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      createdAt: new Date().toISOString(),
-    };
-    cdSave(userId, [...items, event]);
-    return event;
+  async listLogs(_userId: string): Promise<HabitLog[]> {
+    const rows = await req<any[]>("GET", "/habits/logs");
+    return rows.map(adaptHabitLog);
   },
 
-  update(userId: string, id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>): CountdownEvent {
-    const items = cdLoad(userId);
-    const idx = items.findIndex((e) => e.id === id);
-    if (idx < 0) throw new Error("Countdown not found");
-    const updated = { ...items[idx], ...patch };
-    items[idx] = updated;
-    cdSave(userId, items);
-    return updated;
+  async createHabit(_userId: string, input: Omit<Habit, "id" | "createdAt">): Promise<Habit> {
+    const raw = await req<any>("POST", "/habits", {
+      title: input.title,
+      emoji: input.emoji ?? null,
+      color: input.color,
+      frequency: input.frequency,
+      frequencyDays: input.frequencyDays ?? null,
+      frequencyTimes: input.frequencyTimes ?? null,
+      frequencyInterval: input.frequencyInterval ?? null,
+      note: input.note ?? null,
+    });
+    return adaptHabit(raw);
   },
 
-  delete(userId: string, id: string): void {
-    cdSave(userId, cdLoad(userId).filter((e) => e.id !== id));
+  async updateHabit(_userId: string, id: string, patch: Partial<Omit<Habit, "id" | "createdAt">>): Promise<Habit> {
+    const raw = await req<any>("PATCH", `/habits/${id}`, {
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...("emoji" in patch && { emoji: patch.emoji ?? null }),
+      ...(patch.color !== undefined && { color: patch.color }),
+      ...(patch.frequency !== undefined && { frequency: patch.frequency }),
+      ...("frequencyDays" in patch && { frequencyDays: patch.frequencyDays ?? null }),
+      ...("frequencyTimes" in patch && { frequencyTimes: patch.frequencyTimes ?? null }),
+      ...("frequencyInterval" in patch && { frequencyInterval: patch.frequencyInterval ?? null }),
+      ...("note" in patch && { note: patch.note ?? null }),
+    });
+    return adaptHabit(raw);
+  },
+
+  async deleteHabit(_userId: string, id: string): Promise<void> {
+    await req<void>("DELETE", `/habits/${id}`);
+  },
+
+  async logHabit(_userId: string, habitId: string, date: string): Promise<HabitLog> {
+    const raw = await req<any>("POST", `/habits/${habitId}/log`, { date });
+    return adaptHabitLog(raw);
+  },
+
+  async unlogHabit(_userId: string, habitId: string, date: string): Promise<void> {
+    await req<void>("DELETE", `/habits/${habitId}/log/${date}`);
+  },
+
+  async migrate(_userId: string, habits: Habit[], logs: HabitLog[]): Promise<void> {
+    await req<void>("POST", "/habits/migrate", {
+      habits: habits.map((h) => ({
+        id: h.id,
+        title: h.title,
+        emoji: h.emoji ?? null,
+        color: h.color,
+        frequency: h.frequency,
+        frequencyDays: h.frequencyDays ?? null,
+        frequencyTimes: h.frequencyTimes ?? null,
+        frequencyInterval: h.frequencyInterval ?? null,
+        note: h.note ?? null,
+        createdAt: h.createdAt,
+      })),
+      logs: logs.map((l) => ({
+        habitId: l.habitId,
+        date: l.date,
+        completedAt: l.completedAt,
+      })),
+    });
   },
 };
 
-export type ApiClient = typeof api;
+// ── Countdown REST API ────────────────────────────────────────────────────────
 
-// ── Habits localStorage API ───────────────────────────────────────────────────
-
-function habitsKey(userId: string) {
-  return `lumo.habits.v1.${userId}`;
-}
-
-function logsKey(userId: string) {
-  return `lumo.habit-logs.v1.${userId}`;
-}
-
-function habitsLoad(userId: string): Habit[] {
-  if (userId === "local") return [];
-  const raw = localStorage.getItem(habitsKey(userId));
-  if (!raw) return [];
-  try { return JSON.parse(raw) as Habit[]; } catch { return []; }
-}
-
-function logsLoad(userId: string): HabitLog[] {
-  if (userId === "local") return [];
-  const raw = localStorage.getItem(logsKey(userId));
-  if (!raw) return [];
-  try { return JSON.parse(raw) as HabitLog[]; } catch { return []; }
-}
-
-function habitsSave(userId: string, items: Habit[]) {
-  localStorage.setItem(habitsKey(userId), JSON.stringify(items));
-}
-
-function logsSave(userId: string, items: HabitLog[]) {
-  localStorage.setItem(logsKey(userId), JSON.stringify(items));
-}
-
-export const habitApi = {
-  listHabits(userId: string): Habit[] {
-    return habitsLoad(userId);
+export const countdownApi = {
+  async list(_userId: string): Promise<CountdownEvent[]> {
+    const rows = await req<any[]>("GET", "/countdowns");
+    return rows.map(adaptCountdownEvent);
   },
 
-  listLogs(userId: string): HabitLog[] {
-    return logsLoad(userId);
+  async create(_userId: string, input: Omit<CountdownEvent, "id" | "createdAt">): Promise<CountdownEvent> {
+    const raw = await req<any>("POST", "/countdowns", {
+      title: input.title,
+      date: input.date,
+      emoji: input.emoji ?? null,
+      color: input.color,
+      repeat: input.repeat,
+      note: input.note ?? null,
+    });
+    return adaptCountdownEvent(raw);
   },
 
-  createHabit(userId: string, input: Omit<Habit, "id" | "createdAt">): Habit {
-    const habits = habitsLoad(userId);
-    const habit: Habit = {
-      ...input,
-      id: `habit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      createdAt: new Date().toISOString(),
-    };
-    habitsSave(userId, [...habits, habit]);
-    return habit;
+  async update(_userId: string, id: string, patch: Partial<Omit<CountdownEvent, "id" | "createdAt">>): Promise<CountdownEvent> {
+    const raw = await req<any>("PATCH", `/countdowns/${id}`, {
+      ...(patch.title !== undefined && { title: patch.title }),
+      ...(patch.date !== undefined && { date: patch.date }),
+      ...("emoji" in patch && { emoji: patch.emoji ?? null }),
+      ...(patch.color !== undefined && { color: patch.color }),
+      ...(patch.repeat !== undefined && { repeat: patch.repeat }),
+      ...("note" in patch && { note: patch.note ?? null }),
+    });
+    return adaptCountdownEvent(raw);
   },
 
-  updateHabit(userId: string, id: string, patch: Partial<Omit<Habit, "id" | "createdAt">>): Habit {
-    const habits = habitsLoad(userId);
-    const idx = habits.findIndex((h) => h.id === id);
-    if (idx < 0) throw new Error("Habit not found");
-    const updated = { ...habits[idx], ...patch };
-    habits[idx] = updated;
-    habitsSave(userId, habits);
-    return updated;
+  async delete(_userId: string, id: string): Promise<void> {
+    await req<void>("DELETE", `/countdowns/${id}`);
   },
 
-  deleteHabit(userId: string, id: string): void {
-    habitsSave(userId, habitsLoad(userId).filter((h) => h.id !== id));
-    // Also remove all logs for this habit
-    logsSave(userId, logsLoad(userId).filter((l) => l.habitId !== id));
-  },
-
-  logHabit(userId: string, habitId: string, date: string): HabitLog {
-    const logs = logsLoad(userId);
-    const existing = logs.find((l) => l.habitId === habitId && l.date === date);
-    if (existing) return existing;
-    const log: HabitLog = { habitId, date, completedAt: new Date().toISOString() };
-    logsSave(userId, [...logs, log]);
-    return log;
-  },
-
-  unlogHabit(userId: string, habitId: string, date: string): void {
-    logsSave(userId, logsLoad(userId).filter((l) => !(l.habitId === habitId && l.date === date)));
+  async migrate(_userId: string, events: CountdownEvent[]): Promise<void> {
+    await req<void>("POST", "/countdowns/migrate", {
+      events: events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        emoji: e.emoji ?? null,
+        color: e.color,
+        repeat: e.repeat,
+        note: e.note ?? null,
+        createdAt: e.createdAt,
+      })),
+    });
   },
 };
