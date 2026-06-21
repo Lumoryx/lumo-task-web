@@ -74,7 +74,7 @@ export const TaskWireSchema = z.object({
   desc: LongLocalizedStringSchema.nullable(),
   quadrant: QuadrantSchema,
   today: z.boolean(),
-  due: z.string().nullable(),
+  due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   duration: z.number(),
   pomos_done: z.number(),
   pomos_total: z.number(),
@@ -129,7 +129,7 @@ export interface Task {
   quadrant: Quadrant;
   /** Whether the task is included in today's plan. */
   today: boolean;
-  /** ISO-ish loose due descriptor — e.g. "today", "Fri", "next wk", "Aug 14". */
+  /** ISO date (YYYY-MM-DD) or null if no due date is set. */
   due: string | null;
   /** Estimated minutes. */
   duration: number;

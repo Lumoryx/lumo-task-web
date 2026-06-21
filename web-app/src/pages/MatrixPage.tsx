@@ -4,7 +4,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { useT, useLocaleString } from "@/i18n/useT";
 import type { Quadrant, Task } from "@/types/task";
 import { useAppStore } from "@/store/useAppStore";
-import { fmtDuration, getDueLabel } from "@/lib/format";
+import { fmtDuration, formatDue, isOverdue, isDueToday } from "@/lib/format";
 import { IconArrowRight, IconCheck, IconMore, IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
@@ -305,7 +305,9 @@ function MatrixTaskCard({ task }: { task: Task }) {
   const moreRef = useRef<HTMLButtonElement>(null);
 
   const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
-  const due = getDueLabel(task.due, locale);
+  const due = formatDue(task.due, locale);
+  const overdue = isOverdue(task.due);
+  const dueToday = isDueToday(task.due);
 
   return (
     <>
@@ -349,7 +351,13 @@ function MatrixTaskCard({ task }: { task: Task }) {
             {ls(task.title)}
           </div>
           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-text-muted tabular-nums">
-            {due && <span>{due}</span>}
+            {due && (
+              <span style={{
+                color: overdue ? "var(--status-urgent)" : dueToday ? "var(--accent-primary)" : undefined,
+              }}>
+                {due}
+              </span>
+            )}
             {task.duration > 0 && <span>{fmtDuration(task.duration, locale)}</span>}
             <span className="pip">
               {Array.from({ length: task.pomos_total }).map((_, i) => (

@@ -10,7 +10,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { fmtDuration, toISODate } from "@/lib/format";
+import { fmtDuration, formatDue, isOverdue, isDueToday, toISODate } from "@/lib/format";
 import type { Locale, Task } from "@/types/task";
 
 function getPlanningDoneDate(): string | null {
@@ -172,7 +172,11 @@ function ConvictionCard({ task, tasks, locale }: ConvictionCardProps) {
           {task.due && (
             <span>
               <span style={{ color: "var(--text-faint)" }}>{t("today.due")} · </span>
-              {task.due === "today" ? (locale === "zh" ? "今天" : "Today") : task.due}
+              <span style={{
+                color: isOverdue(task.due) ? "var(--status-urgent)" : isDueToday(task.due) ? "var(--accent-primary)" : undefined,
+              }}>
+                {formatDue(task.due, locale)}
+              </span>
             </span>
           )}
           <span>

@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
+import { toISODate } from "@/lib/format";
 import type { Quadrant, Task, TaskRecurrence } from "@/types/task";
 
 interface Props {
@@ -32,7 +33,17 @@ export function TaskEditModal({ task, onClose }: Props) {
   const remove = useTasksStore((s) => s.remove);
   const people = usePeopleStore((s) => s.people);
 
-  const todayISO = new Date().toISOString().split("T")[0];
+  const todayISO = toISODate(new Date());
+  const tomorrowISO = toISODate(new Date(Date.now() + 86400000));
+  const thisFridayISO = (() => {
+    const d = new Date();
+    const dow = d.getDay();
+    let days = (5 - dow + 7) % 7;
+    if (days === 0) days = 7;
+    d.setDate(d.getDate() + days);
+    return toISODate(d);
+  })();
+  const fridayLabel = new Date().getDay() === 5 ? t("due.nextFriday") : t("due.friday");
 
   const initialTitle =
     typeof task.title === "string" ? task.title : (task.title as { en: string }).en;
@@ -50,9 +61,7 @@ export function TaskEditModal({ task, onClose }: Props) {
   const [quadrant, setQuadrant] = useState<Task["quadrant"]>(task.quadrant);
   const [duration, setDuration] = useState(task.duration);
   const [durationRaw, setDurationRaw] = useState(String(task.duration));
-  const [dueDate, setDueDate] = useState<string>(
-    task.due === "today" ? todayISO : task.due ?? todayISO
-  );
+  const [dueDate, setDueDate] = useState<string>(task.due ?? "");
   const [scheduledStart, setScheduledStart] = useState<string>(initialScheduledStart);
   const [recurrence, setRecurrence] = useState<TaskRecurrence>(task.recurrence ?? "none");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(task.assignee_ids ?? []);
@@ -216,6 +225,32 @@ export function TaskEditModal({ task, onClose }: Props) {
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
                 {t("qc.due")}
+              </div>
+              {/* Quick date chips */}
+              <div className="flex flex-wrap gap-1 mb-2">
+                {([
+                  { label: t("due.today"), value: todayISO },
+                  { label: t("due.tomorrow"), value: tomorrowISO },
+                  { label: fridayLabel, value: thisFridayISO },
+                  { label: t("due.none"), value: "" },
+                ] as const).map(({ label, value }) => {
+                  const active = dueDate === value;
+                  return (
+                    <button
+                      key={value || "none"}
+                      type="button"
+                      onClick={() => setDueDate(value)}
+                      className="text-[10px] px-2 py-0.5 rounded transition-colors"
+                      style={{
+                        border: `1px solid ${active ? "var(--accent-edge)" : "var(--border-default)"}`,
+                        background: active ? "var(--accent-fog)" : "var(--bg-surface)",
+                        color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
               <input
                 type="date"

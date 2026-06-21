@@ -220,6 +220,46 @@ export async function runMigrations() {
     )
   `);
 
+  // Migrate: normalize free-text due values to ISO YYYY-MM-DD or null
+  {
+    const today = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const isoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const todayISO = isoDate(today);
+    const tomorrowISO = isoDate(new Date(today.getTime() + 86400000));
+    const nonISORows = await query<{ id: string; due: string }>(
+      "SELECT id, due FROM tasks WHERE due IS NOT NULL AND due NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
+    );
+    for (const row of nonISORows) {
+      const raw = row.due.trim().toLowerCase();
+      let normalized: string | null = null;
+      if (raw === "today" || raw === "今天") normalized = todayISO;
+      else if (raw === "tomorrow" || raw === "明天") normalized = tomorrowISO;
+      else {
+        // Attempt to parse "Jun 20", "6月20日", "Aug 2" style strings
+        const enMatch = raw.match(/^([a-z]+)\s+(\d{1,2})$/);
+        if (enMatch) {
+          const months: Record<string, number> = {
+            jan:1, feb:2, mar:3, apr:4, may:5, jun:6,
+            jul:7, aug:8, sep:9, oct:10, nov:11, dec:12,
+          };
+          const mo = months[enMatch[1].slice(0, 3)];
+          if (mo) {
+            const yr = today.getMonth() + 1 > mo ? today.getFullYear() + 1 : today.getFullYear();
+            normalized = `${yr}-${pad(mo)}-${pad(parseInt(enMatch[2], 10))}`;
+          }
+        }
+        const zhMatch = raw.match(/^(\d{1,2})月(\d{1,2})日?$/);
+        if (!normalized && zhMatch) {
+          const mo = parseInt(zhMatch[1], 10);
+          const yr = today.getMonth() + 1 > mo ? today.getFullYear() + 1 : today.getFullYear();
+          normalized = `${yr}-${pad(mo)}-${pad(parseInt(zhMatch[2], 10))}`;
+        }
+      }
+      await execute("UPDATE tasks SET due = :due WHERE id = :id", { due: normalized, id: row.id });
+    }
+  }
+
   await execRaw(`
     CREATE TABLE IF NOT EXISTS countdown_events (
       id TEXT PRIMARY KEY,

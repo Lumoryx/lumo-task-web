@@ -96,6 +96,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.compact.exit": "Exit focus",
     "focus.compact.done": "Done",
 
+    "due.today": "Today",
+    "due.tomorrow": "Tomorrow",
+    "due.friday": "This Fri",
+    "due.nextFriday": "Next Fri",
+    "due.none": "No date",
+
     "qc.title": "New task",
     "qc.placeholder": "What needs doing?",
     "qc.due": "Due",
@@ -693,6 +699,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.compact.restore": "点击恢复",
     "focus.compact.exit": "退出专注",
     "focus.compact.done": "完成",
+
+    "due.today": "今天",
+    "due.tomorrow": "明天",
+    "due.friday": "本周五",
+    "due.nextFriday": "下周五",
+    "due.none": "无日期",
 
     "qc.title": "新建任务",
     "qc.placeholder": "要做点什么?",

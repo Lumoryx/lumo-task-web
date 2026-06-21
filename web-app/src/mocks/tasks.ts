@@ -1,5 +1,14 @@
 import type { Task, CompletedEntry } from "@/types/task";
 
+function isoOffset(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
 /**
  * Seed task data. The mock API (`src/api/client.ts`) loads this on first
  * run, then writes the live state to `localStorage` so user actions
@@ -21,7 +30,7 @@ export const SEED_TASKS: Task[] = [
     },
     quadrant: "Q1",
     today: true,
-    due: "today",
+    due: isoOffset(0),
     duration: 90,
     pomos_done: 1,
     pomos_total: 4,
@@ -45,7 +54,7 @@ export const SEED_TASKS: Task[] = [
     desc: { en: "Three objectives, five KRs each.", zh: "三个目标,每个 5 个关键结果。" },
     quadrant: "Q2",
     today: true,
-    due: "Fri",
+    due: isoOffset(5),
     duration: 60,
     pomos_done: 0,
     pomos_total: 3,
@@ -55,7 +64,7 @@ export const SEED_TASKS: Task[] = [
     title: { en: "Reply to investor follow-up email", zh: "回复投资人跟进邮件" },
     quadrant: "Q1",
     today: true,
-    due: "today",
+    due: isoOffset(0),
     duration: 20,
     pomos_done: 0,
     pomos_total: 1,
@@ -66,7 +75,7 @@ export const SEED_TASKS: Task[] = [
     title: { en: "Refactor auth module — token rotation", zh: "重构 auth 模块的 Token 轮换" },
     quadrant: "Q2",
     today: false,
-    due: "next wk",
+    due: isoOffset(9),
     duration: 180,
     pomos_done: 0,
     pomos_total: 6,
@@ -78,7 +87,7 @@ export const SEED_TASKS: Task[] = [
     title: { en: "Approve Acme invoices", zh: "审批 Acme 发票" },
     quadrant: "Q3",
     today: true,
-    due: "today",
+    due: isoOffset(0),
     duration: 15,
     pomos_done: 0,
     pomos_total: 1,
@@ -98,7 +107,7 @@ export const SEED_TASKS: Task[] = [
     title: { en: "Plan team offsite agenda", zh: "策划团队 offsite 议程" },
     quadrant: "unclassified",
     today: false,
-    due: "Aug 2",
+    due: isoOffset(42),
     duration: 45,
     pomos_done: 0,
     pomos_total: 2,
@@ -120,7 +129,7 @@ export const SEED_TASKS: Task[] = [
     title: { en: "Renew domain — lumo.app", zh: "续费域名 — lumo.app" },
     quadrant: "Q3",
     today: false,
-    due: "Aug 14",
+    due: isoOffset(54),
     duration: 5,
     pomos_done: 0,
     pomos_total: 1,
