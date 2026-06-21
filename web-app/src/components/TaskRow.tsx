@@ -3,7 +3,7 @@ import type { Task } from "@/types/task";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useNavigate } from "react-router-dom";
-import { fmtDuration, getDueLabel } from "@/lib/format";
+import { fmtDuration, getDueColor, getDueLabel } from "@/lib/format";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { usePeopleStore } from "@/store/usePeopleStore";
@@ -37,6 +37,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
+  const dueColor = getDueColor(task.due);
 
   return (
     <>
@@ -85,7 +86,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
             {ls(task.title)}
           </div>
           <div className="flex items-center gap-3 mt-0.5 text-xs text-text-muted tabular-nums">
-            {due && <span>{due}</span>}
+            {due && <span style={{ color: dueColor }}>{due}</span>}
             {task.duration > 0 && <span>{fmtDuration(task.duration, locale)}</span>}
             <span className="pip">
               {Array.from({ length: task.pomos_total }).map((_, i) => (

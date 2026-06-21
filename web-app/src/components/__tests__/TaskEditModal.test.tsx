@@ -57,6 +57,10 @@ function getTitleInput() {
   return screen.getByDisplayValue("Buy groceries") as HTMLInputElement;
 }
 
+function getDateInput() {
+  return document.querySelector('input[type="date"]') as HTMLInputElement;
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("TaskEditModal", () => {
@@ -99,5 +103,69 @@ describe("TaskEditModal", () => {
     const { onClose } = setup();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("initializes date input to empty when task has no due date", () => {
+    setup();
+    expect(getDateInput().value).toBe("");
+  });
+
+  it("pre-fills ISO due date from task prop", () => {
+    const task: Task = { ...TASK, due: "2026-08-15" };
+    setup(task);
+    expect(getDateInput().value).toBe("2026-08-15");
+  });
+
+  it("sends due as null when task has no due date and none is selected", async () => {
+    setup();
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ due: null })
+      )
+    );
+  });
+
+  it("sends the selected ISO due date on save", async () => {
+    setup();
+    fireEvent.change(getDateInput(), { target: { value: "2026-09-01" } });
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ due: "2026-09-01" })
+      )
+    );
+  });
+
+  it("renders quick-select shortcut buttons", () => {
+    setup();
+    expect(screen.getByText("due.today")).toBeTruthy();
+    expect(screen.getByText("due.tomorrow")).toBeTruthy();
+    expect(screen.getByText("due.nextWeek")).toBeTruthy();
+  });
+
+  it("clicking Today shortcut sets the date input to today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-21T10:00:00"));
+    setup();
+    fireEvent.click(screen.getByText("due.today"));
+    expect(getDateInput().value).toBe("2026-06-21");
+    vi.useRealTimers();
+  });
+
+  it("shows Clear button when a due date is set and clears on click", async () => {
+    const task: Task = { ...TASK, due: "2026-08-15" };
+    setup(task);
+    const clearBtn = screen.getByText("due.none");
+    fireEvent.click(clearBtn);
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ due: null })
+      )
+    );
   });
 });

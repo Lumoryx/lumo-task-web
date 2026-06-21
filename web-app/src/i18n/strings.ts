@@ -74,6 +74,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "qc.cancel": "Cancel",
     "qc.close": "Close",
 
+    "due.today": "Today",
+    "due.tomorrow": "Tomorrow",
+    "due.nextWeek": "Next week",
+    "due.none": "Clear",
+
     "settings.appearance": "Appearance",
     "settings.accent": "Accent",
     "settings.density": "Density",
@@ -571,6 +576,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "qc.create": "创建",
     "qc.cancel": "取消",
     "qc.close": "关闭",
+
+    "due.today": "今天",
+    "due.tomorrow": "明天",
+    "due.nextWeek": "下周",
+    "due.none": "清空",
 
     "settings.appearance": "外观",
     "settings.accent": "强调色",
