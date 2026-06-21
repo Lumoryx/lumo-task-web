@@ -3,6 +3,9 @@
 .claude/settings.local.json
 .claude/launch.json
 
+# Stray root-level lockfile (no package.json at root)
+/package-lock.json
+
 # OS metadata
 .DS_Store
 Thumbs.db

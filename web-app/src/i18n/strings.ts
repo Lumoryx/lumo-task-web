@@ -512,6 +512,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "stats.day.fri": "Fri",
     "stats.day.sat": "Sat",
     "stats.day.sun": "Sun",
+    "stats.quadrant.breakdown": "Quadrant Breakdown",
+    "stats.quadrant.unclassified": "Uncategorized",
+    "stats.quadrant.callout.q2good": "Q2 at {pct}% this week — great strategic focus 💪",
+    "stats.quadrant.callout.q1heavy": "Heavy Q1 week — try protecting some Q2 time next week",
+    "stats.quadrant.callout.q3q4high": "{pct}% of tasks this week were Q3/Q4 — worth a review",
 
     "qc.ai": "AI Parse",
     "qc.ai.placeholder": "Describe your task naturally… e.g. 'Write report by Friday, 2 hours'",
@@ -1105,6 +1110,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "stats.day.fri": "五",
     "stats.day.sat": "六",
     "stats.day.sun": "日",
+    "stats.quadrant.breakdown": "象限分布",
+    "stats.quadrant.unclassified": "未分类",
+    "stats.quadrant.callout.q2good": "本周 Q2 占比 {pct}%，战略任务执行良好 💪",
+    "stats.quadrant.callout.q1heavy": "本周以救火为主，下周试着为 Q2 留出空间",
+    "stats.quadrant.callout.q3q4high": "本周有 {pct}% 时间在次要事项上，值得复盘",
 
     "qc.ai": "AI 解析",
     "qc.ai.placeholder": "用自然语言描述任务… 例如「周五前写报告，大概 2 小时」",
