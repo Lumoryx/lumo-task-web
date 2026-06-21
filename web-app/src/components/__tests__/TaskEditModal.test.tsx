@@ -210,4 +210,49 @@ describe("TaskEditModal", () => {
       )
     );
   });
+
+  it("sends due as null when task has no due date", async () => {
+    setup();
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ due: null })
+      )
+    );
+  });
+
+  it("pre-fills ISO due date from task prop", () => {
+    const task: Task = { ...TASK, due: "2026-08-15" };
+    setup(task);
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    expect(dateInput.value).toBe("2026-08-15");
+  });
+
+  it("sends the selected ISO due date on save", async () => {
+    setup();
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: "2026-09-01" } });
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ due: "2026-09-01" })
+      )
+    );
+  });
+
+  it("clears due date when None button is clicked", async () => {
+    const task: Task = { ...TASK, due: "2026-08-15" };
+    setup(task);
+    const clearBtn = screen.getByText("due.none");
+    fireEvent.click(clearBtn);
+    fireEvent.click(getSaveBtn());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        "t1",
+        expect.objectContaining({ due: null })
+      )
+    );
+  });
 });
