@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { fmtScheduledStart, fmtDuration, parseDueISO, getDueLabel, isOverdue, getDueColor } from "@/lib/format";
 
 describe("fmtScheduledStart", () => {
@@ -36,15 +36,30 @@ describe("parseDueISO", () => {
 });
 
 describe("getDueLabel", () => {
-  it("formats ISO date in English", () => {
-    expect(getDueLabel("2026-01-15", "en")).toBe("Jan 15");
-    expect(getDueLabel("2026-06-05", "en")).toBe("Jun 5");
-    expect(getDueLabel("2026-12-31", "en")).toBe("Dec 31");
+  // Pin today to 2026-06-21 for deterministic countdown/overdue labels
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-21T10:00:00"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("returns 'Due today' for today's date", () => {
+    expect(getDueLabel("2026-06-21", "en")).toBe("Due today");
+    expect(getDueLabel("2026-06-21", "zh")).toBe("今日到期");
   });
 
-  it("formats ISO date in Chinese", () => {
-    expect(getDueLabel("2026-01-15", "zh")).toBe("1月15日");
-    expect(getDueLabel("2026-06-05", "zh")).toBe("6月5日");
+  it("returns countdown for future dates", () => {
+    expect(getDueLabel("2026-06-22", "en")).toBe("Due in 1 day");
+    expect(getDueLabel("2026-06-25", "en")).toBe("Due in 4 days");
+    expect(getDueLabel("2026-06-22", "zh")).toBe("1 天后到期");
+    expect(getDueLabel("2026-06-25", "zh")).toBe("4 天后到期");
+  });
+
+  it("returns overdue label for past dates", () => {
+    expect(getDueLabel("2026-06-20", "en")).toBe("Overdue by 1 day");
+    expect(getDueLabel("2026-06-17", "en")).toBe("Overdue by 4 days");
+    expect(getDueLabel("2026-06-20", "zh")).toBe("逾期 1 天");
+    expect(getDueLabel("2026-06-17", "zh")).toBe("逾期 4 天");
   });
 
   it("returns null for null input", () => {
@@ -53,8 +68,8 @@ describe("getDueLabel", () => {
   });
 
   it("handles legacy keyword 'today' for backward compat", () => {
-    expect(getDueLabel("today", "en")).toBe("Today");
-    expect(getDueLabel("today", "zh")).toBe("今天");
+    expect(getDueLabel("today", "en")).toBe("Due today");
+    expect(getDueLabel("today", "zh")).toBe("今日到期");
   });
 });
 
