@@ -54,6 +54,11 @@ export function QuadrantBreakdown({ breakdown }: Props) {
               {quadrantLabel(b.quadrant, t)}
             </span>
             <div
+              role="progressbar"
+              aria-valuenow={b.percent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${quadrantLabel(b.quadrant, t)} ${b.percent}%`}
               className="flex-1 h-1.5 rounded-full overflow-hidden min-w-0"
               style={{ background: "var(--bg-elevated)" }}
             >

@@ -20,11 +20,11 @@ const DAY_KEYS = ["stats.day.sun","stats.day.mon","stats.day.tue","stats.day.wed
 
 function topQuadrantsSub(breakdown: QuadrantCount[]): string {
   const top2 = breakdown
-    .filter((b) => b.count > 0)
+    .filter((b) => b.count > 0 && b.quadrant !== "unclassified")
     .sort((a, b) => b.count - a.count)
     .slice(0, 2);
   if (top2.length === 0) return "";
-  return top2.map((b) => `${b.quadrant === "unclassified" ? "—" : b.quadrant}: ${b.count}`).join(" · ");
+  return top2.map((b) => `${b.quadrant}: ${b.count}`).join(" · ");
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -172,7 +172,6 @@ export function StatsPage() {
                 )}
               </div>
 
-              {/* Quadrant breakdown */}
               <QuadrantBreakdown breakdown={week.quadrantBreakdown} />
 
               {/* Daily bar chart */}
