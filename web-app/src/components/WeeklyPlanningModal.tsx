@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
-import { toISODate } from "@/lib/format";
 import type { Task } from "@/types/task";
 
 const MAX_WEEK_FOCUS = 3;
