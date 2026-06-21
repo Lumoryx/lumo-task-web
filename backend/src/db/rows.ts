@@ -22,6 +22,7 @@ export interface TaskRow {
   desc_zh: string | null;
   quadrant: string;
   today: number;
+  week_focus: number;
   due: string | null;
   duration: number;
   pomos_done: number;

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CompletedTimeline } from "@/components/CompletedTimeline";
 import { EveningReviewModal } from "@/components/EveningReviewModal";
 import { MorningPlanningModal } from "@/components/MorningPlanningModal";
+import { WeeklyPlanningModal, isWeeklyPlanned, getWeeklyPlanningDoneKey } from "@/components/WeeklyPlanningModal";
 import { TaskRow } from "@/components/TaskRow";
 import { IconArrowRight } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
@@ -11,6 +12,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { fmtDuration, toISODate } from "@/lib/format";
+import { computeWeekStats } from "@/utils/stats";
 import type { Locale, Task } from "@/types/task";
 
 function getPlanningDoneDate(): string | null {
@@ -508,6 +510,121 @@ function PlanningBanner({ onOpen, planned }: { onOpen: () => void; planned: bool
   );
 }
 
+// ─── Weekly Planning Banner ─────────────────────────────────────────────────
+
+function WeeklyPlanningBanner({ onOpen, planned }: { onOpen: () => void; planned: boolean }) {
+  const t = useT();
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left rounded-xl mb-3"
+      style={{
+        padding: "10px 16px",
+        border: `1px solid ${planned ? "var(--border-faint)" : "var(--border-default)"}`,
+        background: planned ? "var(--bg-surface)" : "var(--bg-deep)",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        cursor: "pointer",
+        minHeight: 44,
+        transition: "opacity 0.15s",
+      }}
+    >
+      <span style={{ fontSize: 15, flexShrink: 0 }}>★</span>
+      <span
+        className="text-sm font-medium"
+        style={{ color: planned ? "var(--text-faint)" : "var(--text-secondary)", flex: 1 }}
+      >
+        {planned ? t("weekly.planning.btn.adjust") : t("weekly.planning.btn.start")}
+      </span>
+      <span style={{ color: "var(--text-faint)", fontSize: 14 }}>›</span>
+    </button>
+  );
+}
+
+// ─── Week Focus Section ─────────────────────────────────────────────────────
+
+interface WeekFocusSectionProps {
+  weekFocusTasks: Task[];
+  locale: Locale;
+}
+
+function WeekFocusSection({ weekFocusTasks, locale }: WeekFocusSectionProps) {
+  const t = useT();
+  const ls = useLocaleString();
+  const update = useTasksStore((s) => s.update);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("lumo.week_focus_collapsed") === "1"; } catch { return false; }
+  });
+
+  function toggleCollapse() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try { localStorage.setItem("lumo.week_focus_collapsed", next ? "1" : "0"); } catch { /* noop */ }
+  }
+
+  if (weekFocusTasks.length === 0) return null;
+
+  return (
+    <section className="mb-6">
+      <button
+        onClick={toggleCollapse}
+        className="flex items-center gap-2 w-full text-left mb-2"
+        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+      >
+        <div
+          className="text-[11px] font-semibold uppercase tracking-[0.1em]"
+          style={{ color: "var(--accent-primary)" }}
+        >
+          {t("weekly.focus.section").replace("{n}", String(weekFocusTasks.length))}
+        </div>
+        <span style={{ color: "var(--text-faint)", fontSize: 11, marginLeft: "auto" }}>
+          {collapsed ? "▸" : "▾"}
+        </span>
+      </button>
+      {!collapsed && (
+        <div className="flex flex-col gap-1">
+          {weekFocusTasks.map((task) => (
+            <div
+              key={task.id}
+              className="flex items-center gap-3 rounded-lg"
+              style={{
+                padding: "8px 12px",
+                background: "var(--bg-deep)",
+                border: "1px solid var(--border-faint)",
+              }}
+            >
+              <span style={{ color: "var(--accent-primary)", fontSize: 12, flexShrink: 0 }}>★</span>
+              <span
+                className="flex-1 text-[13px] font-medium truncate"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {ls(task.title)}
+              </span>
+              {!task.today && (
+                <button
+                  onClick={() => update(task.id, { today: true })}
+                  className="text-[11px] flex-shrink-0"
+                  style={{
+                    color: "var(--accent-primary)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                  }}
+                >
+                  {t("weekly.focus.add_today")}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── Evening Review Banner ──────────────────────────────────────────────────
 
 function EveningReviewBanner({ onOpen, done }: { onOpen: () => void; done: boolean }) {
@@ -548,10 +665,39 @@ export function TodayPage() {
   const tasks = useTasksStore((s) => s.tasks);
   const completed = useTasksStore((s) => s.completed);
   const loading = useTasksStore((s) => s.loading);
+  const weekFocusTasks = useTasksStore((s) => s.weekFocusTasks)();
   const [planningOpen, setPlanningOpen] = useState(false);
   const [planned, setPlanned] = useState(isTodayPlanned);
   const [eveningOpen, setEveningOpen] = useState(false);
   const [eveningDone, setEveningDone] = useState(isEveningReviewDone);
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [weeklyPlanned, setWeeklyPlanned] = useState(isWeeklyPlanned);
+
+  // Compute last week's stats from completed entries for the WeeklyPlanningModal
+  const prevWeekStats = useMemo(() => {
+    const now = new Date();
+    const prevWeekStart = new Date(now);
+    prevWeekStart.setDate(now.getDate() - now.getDay() - 6); // last Mon
+    prevWeekStart.setHours(0, 0, 0, 0);
+    const prevWeekEnd = new Date(prevWeekStart);
+    prevWeekEnd.setDate(prevWeekStart.getDate() + 6);
+    prevWeekEnd.setHours(23, 59, 59, 999);
+    const entries = completed.filter((e) => {
+      if (!e.completedAt) return false;
+      const d = new Date(e.completedAt);
+      return d >= prevWeekStart && d <= prevWeekEnd;
+    });
+    return {
+      tasksCompleted: entries.length,
+      focusMinutes: entries.reduce((s, e) => s + (e.duration ?? 0), 0),
+    };
+  }, [completed]);
+
+  // Previous week's focus tasks (those with week_focus true, already completed or not)
+  const prevWeekFocusTasks = useMemo(
+    () => tasks.filter((tk) => tk.week_focus),
+    [tasks]
+  );
 
   function handlePlanningClose() {
     setPlanningOpen(false);
@@ -561,6 +707,11 @@ export function TodayPage() {
   function handleEveningClose() {
     setEveningOpen(false);
     setEveningDone(isEveningReviewDone());
+  }
+
+  function handleWeeklyClose() {
+    setWeeklyOpen(false);
+    setWeeklyPlanned(isWeeklyPlanned());
   }
 
   if (loading && tasks.length === 0) {
@@ -588,11 +739,20 @@ export function TodayPage() {
       <>
         <div className="px-4 sm:px-7 pt-6 sm:pt-7">
           <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+          <WeeklyPlanningBanner onOpen={() => setWeeklyOpen(true)} planned={weeklyPlanned} />
           <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
+          <WeekFocusSection weekFocusTasks={weekFocusTasks} locale={locale} />
         </div>
         <TodayEmptyState />
         {planningOpen && <MorningPlanningModal onClose={handlePlanningClose} />}
         {eveningOpen && <EveningReviewModal onClose={handleEveningClose} />}
+        {weeklyOpen && (
+          <WeeklyPlanningModal
+            onClose={handleWeeklyClose}
+            prevWeekStats={prevWeekStats}
+            prevWeekFocusTasks={prevWeekFocusTasks}
+          />
+        )}
       </>
     );
   }
@@ -602,8 +762,14 @@ export function TodayPage() {
       {/* Morning planning banner — always visible */}
       <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
 
+      {/* Weekly planning banner */}
+      <WeeklyPlanningBanner onOpen={() => setWeeklyOpen(true)} planned={weeklyPlanned} />
+
       {/* Evening review banner — always visible */}
       <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
+
+      {/* This week's focus — shown above today's tasks when set */}
+      <WeekFocusSection weekFocusTasks={weekFocusTasks} locale={locale} />
 
       {!top && completed.length > 0 && (
         <AllDoneBanner />
@@ -643,6 +809,13 @@ export function TodayPage() {
 
       {planningOpen && <MorningPlanningModal onClose={handlePlanningClose} />}
       {eveningOpen && <EveningReviewModal onClose={handleEveningClose} />}
+      {weeklyOpen && (
+        <WeeklyPlanningModal
+          onClose={handleWeeklyClose}
+          prevWeekStats={prevWeekStats}
+          prevWeekFocusTasks={prevWeekFocusTasks}
+        />
+      )}
     </div>
   );
 }

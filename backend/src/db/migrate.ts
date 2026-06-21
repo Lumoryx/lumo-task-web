@@ -169,6 +169,12 @@ export async function runMigrations() {
     await execRaw("ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
   }
 
+  // Migrate: week_focus flag
+  const taskColsWeekFocus = await query<{ name: string }>("PRAGMA table_info(tasks)");
+  if (!taskColsWeekFocus.some((c) => c.name === "week_focus")) {
+    await execRaw("ALTER TABLE tasks ADD COLUMN week_focus INTEGER NOT NULL DEFAULT 0");
+  }
+
   // Migrate: subtasks + scheduled_start
   const taskColsV3 = await query<{ name: string }>("PRAGMA table_info(tasks)");
   if (!taskColsV3.some((c) => c.name === "subtasks_json")) {

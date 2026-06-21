@@ -345,8 +345,19 @@ function MatrixTaskCard({ task }: { task: Task }) {
           className="flex-1 min-w-0 cursor-pointer"
           onClick={() => setDetailOpen(true)}
         >
-          <div className="text-[13px] font-medium text-text-primary truncate leading-snug">
-            {ls(task.title)}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[13px] font-medium text-text-primary truncate leading-snug">
+              {ls(task.title)}
+            </span>
+            {task.week_focus && (
+              <span
+                className="flex-shrink-0 text-[11px]"
+                style={{ color: "var(--accent-primary)" }}
+                title="Week focus"
+              >
+                ★
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-text-muted tabular-nums">
             {due && <span>{due}</span>}

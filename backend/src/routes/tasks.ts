@@ -51,6 +51,7 @@ function rowToTask(row: TaskRow): TaskWire {
     desc: row.desc_en ? { en: row.desc_en, ...(row.desc_zh ? { zh: row.desc_zh } : {}) } : null,
     quadrant: row.quadrant,
     today: Boolean(row.today),
+    week_focus: Boolean(row.week_focus),
     due: row.due ?? null,
     duration: row.duration,
     pomos_done: row.pomos_done,
@@ -89,12 +90,12 @@ app.post("/", taskMutateLimit, zValidator("json", TaskCreateBodySchema), async (
   await execute(`
     INSERT INTO tasks (
       id, user_id, assignee_ids, title_en, title_zh, desc_en, desc_zh,
-      quadrant, today, due, duration, pomos_done, pomos_total, conviction,
+      quadrant, today, week_focus, due, duration, pomos_done, pomos_total, conviction,
       next_step_en, next_step_zh, reason_en, reason_zh, ai_suggest, not_now_json,
       recurrence, subtasks_json, scheduled_start, created_at, updated_at
     ) VALUES (
       :id, :user_id, :assignee_ids, :title_en, :title_zh, :desc_en, :desc_zh,
-      :quadrant, :today, :due, :duration, 0, :pomos_total, :conviction,
+      :quadrant, :today, :week_focus, :due, :duration, 0, :pomos_total, :conviction,
       :next_step_en, :next_step_zh, :reason_en, :reason_zh, :ai_suggest, :not_now_json,
       :recurrence, :subtasks_json, :scheduled_start, :now, :now
     )
@@ -105,6 +106,7 @@ app.post("/", taskMutateLimit, zValidator("json", TaskCreateBodySchema), async (
     desc_en: body.desc?.en ?? null, desc_zh: body.desc?.zh ?? null,
     quadrant: body.quadrant ?? "unclassified",
     today: body.today ? 1 : 0,
+    week_focus: body.week_focus ? 1 : 0,
     due: body.due ?? null,
     duration: body.duration ?? 0,
     pomos_total: body.pomos_total ?? 0,
@@ -155,6 +157,7 @@ app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("jso
     desc_zh: "desc" in body ? (body.desc?.zh ?? null) : existing.desc_zh,
     quadrant: body.quadrant ?? existing.quadrant,
     today: "today" in body ? (body.today ? 1 : 0) : existing.today,
+    week_focus: "week_focus" in body ? (body.week_focus ? 1 : 0) : existing.week_focus,
     due: "due" in body ? (body.due ?? null) : existing.due,
     duration: body.duration ?? existing.duration,
     pomos_total: body.pomos_total ?? existing.pomos_total,
@@ -174,7 +177,7 @@ app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("jso
     UPDATE tasks SET
       assignee_ids = :assignee_ids, title_en = :title_en, title_zh = :title_zh,
       desc_en = :desc_en, desc_zh = :desc_zh, quadrant = :quadrant,
-      today = :today, due = :due, duration = :duration, pomos_total = :pomos_total,
+      today = :today, week_focus = :week_focus, due = :due, duration = :duration, pomos_total = :pomos_total,
       conviction = :conviction, next_step_en = :next_step_en, next_step_zh = :next_step_zh,
       reason_en = :reason_en, reason_zh = :reason_zh, ai_suggest = :ai_suggest,
       not_now_json = :not_now_json, recurrence = :recurrence,

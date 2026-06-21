@@ -23,6 +23,7 @@ interface TasksState {
   // selectors
   byQuadrant: (q: Task["quadrant"]) => Task[];
   todayTasks: () => Task[];
+  weekFocusTasks: () => Task[];
   // actions
   load: () => Promise<void>;
   clear: () => void;
@@ -49,6 +50,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
   byQuadrant: (q) => get().tasks.filter((t) => t.quadrant === q && !t.completed),
   todayTasks: () => get().tasks.filter((t) => t.today && !t.completed),
+  weekFocusTasks: () => get().tasks.filter((t) => t.week_focus && !t.completed),
 
   async load() {
     set({ loading: true, error: null });
