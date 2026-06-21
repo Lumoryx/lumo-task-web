@@ -2,10 +2,11 @@ import { useEffect, useRef } from "react";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
+import { parseDueISO, toISODate } from "@/lib/format";
 import type { Task } from "@/types/task";
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
 }
 
 function alreadySent(type: string): boolean {
@@ -28,6 +29,28 @@ function msUntil(hhmm: string): number {
 
 function taskTitle(task: Task, locale: string): string {
   return (locale === "zh" ? task.title.zh : undefined) ?? task.title.en;
+}
+
+async function sendNotification(
+  title: string,
+  options: NotificationOptions & { data?: Record<string, string> }
+): Promise<void> {
+  if ("serviceWorker" in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, options);
+      return;
+    } catch {
+      // fall through to direct Notification
+    }
+  }
+  const n = new Notification(title, options);
+  const action = options.data?.action;
+  if (action === "morning") {
+    n.onclick = () => { window.focus(); window.location.href = "/today?planning=open"; };
+  } else if (action === "evening") {
+    n.onclick = () => { window.focus(); window.location.href = "/today?evening=open"; };
+  }
 }
 
 export function useNotificationScheduler(): void {
@@ -71,9 +94,9 @@ export function useNotificationScheduler(): void {
             : "Open morning planning to set today's focus";
         }
 
-        new Notification(
+        sendNotification(
           locale === "zh" ? "☀️ 早安，开始规划今天吧" : "☀️ Good morning — time to plan your day",
-          { body, icon: "/favicon.ico" }
+          { body, icon: "/favicon.ico", data: { action: "morning" } }
         );
         markSent("morning");
       }, delay);
@@ -93,7 +116,7 @@ export function useNotificationScheduler(): void {
         if (alreadySent("due")) return;
 
         const dueTasks = tasks.filter(
-          (t) => !t.completed && t.due === today && (t.quadrant === "Q1" || t.today)
+          (t) => !t.completed && parseDueISO(t.due) === today && (t.quadrant === "Q1" || t.today)
         );
         if (dueTasks.length === 0) return;
 
@@ -106,7 +129,7 @@ export function useNotificationScheduler(): void {
               ? `⏰ 今日有 ${dueTasks.length} 个任务到期，点击查看`
               : `⏰ ${dueTasks.length} tasks due today — tap to review`;
 
-        new Notification(title, { icon: "/favicon.ico" });
+        sendNotification(title, { icon: "/favicon.ico", data: { action: "due" } });
         markSent("due");
       }, delay);
       timers.current.push(id);
@@ -132,9 +155,9 @@ export function useNotificationScheduler(): void {
               ? `完成了 ${todayDone.length} 个任务 · 共专注 ${h > 0 ? `${h}小时` : ""}${m > 0 ? `${m}分钟` : "0分钟"}`
               : `Completed ${todayDone.length} task${todayDone.length !== 1 ? "s" : ""} · ${h > 0 ? `${h}h ` : ""}${m}min focused`;
 
-        new Notification(
+        sendNotification(
           locale === "zh" ? "🌙 今天干得怎么样？来复盘一下" : "🌙 How was your day? Time to review",
-          { body, icon: "/favicon.ico" }
+          { body, icon: "/favicon.ico", data: { action: "evening" } }
         );
         markSent("evening");
       }, delay);
