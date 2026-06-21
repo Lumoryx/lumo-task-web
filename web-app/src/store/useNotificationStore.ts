@@ -31,6 +31,7 @@ export const useNotificationStore = create<NotificationStore>()(
             enabled: s.notifications_enabled,
             morningTime: s.morning_reminder_time ?? "09:00",
             eveningTime: s.evening_reminder_time ?? "18:00",
+            dueAlertsEnabled: s.due_alerts_enabled,
             loaded: true,
           });
         } catch {}

@@ -86,6 +86,7 @@ export interface SettingsRow {
   ai_cloud_month: string;
   morning_reminder_time: string;
   evening_reminder_time: string;
+  due_alerts_enabled: number;
 }
 
 export interface FocusTaskRow {

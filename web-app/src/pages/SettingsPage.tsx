@@ -1426,6 +1426,17 @@ function NotificationsPanel({ t, locale: _locale }: { t: (k: string) => string; 
     }
   }
 
+  async function handleDueAlertsChange(v: boolean) {
+    const prev = dueAlertsEnabled;
+    setDueAlertsEnabled(v);
+    try {
+      await api.patchSettings({ due_alerts_enabled: v });
+    } catch {
+      setDueAlertsEnabled(prev);
+      toast.error(t("settings.notifications.error.save"));
+    }
+  }
+
   return (
     <Panel title={t("settings.notifications")}>
       <Row label={t("settings.notifications.enabled")} helper={t("settings.notifications.enabled.helper")}>
@@ -1459,7 +1470,7 @@ function NotificationsPanel({ t, locale: _locale }: { t: (k: string) => string; 
         />
       </Row>
       <Row label={t("settings.notifications.due")} helper={t("settings.notifications.due.helper")}>
-        <Toggle value={dueAlertsEnabled} onChange={setDueAlertsEnabled} disabled={!enabled} />
+        <Toggle value={dueAlertsEnabled} onChange={handleDueAlertsChange} disabled={!enabled} />
       </Row>
       <Row label={t("settings.notifications.evening")} helper={t("settings.notifications.evening.helper")}>
         <input
