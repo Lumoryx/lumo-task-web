@@ -26,6 +26,7 @@ const TASK: Task = {
   title: { en: "Test task", zh: "测试任务" },
   quadrant: "Q1",
   today: true,
+  week_focus: false,
   due: null,
   duration: 30,
   pomos_done: 0,

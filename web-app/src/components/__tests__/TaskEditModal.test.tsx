@@ -32,6 +32,7 @@ const TASK: Task = {
   title: { en: "Buy groceries", zh: "买菜" },
   quadrant: "Q2",
   today: false,
+  week_focus: false,
   due: null,
   duration: 30,
   pomos_done: 0,
