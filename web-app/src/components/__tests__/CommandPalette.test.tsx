@@ -55,11 +55,31 @@ vi.mock("@/i18n/useT", () => ({
   useLocaleString: () => (ls: { en: string; zh?: string }) => ls.en,
 }));
 
-vi.mock("@/components/TaskDetailModal", () => ({
-  TaskDetailModal: ({ task, onClose }: { task: Task; onClose: () => void }) => (
-    <div data-testid="task-detail-modal">
+vi.mock("@/store/usePeopleStore", () => ({
+  usePeopleStore: (sel: any) => sel({ people: [] }),
+}));
+
+vi.mock("@/components/TaskEditModal", () => ({
+  TaskEditModal: ({ task, onClose }: { task: Task; onClose: () => void }) => (
+    <div data-testid="task-edit-modal">
       <span>{task.title.en}</span>
-      <button onClick={onClose}>close-detail</button>
+      <button onClick={onClose}>close-edit</button>
+    </div>
+  ),
+}));
+
+vi.mock("@/components/QuickCreate", () => ({
+  QuickCreate: ({
+    initialTitle,
+    onClose,
+  }: {
+    initialTitle?: string;
+    onClose: () => void;
+    onCreated: () => void;
+  }) => (
+    <div data-testid="quick-create">
+      <span data-testid="initial-title">{initialTitle}</span>
+      <button onClick={onClose}>close-create</button>
     </div>
   ),
 }));
@@ -112,10 +132,22 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Write proposal")).toBeTruthy();
   });
 
-  it("excludes completed tasks from results", async () => {
+  it("excludes completed tasks from results by default", async () => {
     setup();
     await flushDebounce();
     expect(screen.queryByText("Done task")).toBeNull();
+  });
+
+  it("includes completed tasks when toggle is active", async () => {
+    setup();
+    // Enable the "show completed" toggle
+    const toggle = screen.getByRole("button", { name: "search.showCompleted" });
+    fireEvent.click(toggle);
+    fireEvent.change(screen.getByPlaceholderText("search.placeholder"), {
+      target: { value: "done" },
+    });
+    await flushDebounce();
+    expect(screen.getByRole("dialog").textContent).toContain("Done task");
   });
 
   it("filters by query after debounce", async () => {
@@ -124,7 +156,6 @@ describe("CommandPalette", () => {
       target: { value: "budget" },
     });
     await flushDebounce();
-    // HighlightedText splits matched text into spans; check combined textContent
     const dialog = screen.getByRole("dialog");
     expect(dialog.textContent).toContain("Review budget");
     expect(dialog.textContent).not.toContain("Write proposal");
@@ -139,6 +170,27 @@ describe("CommandPalette", () => {
     expect(screen.getByText("search.noResults")).toBeTruthy();
   });
 
+  it("shows create task button with query when no results", async () => {
+    setup();
+    fireEvent.change(screen.getByPlaceholderText("search.placeholder"), {
+      target: { value: "xyznonexistent" },
+    });
+    await flushDebounce();
+    expect(screen.getByText(/search\.createWithQuery/)).toBeTruthy();
+  });
+
+  it("opens QuickCreate with pre-filled title when create button clicked", async () => {
+    setup();
+    fireEvent.change(screen.getByPlaceholderText("search.placeholder"), {
+      target: { value: "new task idea" },
+    });
+    await flushDebounce();
+    const createBtn = screen.getByText(/search\.createWithQuery/);
+    fireEvent.click(createBtn);
+    expect(screen.getByTestId("quick-create")).toBeTruthy();
+    expect(screen.getByTestId("initial-title").textContent).toBe("new task idea");
+  });
+
   it("calls onClose when Escape is pressed in the input", () => {
     const { onClose } = setup();
     fireEvent.keyDown(screen.getByPlaceholderText("search.placeholder"), {
@@ -147,34 +199,33 @@ describe("CommandPalette", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("opens TaskDetailModal when Enter is pressed on the selected result", async () => {
+  it("opens TaskEditModal when Enter is pressed on the selected result", async () => {
     setup();
     await flushDebounce();
     fireEvent.keyDown(screen.getByPlaceholderText("search.placeholder"), {
       key: "Enter",
     });
-    expect(screen.getByTestId("task-detail-modal")).toBeTruthy();
+    expect(screen.getByTestId("task-edit-modal")).toBeTruthy();
   });
 
-  it("opens TaskDetailModal when a result is clicked", async () => {
+  it("opens TaskEditModal when a result is clicked", async () => {
     setup();
     await flushDebounce();
-    // Click the first result button (today task: "Write proposal")
     const buttons = screen.getAllByRole("button");
     const resultBtn = buttons.find((b) => b.textContent?.includes("Write proposal"))!;
     fireEvent.click(resultBtn);
-    expect(screen.getByTestId("task-detail-modal")).toBeTruthy();
+    expect(screen.getByTestId("task-edit-modal")).toBeTruthy();
   });
 
-  it("calls onClose when TaskDetailModal closes", async () => {
+  it("calls onClose when TaskEditModal closes", async () => {
     const { onClose } = setup();
     await flushDebounce();
     const buttons = screen.getAllByRole("button");
     const resultBtn = buttons.find((b) => b.textContent?.includes("Write proposal"))!;
     fireEvent.click(resultBtn);
-    fireEvent.click(screen.getByText("close-detail"));
+    fireEvent.click(screen.getByText("close-edit"));
     expect(onClose).toHaveBeenCalledOnce();
-    expect(screen.queryByTestId("task-detail-modal")).toBeNull();
+    expect(screen.queryByTestId("task-edit-modal")).toBeNull();
   });
 
   it("calls onClose when backdrop is clicked", () => {
@@ -195,7 +246,6 @@ describe("CommandPalette", () => {
       target: { value: "write" },
     });
     await flushDebounce();
-    // HighlightedText splits matched text; assert via combined textContent
     expect(screen.getByRole("dialog").textContent).toContain("Write proposal");
   });
 });
