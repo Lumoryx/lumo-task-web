@@ -99,11 +99,18 @@ without waiting for user confirmation.** Report findings AND apply fixes in the 
 
 | Layer | Tool | Run command |
 |-------|------|-------------|
-| Backend API | Node `--test` | `cd backend && npm test` |
-| Frontend unit | Vitest + RTL | `cd web-app && npm test` |
+| Contract schema | Node `--test` | `npm test -w @lumo/contracts` |
+| Backend API + contract conformance | Node `--test` | `cd backend && npm test` |
+| Backend security (authn/authz/input/secrets/rate-limit) | Node `--test` | `cd backend && npm run test:security` |
+| Backend standards (error-shape, contract-first) | Node `--test` | `cd backend && npm run test:standards` |
+| Backend integration (real HTTP) | Node `--test` | `cd backend && npm run test:integration` |
+| Frontend unit + standards (css-tokens, error-boundary) | Vitest + RTL | `cd web-app && npm test` |
 | E2E | Playwright | `cd web-app && npx playwright test` |
 
-Coverage targets: backend ≥ 80%, frontend new components 100% of public behavior.
+Coverage targets: backend ≥ 80% lines (gated by `npm run test:coverage`),
+frontend new components 100% of public behavior. `make ci` runs every layer
+above except E2E. **See `TESTING.md` for the full pyramid and the "add a feature
+→ add four layers" template.**
 
 ---
 
