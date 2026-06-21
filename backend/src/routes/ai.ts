@@ -595,6 +595,87 @@ async function executeGetStats(locale: string, jwt: string): Promise<IntentResul
   return { reply, toolsUsed: ["get_focus_stats"] };
 }
 
+// POST /ai/breakdown — AI-powered subtask breakdown
+const BreakdownBody = z.object({
+  taskId: z.string().min(1),
+  locale: z.enum(["en", "zh"]).optional(),
+});
+
+app.post("/breakdown", classifyRateLimit, zValidator("json", BreakdownBody), async (c) => {
+  const userId = c.get("userId") as string;
+  const { taskId, locale } = c.req.valid("json");
+
+  try {
+    const task = await queryOne<any>(
+      "SELECT * FROM tasks WHERE id = :id AND user_id = :uid",
+      { id: taskId, uid: userId }
+    );
+
+    if (!task) return httpError(c, 404, "NOT_FOUND", "Task not found");
+
+    const { llmConfig, usingCloud, limitReached } = await getProviderConfig(userId);
+
+    if (limitReached) {
+      return c.json({ subtasks: [], cloudLimitReached: true });
+    }
+
+    if (!llmConfig) {
+      return c.json({ subtasks: [], cloudLimitReached: false });
+    }
+
+    const title = task.title_en || task.title_zh || "Untitled";
+    const desc = task.desc_en || task.desc_zh || "";
+    const lang = locale ?? "en";
+    const langInstruction = lang === "zh"
+      ? "Respond in Chinese (Simplified). Generate subtasks in Chinese."
+      : "Respond in English. Generate subtasks in English.";
+
+    const prompt = `You are a productivity expert helping break down tasks into actionable steps.
+${langInstruction}
+
+Task: "${title}"${desc ? `\nDescription: "${desc}"` : ""}
+
+Break this task into 3-5 concrete, actionable subtasks. Each subtask should:
+- Be completable in 1-2 pomodoro sessions (25-50 minutes)
+- Be specific and actionable (avoid vague verbs like "research" — use "read 3 articles and summarize")
+- Cover the main phases from start to completion
+- Stay flat — no nested subtasks
+
+Return ONLY a JSON array of strings, no markdown, no explanation:
+["subtask 1", "subtask 2", "subtask 3"]`;
+
+    try {
+      const result = await callLLMWithTools(llmConfig, [{ role: "user", content: prompt }], []);
+
+      if (result.finish !== "text") {
+        return httpError(c, 502, "AI_UNAVAILABLE", "AI service returned unexpected result");
+      }
+
+      const m = result.text.match(/\[[\s\S]*\]/);
+      const parsed: unknown = JSON.parse(m ? m[0] : result.text);
+
+      if (!Array.isArray(parsed)) {
+        return httpError(c, 502, "AI_PARSE_ERROR", "Failed to parse AI response");
+      }
+
+      const subtasks = (parsed as unknown[])
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .slice(0, 5)
+        .map((s) => s.trim());
+
+      if (usingCloud) await incrementCloudUsage(userId);
+
+      return c.json({ subtasks, cloudLimitReached: false });
+    } catch (err: any) {
+      console.error("[ai/breakdown] LLM error:", err?.message);
+      return httpError(c, 502, "AI_UNAVAILABLE", "AI service unavailable. Please try again.");
+    }
+  } catch (err: any) {
+    console.error("[ai/breakdown] error:", err?.message);
+    return httpError(c, 500, "INTERNAL_ERROR", "Internal server error");
+  }
+});
+
 // POST /ai/chat
 app.post("/chat", chatRateLimit, zValidator("json", ChatBody), async (c) => {
   const userId = c.get("userId") as string;

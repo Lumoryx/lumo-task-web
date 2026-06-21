@@ -38,6 +38,7 @@ interface TasksState {
   addSubtask: (taskId: string, title: string) => Promise<void>;
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
+  breakdownSubtasks: (taskId: string, locale?: string) => Promise<{ subtasks: string[]; cloudLimitReached: boolean }>;
 }
 
 export const useTasksStore = create<TasksState>((set, get) => ({
@@ -188,5 +189,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       set({ tasks: get().tasks.map((tk) => tk.id === taskId ? task : tk) });
       throw e;
     }
+  },
+
+  async breakdownSubtasks(taskId, locale) {
+    return api.breakdownSubtasks(taskId, locale);
   },
 }));

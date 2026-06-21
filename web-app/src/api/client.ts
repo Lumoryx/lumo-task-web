@@ -234,6 +234,13 @@ export const api = {
     return req("POST", "/ai/parse", { text, locale });
   },
 
+  async breakdownSubtasks(taskId: string, locale?: string): Promise<{
+    subtasks: string[];
+    cloudLimitReached: boolean;
+  }> {
+    return req("POST", "/ai/breakdown", { taskId, locale });
+  },
+
   async createTask(input: TaskCreateInput): Promise<Task> {
     const raw = await req<any>("POST", "/tasks", {
       title: input.title,
