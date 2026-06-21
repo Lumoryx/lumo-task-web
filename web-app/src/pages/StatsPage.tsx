@@ -13,8 +13,19 @@ import { useNavigate } from "react-router-dom";
 import { ShareCard } from "@/components/ShareCard";
 import { WrappedCard } from "@/components/WrappedCard";
 import { HabitWeekSection } from "@/components/HabitWeekSection";
+import { QuadrantBreakdown } from "@/components/QuadrantBreakdown";
+import type { QuadrantCount } from "@/utils/stats";
 
 const DAY_KEYS = ["stats.day.sun","stats.day.mon","stats.day.tue","stats.day.wed","stats.day.thu","stats.day.fri","stats.day.sat"];
+
+function topQuadrantsSub(breakdown: QuadrantCount[]): string {
+  const top2 = breakdown
+    .filter((b) => b.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 2);
+  if (top2.length === 0) return "";
+  return top2.map((b) => `${b.quadrant === "unclassified" ? "—" : b.quadrant}: ${b.count}`).join(" · ");
+}
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
@@ -134,7 +145,7 @@ export function StatsPage() {
                 <StatCard
                   label={t("stats.tasks")}
                   value={week.tasksCompleted}
-                  sub={`${week.q1Tasks} Q1`}
+                  sub={topQuadrantsSub(week.quadrantBreakdown)}
                 />
                 <StatCard
                   label={t("stats.focus")}
@@ -160,6 +171,9 @@ export function StatsPage() {
                   />
                 )}
               </div>
+
+              {/* Quadrant breakdown */}
+              <QuadrantBreakdown breakdown={week.quadrantBreakdown} />
 
               {/* Daily bar chart */}
               <div className="mt-4 p-4 rounded-xl bg-surface border border-border-faint">
