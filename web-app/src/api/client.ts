@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, TaskCreateInput, TaskUpdateInput, TaskCompleteResponse, User } from "@/types/task";
+import type { AppSettings, BreakdownResponse, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, TaskCreateInput, TaskUpdateInput, TaskCompleteResponse, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -234,10 +234,7 @@ export const api = {
     return req("POST", "/ai/parse", { text, locale });
   },
 
-  async breakdownSubtasks(taskId: string, locale?: string): Promise<{
-    subtasks: string[];
-    cloudLimitReached: boolean;
-  }> {
+  async breakdownSubtasks(taskId: string, locale?: string): Promise<BreakdownResponse> {
     return req("POST", "/ai/breakdown", { taskId, locale });
   },
 

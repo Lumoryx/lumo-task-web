@@ -9,6 +9,7 @@ import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, fmtScheduledStart, getDueLabel } from "@/lib/format";
+import { toast } from "@/store/useToastStore";
 import type { Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
@@ -58,7 +59,6 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const subtaskInputRef = useRef<HTMLInputElement>(null);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [breakdownDraft, setBreakdownDraft] = useState<string[] | null>(null);
-  const [aiLimitReached, setAiLimitReached] = useState(false);
 
   const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(liveTask.due, locale);
@@ -86,19 +86,17 @@ export function TaskDetailModal({ task, onClose }: Props) {
   }
 
   async function handleAIBreakdown() {
-    if (breakdownLoading || aiLimitReached) return;
+    if (breakdownLoading) return;
     setBreakdownLoading(true);
     try {
       const result = await breakdownSubtasks(liveTask.id, locale);
       if (result.cloudLimitReached) {
-        setAiLimitReached(true);
+        toast.error(t("detail.ai.breakdown.quota"));
         return;
       }
       setBreakdownDraft(result.subtasks);
     } catch {
-      import("@/store/useToastStore").then(({ toast }) => {
-        toast.error(t("detail.ai.breakdown.error"));
-      });
+      toast.error(t("detail.ai.breakdown.error"));
     } finally {
       setBreakdownLoading(false);
     }
@@ -110,11 +108,11 @@ export function TaskDetailModal({ task, onClose }: Props) {
     if (titles.length === 0) return;
     setSubtaskBusy(true);
     try {
-      for (const title of titles) {
-        await addSubtask(liveTask.id, title);
-      }
-      setBreakdownDraft(null);
+      await Promise.all(titles.map((title) => addSubtask(liveTask.id, title)));
+    } catch {
+      toast.error(t("detail.ai.breakdown.error"));
     } finally {
+      setBreakdownDraft(null);
       setSubtaskBusy(false);
     }
   }
@@ -256,15 +254,14 @@ export function TaskDetailModal({ task, onClose }: Props) {
               {subtasks.length === 0 && breakdownDraft === null && (
                 <button
                   onClick={handleAIBreakdown}
-                  disabled={breakdownLoading || aiLimitReached}
-                  title={aiLimitReached ? t("detail.ai.breakdown.quota") : undefined}
+                  disabled={breakdownLoading}
                   className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md transition-opacity"
                   style={{
-                    background: aiLimitReached ? "var(--bg-subtle)" : "var(--accent-fog)",
-                    border: `1px solid ${aiLimitReached ? "var(--border-faint)" : "var(--accent-edge)"}`,
-                    color: aiLimitReached ? "var(--text-faint)" : "var(--accent-primary)",
+                    background: "var(--accent-fog)",
+                    border: "1px solid var(--accent-edge)",
+                    color: "var(--accent-primary)",
                     opacity: breakdownLoading ? 0.7 : 1,
-                    cursor: aiLimitReached ? "not-allowed" : "pointer",
+                    cursor: breakdownLoading ? "default" : "pointer",
                   }}
                 >
                   {breakdownLoading ? t("detail.ai.breakdown.loading") : t("detail.ai.breakdown")}
@@ -305,7 +302,9 @@ export function TaskDetailModal({ task, onClose }: Props) {
             ))}
 
             {/* AI breakdown draft preview */}
-            {breakdownDraft !== null && (
+            {breakdownDraft !== null && (() => {
+              const confirmDisabled = subtaskBusy || breakdownDraft.filter((s) => s.trim()).length === 0;
+              return (
               <div className="mb-3">
                 {breakdownDraft.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2 py-1">
@@ -327,7 +326,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
                     <button
                       onClick={() => {
                         const next = breakdownDraft.filter((_, i) => i !== idx);
-                        setBreakdownDraft(next.length > 0 ? next : []);
+                        setBreakdownDraft(next.length > 0 ? next : null);
                       }}
                       className="flex-shrink-0 text-[11px] w-[18px] h-[18px] flex items-center justify-center rounded-full transition-opacity hover:opacity-80"
                       style={{ color: "var(--text-faint)", background: "var(--bg-subtle)" }}
@@ -340,12 +339,12 @@ export function TaskDetailModal({ task, onClose }: Props) {
                 <div className="flex items-center gap-2 mt-2">
                   <button
                     onClick={handleConfirmBreakdown}
-                    disabled={subtaskBusy || breakdownDraft.filter((s) => s.trim()).length === 0}
+                    disabled={confirmDisabled}
                     className="text-[11px] px-3 py-1 rounded-md font-medium transition-opacity"
                     style={{
                       background: "var(--accent-primary)",
                       color: "var(--bg-default)",
-                      opacity: (subtaskBusy || breakdownDraft.filter((s) => s.trim()).length === 0) ? 0.4 : 1,
+                      opacity: confirmDisabled ? 0.4 : 1,
                     }}
                   >
                     {t("detail.ai.breakdown.confirm")}
@@ -365,7 +364,8 @@ export function TaskDetailModal({ task, onClose }: Props) {
                   </button>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* Add subtask input */}
             <div className="flex items-center gap-2 mt-2">

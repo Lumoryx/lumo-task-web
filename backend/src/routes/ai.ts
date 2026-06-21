@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { BreakdownRequestSchema } from "@lumo/contracts";
 import { query, queryOne, execute } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
@@ -596,18 +597,13 @@ async function executeGetStats(locale: string, jwt: string): Promise<IntentResul
 }
 
 // POST /ai/breakdown — AI-powered subtask breakdown
-const BreakdownBody = z.object({
-  taskId: z.string().min(1),
-  locale: z.enum(["en", "zh"]).optional(),
-});
-
-app.post("/breakdown", classifyRateLimit, zValidator("json", BreakdownBody), async (c) => {
+app.post("/breakdown", classifyRateLimit, zValidator("json", BreakdownRequestSchema), async (c) => {
   const userId = c.get("userId") as string;
   const { taskId, locale } = c.req.valid("json");
 
   try {
     const task = await queryOne<any>(
-      "SELECT * FROM tasks WHERE id = :id AND user_id = :uid",
+      "SELECT title_en, title_zh, desc_en, desc_zh FROM tasks WHERE id = :id AND user_id = :uid",
       { id: taskId, uid: userId }
     );
 
@@ -651,8 +647,14 @@ Return ONLY a JSON array of strings, no markdown, no explanation:
         return httpError(c, 502, "AI_UNAVAILABLE", "AI service returned unexpected result");
       }
 
-      const m = result.text.match(/\[[\s\S]*\]/);
-      const parsed: unknown = JSON.parse(m ? m[0] : result.text);
+      // Non-greedy to avoid spanning multiple bracket groups in the response
+      const m = result.text.match(/\[[\s\S]*?\]/);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(m ? m[0] : result.text);
+      } catch {
+        return httpError(c, 502, "AI_PARSE_ERROR", "Failed to parse AI response");
+      }
 
       if (!Array.isArray(parsed)) {
         return httpError(c, 502, "AI_PARSE_ERROR", "Failed to parse AI response");
@@ -663,7 +665,14 @@ Return ONLY a JSON array of strings, no markdown, no explanation:
         .slice(0, 5)
         .map((s) => s.trim());
 
-      if (usingCloud) await incrementCloudUsage(userId);
+      // Double-check quota after LLM call to guard against TOCTOU race
+      if (usingCloud) {
+        const { limitReached: recheck } = await getProviderConfig(userId);
+        if (recheck) {
+          return c.json({ subtasks: [], cloudLimitReached: true });
+        }
+        await incrementCloudUsage(userId);
+      }
 
       return c.json({ subtasks, cloudLimitReached: false });
     } catch (err: any) {

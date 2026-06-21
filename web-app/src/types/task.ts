@@ -21,6 +21,7 @@ import type {
   TaskCreateInput,
   TaskUpdateInput,
   TaskCompleteResponse,
+  BreakdownResponse,
 } from "@lumo/contracts";
 
 export type {
@@ -32,6 +33,7 @@ export type {
   TaskCreateInput,
   TaskUpdateInput,
   TaskCompleteResponse,
+  BreakdownResponse,
 };
 
 export type Locale = "en" | "zh";
