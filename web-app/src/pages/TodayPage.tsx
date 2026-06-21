@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CompletedTimeline } from "@/components/CompletedTimeline";
 import { EveningReviewModal } from "@/components/EveningReviewModal";
 import { MorningPlanningModal } from "@/components/MorningPlanningModal";
-import { WeeklyPlanningModal, isWeeklyPlanned, getWeeklyPlanningDoneKey } from "@/components/WeeklyPlanningModal";
+import { WeeklyPlanningModal, isWeeklyPlanned } from "@/components/WeeklyPlanningModal";
 import { TaskRow } from "@/components/TaskRow";
 import { IconArrowRight } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
@@ -12,7 +12,6 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { fmtDuration, toISODate } from "@/lib/format";
-import { computeWeekStats } from "@/utils/stats";
 import type { Locale, Task } from "@/types/task";
 
 function getPlanningDoneDate(): string | null {
@@ -546,10 +545,9 @@ function WeeklyPlanningBanner({ onOpen, planned }: { onOpen: () => void; planned
 
 interface WeekFocusSectionProps {
   weekFocusTasks: Task[];
-  locale: Locale;
 }
 
-function WeekFocusSection({ weekFocusTasks, locale }: WeekFocusSectionProps) {
+function WeekFocusSection({ weekFocusTasks }: WeekFocusSectionProps) {
   const t = useT();
   const ls = useLocaleString();
   const update = useTasksStore((s) => s.update);
@@ -741,7 +739,7 @@ export function TodayPage() {
           <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
           <WeeklyPlanningBanner onOpen={() => setWeeklyOpen(true)} planned={weeklyPlanned} />
           <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
-          <WeekFocusSection weekFocusTasks={weekFocusTasks} locale={locale} />
+          <WeekFocusSection weekFocusTasks={weekFocusTasks} />
         </div>
         <TodayEmptyState />
         {planningOpen && <MorningPlanningModal onClose={handlePlanningClose} />}
@@ -769,7 +767,7 @@ export function TodayPage() {
       <EveningReviewBanner onOpen={() => setEveningOpen(true)} done={eveningDone} />
 
       {/* This week's focus — shown above today's tasks when set */}
-      <WeekFocusSection weekFocusTasks={weekFocusTasks} locale={locale} />
+      <WeekFocusSection weekFocusTasks={weekFocusTasks} />
 
       {!top && completed.length > 0 && (
         <AllDoneBanner />
