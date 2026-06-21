@@ -353,7 +353,7 @@ function MatrixTaskCard({ task }: { task: Task }) {
               <span
                 className="flex-shrink-0 text-[11px]"
                 style={{ color: "var(--accent-primary)" }}
-                title="Week focus"
+                title={t("weekly.focus.badge")}
               >
                 ★
               </span>

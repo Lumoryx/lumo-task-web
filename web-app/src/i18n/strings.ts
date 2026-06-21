@@ -92,6 +92,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "weekly.focus.add_today": "Add to today",
     "weekly.focus.badge": "Week focus",
     "weekly.focus.all_done": "All week's focus tasks done! 🎉",
+    "weekly.btn.finish": "Start this week",
 
     "matrix.title": "Matrix",
     "matrix.sub": "Eisenhower — urgent vs. important.",
@@ -732,6 +733,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "weekly.focus.add_today": "加入今日",
     "weekly.focus.badge": "周焦点",
     "weekly.focus.all_done": "本周焦点任务全部完成！🎉",
+    "weekly.btn.finish": "开始这周",
 
     "matrix.title": "矩阵",
     "matrix.sub": "艾森豪威尔 — 紧急 vs. 重要。",
