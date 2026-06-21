@@ -44,6 +44,7 @@ export function TaskEditModal({ task, onClose }: Props) {
   const todayISO = toISODate(new Date());
   const tomorrowISO = toISODate(new Date(Date.now() + 86400000));
   const thisFridayISO = getThisFriday();
+  const fridayLabel = new Date().getDay() === 5 ? t("due.nextFriday") : t("due.friday");
 
   const initialTitle =
     typeof task.title === "string" ? task.title : (task.title as { en: string }).en;
@@ -242,12 +243,12 @@ export function TaskEditModal({ task, onClose }: Props) {
               </div>
               <div className="flex flex-wrap gap-1 mb-1.5">
                 {([
-                  { key: "due.today", value: todayISO },
-                  { key: "due.tomorrow", value: tomorrowISO },
-                  { key: "due.friday", value: thisFridayISO },
-                ] as const).map(({ key, value }) => (
+                  { label: t("due.today"), value: todayISO },
+                  { label: t("due.tomorrow"), value: tomorrowISO },
+                  { label: fridayLabel, value: thisFridayISO },
+                ]).map(({ label, value }) => (
                   <button
-                    key={key}
+                    key={value}
                     type="button"
                     onClick={() => setDueDate(value)}
                     className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
@@ -257,7 +258,7 @@ export function TaskEditModal({ task, onClose }: Props) {
                       color: dueDate === value ? "var(--accent-primary)" : "var(--text-muted)",
                     }}
                   >
-                    {t(key)}
+                    {label}
                   </button>
                 ))}
               </div>

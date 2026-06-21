@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { fmtScheduledStart, fmtDuration, parseDueISO, getDueLabel, isOverdue, getDueColor } from "@/lib/format";
 
 describe("fmtScheduledStart", () => {
@@ -78,8 +78,17 @@ describe("isOverdue", () => {
 });
 
 describe("getDueColor", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("returns status-urgent for a past date", () => {
     expect(getDueColor("2020-01-01")).toBe("var(--status-urgent)");
+  });
+
+  it("returns accent-primary for today's date", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-21T10:00:00"));
+    expect(getDueColor("2026-06-21")).toBe("var(--accent-primary)");
+    vi.useRealTimers();
   });
 
   it("returns text-faint for a future date", () => {
