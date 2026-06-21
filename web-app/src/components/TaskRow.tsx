@@ -101,6 +101,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
             )}
             {task.recurrence && task.recurrence !== "none" && (
               <span
+                role="img"
                 className="flex items-center"
                 style={{ color: "var(--text-faint)" }}
                 title={t(`task.recurrence.${task.recurrence}`)}
