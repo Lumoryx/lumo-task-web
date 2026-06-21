@@ -119,7 +119,7 @@ export function useNotificationScheduler(): void {
       const id = setTimeout(() => {
         if (alreadySent("evening")) return;
 
-        const todayDone = completed.filter((e) => e.completedAt.startsWith(today));
+        const todayDone = completed.filter((e) => e.completedAt?.startsWith(today));
         const totalMin = todayDone.reduce((s, e) => s + (e.duration || 0), 0);
         const h = Math.floor(totalMin / 60);
         const m = totalMin % 60;

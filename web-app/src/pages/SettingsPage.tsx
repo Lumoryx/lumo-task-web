@@ -1356,7 +1356,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 
 /* ── Notifications panel ──────────────────────────────────────────── */
 
-function NotificationsPanel({ t, locale }: { t: (k: string) => string; locale: string }) {
+function NotificationsPanel({ t, locale: _locale }: { t: (k: string) => string; locale: string }) {
   const {
     enabled, morningTime, eveningTime, dueAlertsEnabled,
     setEnabled, setMorningTime, setEveningTime, setDueAlertsEnabled,
