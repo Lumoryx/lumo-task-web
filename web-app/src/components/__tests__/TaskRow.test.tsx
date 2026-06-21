@@ -52,6 +52,21 @@ describe("TaskRow", () => {
     expect(screen.getByRole("button", { name: /complete/i })).toBeInTheDocument();
   });
 
+  it("shows recurrence icon when task has a recurrence rule", () => {
+    renderRow({ ...TASK, recurrence: "weekly" });
+    expect(screen.getByLabelText(/weekly/i)).toBeInTheDocument();
+  });
+
+  it("does not show recurrence icon when recurrence is none", () => {
+    renderRow({ ...TASK, recurrence: "none" });
+    expect(screen.queryByLabelText(/daily|weekdays|weekly|monthly/i)).not.toBeInTheDocument();
+  });
+
+  it("does not show recurrence icon when recurrence is absent", () => {
+    renderRow({ ...TASK });
+    expect(screen.queryByLabelText(/daily|weekdays|weekly|monthly/i)).not.toBeInTheDocument();
+  });
+
   it("complete button becomes disabled while request is in-flight", async () => {
     // Arrange: complete resolves after a tick
     let resolveComplete!: () => void;
