@@ -46,11 +46,13 @@ async function sendNotification(
   }
   const n = new Notification(title, options);
   const action = options.data?.action;
-  if (action === "morning") {
-    n.onclick = () => { window.focus(); window.location.href = "/today?planning=open"; };
-  } else if (action === "evening") {
-    n.onclick = () => { window.focus(); window.location.href = "/today?evening=open"; };
-  }
+  // Mirror sw.js notificationclick routing so the direct-Notification fallback
+  // is clickable for every action (morning, evening, due, default).
+  const target =
+    action === "morning" ? "/today?planning=open"
+    : action === "evening" ? "/today?evening=open"
+    : "/today";
+  n.onclick = () => { window.focus(); window.location.href = target; };
 }
 
 export function useNotificationScheduler(): void {
