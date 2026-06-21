@@ -9,6 +9,7 @@ import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, fmtScheduledStart, getDueLabel } from "@/lib/format";
+import { toast } from "@/store/useToastStore";
 import type { Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
@@ -49,12 +50,15 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const addSubtask = useTasksStore((s) => s.addSubtask);
   const toggleSubtask = useTasksStore((s) => s.toggleSubtask);
   const deleteSubtask = useTasksStore((s) => s.deleteSubtask);
+  const breakdownSubtasks = useTasksStore((s) => s.breakdownSubtasks);
   const liveTask = useTasksStore((s) => s.tasks.find((tk) => tk.id === task.id) ?? task);
   const byId = usePeopleStore((s) => s.byId);
   const [editOpen, setEditOpen] = useState(false);
   const [subtaskInput, setSubtaskInput] = useState("");
   const [subtaskBusy, setSubtaskBusy] = useState(false);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [breakdownDraft, setBreakdownDraft] = useState<string[] | null>(null);
 
   const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(liveTask.due, locale);
@@ -79,6 +83,38 @@ export function TaskDetailModal({ task, onClose }: Props) {
   async function handleComplete() {
     await complete(task.id);
     onClose();
+  }
+
+  async function handleAIBreakdown() {
+    if (breakdownLoading) return;
+    setBreakdownLoading(true);
+    try {
+      const result = await breakdownSubtasks(liveTask.id, locale);
+      if (result.cloudLimitReached) {
+        toast.error(t("detail.ai.breakdown.quota"));
+        return;
+      }
+      setBreakdownDraft(result.subtasks);
+    } catch {
+      toast.error(t("detail.ai.breakdown.error"));
+    } finally {
+      setBreakdownLoading(false);
+    }
+  }
+
+  async function handleConfirmBreakdown() {
+    if (!breakdownDraft || subtaskBusy) return;
+    const titles = breakdownDraft.filter((s) => s.trim().length > 0);
+    if (titles.length === 0) return;
+    setSubtaskBusy(true);
+    try {
+      await Promise.all(titles.map((title) => addSubtask(liveTask.id, title)));
+    } catch {
+      toast.error(t("detail.ai.breakdown.error"));
+    } finally {
+      setBreakdownDraft(null);
+      setSubtaskBusy(false);
+    }
   }
 
 
@@ -214,6 +250,23 @@ export function TaskDetailModal({ task, onClose }: Props) {
                   </span>
                 )}
               </span>
+              {/* AI breakdown button — only shown when no subtasks and no draft */}
+              {subtasks.length === 0 && breakdownDraft === null && (
+                <button
+                  onClick={handleAIBreakdown}
+                  disabled={breakdownLoading}
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md transition-opacity"
+                  style={{
+                    background: "var(--accent-fog)",
+                    border: "1px solid var(--accent-edge)",
+                    color: "var(--accent-primary)",
+                    opacity: breakdownLoading ? 0.7 : 1,
+                    cursor: breakdownLoading ? "default" : "pointer",
+                  }}
+                >
+                  {breakdownLoading ? t("detail.ai.breakdown.loading") : t("detail.ai.breakdown")}
+                </button>
+              )}
             </div>
 
             {/* Progress bar */}
@@ -247,6 +300,72 @@ export function TaskDetailModal({ task, onClose }: Props) {
                 }}
               />
             ))}
+
+            {/* AI breakdown draft preview */}
+            {breakdownDraft !== null && (() => {
+              const confirmDisabled = subtaskBusy || breakdownDraft.filter((s) => s.trim()).length === 0;
+              return (
+              <div className="mb-3">
+                {breakdownDraft.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 py-1">
+                    <div
+                      className="flex-shrink-0 w-[16px] h-[16px] rounded-full border-[1.5px] flex items-center justify-center"
+                      style={{ borderColor: "var(--accent-primary)", borderStyle: "dashed" }}
+                    />
+                    <input
+                      type="text"
+                      value={item}
+                      onChange={(e) => {
+                        const next = [...breakdownDraft];
+                        next[idx] = e.target.value;
+                        setBreakdownDraft(next);
+                      }}
+                      className="flex-1 text-[13px] bg-transparent outline-none"
+                      style={{ color: "var(--text-primary)" }}
+                    />
+                    <button
+                      onClick={() => {
+                        const next = breakdownDraft.filter((_, i) => i !== idx);
+                        setBreakdownDraft(next.length > 0 ? next : null);
+                      }}
+                      className="flex-shrink-0 text-[11px] w-[18px] h-[18px] flex items-center justify-center rounded-full transition-opacity hover:opacity-80"
+                      style={{ color: "var(--text-faint)", background: "var(--bg-subtle)" }}
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={handleConfirmBreakdown}
+                    disabled={confirmDisabled}
+                    className="text-[11px] px-3 py-1 rounded-md font-medium transition-opacity"
+                    style={{
+                      background: "var(--accent-primary)",
+                      color: "var(--bg-default)",
+                      opacity: confirmDisabled ? 0.4 : 1,
+                    }}
+                  >
+                    {t("detail.ai.breakdown.confirm")}
+                  </button>
+                  <button
+                    onClick={() => setBreakdownDraft(null)}
+                    disabled={subtaskBusy}
+                    className="text-[11px] px-3 py-1 rounded-md transition-opacity"
+                    style={{
+                      background: "var(--bg-subtle)",
+                      border: "1px solid var(--border-faint)",
+                      color: "var(--text-secondary)",
+                      opacity: subtaskBusy ? 0.4 : 1,
+                    }}
+                  >
+                    {t("detail.ai.breakdown.cancel")}
+                  </button>
+                </div>
+              </div>
+              );
+            })()}
 
             {/* Add subtask input */}
             <div className="flex items-center gap-2 mt-2">
