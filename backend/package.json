@@ -17,6 +17,7 @@
     "test": "node --env-file src/test/.env.test --import tsx/esm --test \"src/test/api/**/*.test.ts\"",
     "test:unit": "node --env-file src/test/.env.test --import tsx/esm --test \"src/test/api/**/*.test.ts\"",
     "test:coverage": "node --env-file src/test/.env.test --import tsx/esm --test --experimental-test-coverage \"src/test/api/**/*.test.ts\"",
+    "test:security": "node --env-file src/test/.env.test --import tsx/esm --test \"src/test/security/**/*.security.test.ts\"",
     "test:integration": "node --env-file src/test/.env.integration --import tsx/esm --test src/test/integration.test.ts"
   },
   "dependencies": {

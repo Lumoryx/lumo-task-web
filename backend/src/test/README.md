@@ -16,6 +16,8 @@ test/
     index.ts              barrel — import everything from "../helpers/index.js"
   api/                    one file per domain (unit + contract conformance)
     <domain>.test.ts
+  security/               authn / authz (IDOR) / input / secrets / rate-limit
+    <area>.security.test.ts
   integration/            real-HTTP end-to-end (see integration.test.ts)
   .env.test               in-memory SQLite (used by `npm test`)
   .env.integration        file SQLite (used by `npm run test:integration`)
@@ -30,9 +32,19 @@ isolation: `node --env-file src/test/.env.test --import tsx/esm --test src/test/
 
 ```bash
 npm test                  # all api/ suites
-npm run test:coverage     # same, with native coverage
+npm run test:security     # authn / authz / input / secrets / rate-limit
+npm run test:coverage     # api/ suites, with native coverage
 npm run test:integration  # real-HTTP suite
 ```
+
+### Security layer (`security/`)
+
+Table-driven, so growth is cheap. The IDOR sweep in `authz.security.test.ts`
+covers a new owned resource by adding one row to its `RESOURCES` array. Token
+forging for the authn suite lives in `helpers/tokens.ts`; the secret-leak
+scanner is `helpers/secrets.ts` (`assertNoSecrets`). `ratelimit.security.test.ts`
+re-enables the limiter at runtime (it's disabled in `.env.test`) — no separate
+env file needed, since each test file runs in its own process.
 
 ## Add tests for a new domain (TDD: Red → Green → Refactor)
 
