@@ -45,6 +45,7 @@ function makeTask(override: Partial<Task> = {}): Task {
     title: { en: "Task A", zh: "任务 A" },
     quadrant: "Q1",
     today: false,
+    week_focus: false,
     completed: false,
     duration: 30,
     pomos_done: 0,
