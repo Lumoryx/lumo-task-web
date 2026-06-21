@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore, type Accent, type Density } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
@@ -12,6 +12,7 @@ import { toast } from "@/store/useToastStore";
 import type { Locale, Person } from "@/types/task";
 import { PERSON_COLORS } from "@/mocks/people";
 import { PET_SPECIES_LIST, PetSvg } from "@/components/PetSvg";
+import { useNotificationStore } from "@/store/useNotificationStore";
 
 const ACCENT_SWATCHES: Array<{ id: Accent; hex: string; label: string }> = [
   { id: "green", hex: "#3DFFA0", label: "Lumo Green" },
@@ -20,7 +21,7 @@ const ACCENT_SWATCHES: Array<{ id: Accent; hex: string; label: string }> = [
   { id: "graphite", hex: "#A0ADB0", label: "Graphite" },
 ];
 
-type TabId = "appearance" | "language" | "pet" | "members" | "ai" | "integrations" | "storage" | "sync" | "data";
+type TabId = "appearance" | "language" | "notifications" | "pet" | "members" | "ai" | "integrations" | "storage" | "sync" | "data";
 
 export function SettingsPage() {
   const t = useT();
@@ -36,6 +37,7 @@ export function SettingsPage() {
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: "appearance", label: t("settings.appearance") },
     { id: "language",   label: t("settings.language") },
+    { id: "notifications", label: t("settings.notifications") },
     { id: "pet",        label: t("settings.pet") },
     { id: "members",    label: t("settings.members") },
     { id: "ai",         label: t("ai.config.title") },
@@ -130,6 +132,10 @@ export function SettingsPage() {
                 />
               </Row>
             </Panel>
+          )}
+
+          {activeTab === "notifications" && (
+            <NotificationsPanel t={t} locale={locale} />
           )}
 
           {activeTab === "pet" && (
@@ -1345,5 +1351,117 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
         }}
       />
     </button>
+  );
+}
+
+/* ── Notifications panel ──────────────────────────────────────────── */
+
+function NotificationsPanel({ t, locale }: { t: (k: string) => string; locale: string }) {
+  const {
+    enabled, morningTime, eveningTime, dueAlertsEnabled,
+    setEnabled, setMorningTime, setEveningTime, setDueAlertsEnabled,
+  } = useNotificationStore();
+
+  const [permDenied, setPermDenied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const deniedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function handleToggleEnabled(next: boolean) {
+    if (busy) return;
+    setBusy(true);
+    setPermDenied(false);
+
+    try {
+      if (next) {
+        if (typeof Notification === "undefined") {
+          setPermDenied(true);
+          setBusy(false);
+          return;
+        }
+        if (Notification.permission === "denied") {
+          setPermDenied(true);
+          setBusy(false);
+          return;
+        }
+        if (Notification.permission === "default") {
+          const result = await Notification.requestPermission();
+          if (result !== "granted") {
+            setPermDenied(true);
+            setBusy(false);
+            return;
+          }
+        }
+      }
+
+      setEnabled(next);
+      await api.patchSettings({ notifications_enabled: next });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMorningChange(v: string) {
+    setMorningTime(v);
+    await api.patchSettings({ morning_reminder_time: v }).catch(() => {});
+  }
+
+  async function handleEveningChange(v: string) {
+    setEveningTime(v);
+    await api.patchSettings({ evening_reminder_time: v }).catch(() => {});
+  }
+
+  useEffect(() => {
+    return () => {
+      if (deniedTimerRef.current) clearTimeout(deniedTimerRef.current);
+    };
+  }, []);
+
+  return (
+    <Panel title={t("settings.notifications")}>
+      <Row label={t("settings.notifications.enabled")} helper={t("settings.notifications.enabled.helper")}>
+        <Toggle value={enabled} onChange={handleToggleEnabled} />
+      </Row>
+      {permDenied && (
+        <div
+          className="mx-5 mb-4 rounded-lg px-4 py-3 text-[12px] leading-relaxed"
+          style={{ background: "rgba(255,80,80,0.08)", color: "var(--text-secondary)", border: "1px solid rgba(255,80,80,0.2)" }}
+        >
+          {t("settings.notifications.permission.denied")}
+        </div>
+      )}
+      <Row label={t("settings.notifications.morning")} helper={t("settings.notifications.morning.helper")}>
+        <input
+          type="time"
+          value={morningTime}
+          onChange={(e) => handleMorningChange(e.target.value)}
+          disabled={!enabled}
+          className="text-[13px] rounded-lg px-3 py-1.5 outline-none"
+          style={{
+            background: "var(--bg-deep)",
+            border: "1px solid var(--border-default)",
+            color: enabled ? "var(--text-primary)" : "var(--text-faint)",
+            opacity: enabled ? 1 : 0.5,
+          }}
+        />
+      </Row>
+      <Row label={t("settings.notifications.due")} helper={t("settings.notifications.due.helper")}>
+        <Toggle value={dueAlertsEnabled && enabled} onChange={(v) => setDueAlertsEnabled(v)} />
+      </Row>
+      <Row label={t("settings.notifications.evening")} helper={t("settings.notifications.evening.helper")}>
+        <input
+          type="time"
+          value={eveningTime}
+          onChange={(e) => handleEveningChange(e.target.value)}
+          disabled={!enabled}
+          className="text-[13px] rounded-lg px-3 py-1.5 outline-none"
+          style={{
+            background: "var(--bg-deep)",
+            border: "1px solid var(--border-default)",
+            color: enabled ? "var(--text-primary)" : "var(--text-faint)",
+            opacity: enabled ? 1 : 0.5,
+          }}
+        />
+      </Row>
+    </Panel>
   );
 }
