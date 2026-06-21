@@ -238,6 +238,16 @@ export async function runMigrations() {
     await execRaw("ALTER TABLE settings ADD COLUMN remote_token TEXT");
   }
 
+  // Migrate: scheduled notification times
+  const settingsColsV4 = await query<{ name: string }>("PRAGMA table_info(settings)");
+  if (!settingsColsV4.some((c) => c.name === "morning_reminder_time")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN morning_reminder_time TEXT NOT NULL DEFAULT '09:00'");
+    await execRaw("ALTER TABLE settings ADD COLUMN evening_reminder_time TEXT NOT NULL DEFAULT '18:00'");
+  }
+  if (!settingsColsV4.some((c) => c.name === "due_alerts_enabled")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN due_alerts_enabled INTEGER NOT NULL DEFAULT 1");
+  }
+
   // Habits cloud persistence
   await execRaw(`
     CREATE TABLE IF NOT EXISTS habits (
