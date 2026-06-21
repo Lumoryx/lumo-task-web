@@ -250,7 +250,7 @@ describe("WeeklyPlanningModal", () => {
     fireEvent.click(screen.getByText("planning.btn.next")); // → select
     await user.click(screen.getByText("Task 1"));
     fireEvent.click(screen.getByText("planning.btn.next")); // → done
-    fireEvent.click(screen.getByText("Start this week"));
+    fireEvent.click(screen.getByText("weekly.btn.finish"));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(mockUpdate).toHaveBeenCalledWith("t1", { week_focus: true });
   });
@@ -264,7 +264,7 @@ describe("WeeklyPlanningModal", () => {
     // t1 is pre-selected; click to deselect it
     fireEvent.click(screen.getByText("Task 1"));
     fireEvent.click(screen.getByText("planning.btn.next")); // → done
-    fireEvent.click(screen.getByText("Start this week"));
+    fireEvent.click(screen.getByText("weekly.btn.finish"));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(mockUpdate).toHaveBeenCalledWith("t1", { week_focus: false });
   });
@@ -276,7 +276,7 @@ describe("WeeklyPlanningModal", () => {
 
     fireEvent.click(screen.getByText("planning.btn.next")); // → select
     fireEvent.click(screen.getByText("planning.btn.next")); // → done
-    fireEvent.click(screen.getByText("Start this week"));
+    fireEvent.click(screen.getByText("weekly.btn.finish"));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(localStorage.setItem).toHaveBeenCalledWith(
       "lumo.weekly_planning_done_week",
@@ -291,7 +291,7 @@ describe("WeeklyPlanningModal", () => {
 
     fireEvent.click(screen.getByText("planning.btn.next")); // → select (t1 pre-selected)
     fireEvent.click(screen.getByText("planning.btn.next")); // → done
-    fireEvent.click(screen.getByText("Start this week"));
+    fireEvent.click(screen.getByText("weekly.btn.finish"));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     // t1 is already week_focus=true and still selected → no update needed
     expect(mockUpdate).not.toHaveBeenCalledWith("t1", expect.anything());

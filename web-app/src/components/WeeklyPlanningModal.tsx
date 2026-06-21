@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT, useLocaleString } from "@/i18n/useT";
-import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import type { Task } from "@/types/task";
 
@@ -206,7 +205,7 @@ function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
               className="text-[10px] font-semibold uppercase tracking-widest mb-1.5"
               style={{ color: "var(--text-faint)" }}
             >
-              {quadrant === "Q1" ? "Q1 — Do first" : "Q2 — Schedule"}
+              {quadrant === "Q1" ? `Q1 — ${t("matrix.q1")}` : `Q2 — ${t("matrix.q2")}`}
             </div>
             {qTasks.map((task) => {
               const isSelected = selected.has(task.id);
@@ -311,7 +310,6 @@ export function WeeklyPlanningModal({ onClose, prevWeekStats, prevWeekFocusTasks
   const t = useT();
   const tasks = useTasksStore((s) => s.tasks);
   const update = useTasksStore((s) => s.update);
-  const locale = useAppStore((s) => s.locale);
 
   const steps: StepId[] = ["review", "select", "done"];
   const [stepIdx, setStepIdx] = useState(0);
@@ -546,7 +544,7 @@ export function WeeklyPlanningModal({ onClose, prevWeekStats, prevWeekFocusTasks
             className="btn btn-primary"
             style={{ minHeight: 44, minWidth: 100 }}
           >
-            {busy ? "…" : isLastStep ? (locale === "zh" ? "开始这周" : "Start this week") : t("planning.btn.next")}
+            {busy ? "…" : isLastStep ? t("weekly.btn.finish") : t("planning.btn.next")}
           </button>
         </div>
       </div>

@@ -554,6 +554,7 @@ function WeekFocusSection({ weekFocusTasks }: WeekFocusSectionProps) {
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("lumo.week_focus_collapsed") === "1"; } catch { return false; }
   });
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   function toggleCollapse() {
     const next = !collapsed;
@@ -601,18 +602,24 @@ function WeekFocusSection({ weekFocusTasks }: WeekFocusSectionProps) {
               </span>
               {!task.today && (
                 <button
-                  onClick={() => update(task.id, { today: true })}
+                  onClick={async () => {
+                    if (addingId) return;
+                    setAddingId(task.id);
+                    try { await update(task.id, { today: true }); } finally { setAddingId(null); }
+                  }}
+                  disabled={addingId === task.id}
                   className="text-[11px] flex-shrink-0"
                   style={{
                     color: "var(--accent-primary)",
                     background: "none",
                     border: "none",
-                    cursor: "pointer",
+                    cursor: addingId === task.id ? "default" : "pointer",
                     padding: "2px 6px",
                     borderRadius: 4,
+                    opacity: addingId === task.id ? 0.5 : 1,
                   }}
                 >
-                  {t("weekly.focus.add_today")}
+                  {addingId === task.id ? "…" : t("weekly.focus.add_today")}
                 </button>
               )}
             </div>
