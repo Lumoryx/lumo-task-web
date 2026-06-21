@@ -55,6 +55,8 @@ export function CommandPalette({ open, onClose }: Props) {
       setDebouncedQuery("");
       setSelectedIndex(0);
       setShowCompleted(false);
+      setEditTask(null);
+      setCreateWithTitle(null);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
@@ -75,9 +77,9 @@ export function CommandPalette({ open, onClose }: Props) {
 
     if (!debouncedQuery.trim()) {
       // Empty state: prefer today tasks, fall back to Q1
-      const todayTasks = pool.filter((task) => task.today && !task.completed);
+      const todayTasks = pool.filter((task) => task.today);
       if (todayTasks.length > 0) return todayTasks.slice(0, 5);
-      return pool.filter((task) => task.quadrant === "Q1" && !task.completed).slice(0, 5);
+      return pool.filter((task) => task.quadrant === "Q1").slice(0, 5);
     }
 
     const q = debouncedQuery.toLowerCase();
@@ -232,7 +234,7 @@ export function CommandPalette({ open, onClose }: Props) {
             <div className="px-4 py-6 flex flex-col items-center gap-3 text-center">
               <span className="text-sm text-text-faint">{t("search.noResults")}</span>
               <button
-                onClick={() => setCreateWithTitle(debouncedQuery)}
+                onClick={() => setCreateWithTitle(debouncedQuery.trim())}
                 className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors"
                 style={{
                   color: "var(--accent-primary)",

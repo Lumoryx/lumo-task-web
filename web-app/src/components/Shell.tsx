@@ -139,10 +139,9 @@ export function Shell() {
             onClick={openSearch}
             className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-colors"
             style={{ color: "var(--text-faint)" }}
-            aria-label={t("topbar.search")}
           >
             <TabBarIcon icon="search" />
-            <span className="text-[9px] font-medium">{t("search.quickAccess")}</span>
+            <span className="text-[9px] font-medium">{t("nav.search")}</span>
           </button>
         </nav>
       )}
