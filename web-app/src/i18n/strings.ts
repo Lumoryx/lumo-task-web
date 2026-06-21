@@ -29,6 +29,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "search.hint.navigate": "navigate",
     "search.hint.open": "open",
     "search.hint.close": "close",
+    "search.createWithQuery": "Create task",
+    "search.showCompleted": "Include completed",
+    "nav.search": "Search",
 
     "today.title": "Today",
     "today.sub": "What matters most, right now.",
@@ -627,6 +630,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "search.hint.navigate": "导航",
     "search.hint.open": "打开",
     "search.hint.close": "关闭",
+    "search.createWithQuery": "创建任务",
+    "search.showCompleted": "显示已完成",
+    "nav.search": "搜索",
 
     "today.title": "今天",
     "today.sub": "现在最重要的事。",

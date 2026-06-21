@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
 import { useT } from "@/i18n/useT";
-import { TaskDetailModal } from "@/components/TaskDetailModal";
-import type { Task } from "@/types/task";
+import { TaskEditModal } from "@/components/TaskEditModal";
+import { QuickCreate } from "@/components/QuickCreate";
+import type { Subtask, Task } from "@/types/task";
 
 const Q_CHIP_CLASS: Record<string, string> = {
   Q1: "chip chip-q1",
@@ -41,7 +42,9 @@ export function CommandPalette({ open, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [createWithTitle, setCreateWithTitle] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -51,6 +54,9 @@ export function CommandPalette({ open, onClose }: Props) {
       setQuery("");
       setDebouncedQuery("");
       setSelectedIndex(0);
+      setShowCompleted(false);
+      setEditTask(null);
+      setCreateWithTitle(null);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
@@ -67,31 +73,41 @@ export function CommandPalette({ open, onClose }: Props) {
   }, [debouncedQuery]);
 
   const results = useMemo(() => {
-    const incomplete = tasks.filter((task) => !task.completed);
+    const pool = showCompleted ? tasks : tasks.filter((task) => !task.completed);
 
     if (!debouncedQuery.trim()) {
       // Empty state: prefer today tasks, fall back to Q1
-      const todayTasks = incomplete.filter((task) => task.today);
+      const todayTasks = pool.filter((task) => task.today);
       if (todayTasks.length > 0) return todayTasks.slice(0, 5);
-      return incomplete.filter((task) => task.quadrant === "Q1").slice(0, 5);
+      return pool.filter((task) => task.quadrant === "Q1").slice(0, 5);
     }
 
     const q = debouncedQuery.toLowerCase();
-    return incomplete
+    return pool
       .filter((task) => {
         const primary = locale === "zh" ? (task.title.zh ?? task.title.en) : task.title.en;
         const fallback = locale === "zh" ? task.title.en : (task.title.zh ?? "");
-        return primary.toLowerCase().includes(q) || fallback.toLowerCase().includes(q);
+        const desc = task.desc
+          ? locale === "zh"
+            ? (task.desc.zh ?? task.desc.en)
+            : task.desc.en
+          : "";
+        const subtaskMatch = task.subtasks?.some((s: Subtask) =>
+          s.title.toLowerCase().includes(q),
+        );
+        return (
+          primary.toLowerCase().includes(q) ||
+          fallback.toLowerCase().includes(q) ||
+          desc.toLowerCase().includes(q) ||
+          subtaskMatch
+        );
       })
-      .slice(0, 8);
-  }, [tasks, debouncedQuery, locale]);
+      .slice(0, 20);
+  }, [tasks, debouncedQuery, locale, showCompleted]);
 
-  const selectTask = useCallback(
-    (task: Task) => {
-      setDetailTask(task);
-    },
-    [],
-  );
+  const selectTask = useCallback((task: Task) => {
+    setEditTask(task);
+  }, []);
 
   const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -117,12 +133,28 @@ export function CommandPalette({ open, onClose }: Props) {
     [results, selectedIndex, selectTask, onClose],
   );
 
-  if (detailTask) {
+  if (editTask) {
     return (
-      <TaskDetailModal
-        task={detailTask}
+      <TaskEditModal
+        task={editTask}
         onClose={() => {
-          setDetailTask(null);
+          setEditTask(null);
+          onClose();
+        }}
+      />
+    );
+  }
+
+  if (createWithTitle !== null) {
+    return (
+      <QuickCreate
+        initialTitle={createWithTitle}
+        onClose={() => {
+          setCreateWithTitle(null);
+          onClose();
+        }}
+        onCreated={() => {
+          setCreateWithTitle(null);
           onClose();
         }}
       />
@@ -130,6 +162,9 @@ export function CommandPalette({ open, onClose }: Props) {
   }
 
   if (!open) return null;
+
+  const hasQuery = debouncedQuery.trim().length > 0;
+  const noResults = hasQuery && results.length === 0;
 
   return createPortal(
     <div
@@ -172,6 +207,19 @@ export function CommandPalette({ open, onClose }: Props) {
             placeholder={t("search.placeholder")}
             className="flex-1 bg-transparent border-none outline-none text-[14px] text-text-primary placeholder:text-text-faint"
           />
+          {/* Show completed toggle */}
+          <button
+            onClick={() => setShowCompleted((v) => !v)}
+            className="flex-shrink-0 flex items-center gap-1 text-[11px] rounded px-2 py-1 transition-colors"
+            style={{
+              color: showCompleted ? "var(--accent-primary)" : "var(--text-faint)",
+              background: showCompleted ? "var(--accent-fog)" : "transparent",
+              border: `1px solid ${showCompleted ? "var(--accent-edge)" : "var(--border-faint)"}`,
+            }}
+            aria-pressed={showCompleted}
+          >
+            {t("search.showCompleted")}
+          </button>
           <kbd
             className="flex-shrink-0 text-[10px] font-mono text-text-faint border border-border-default rounded bg-deep"
             style={{ padding: "1px 5px" }}
@@ -182,13 +230,27 @@ export function CommandPalette({ open, onClose }: Props) {
 
         {/* ── Results list ── */}
         <div className="py-1.5" style={{ maxHeight: 400, overflowY: "auto" }}>
-          {results.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-text-faint">
-              {t("search.noResults")}
+          {noResults ? (
+            <div className="px-4 py-6 flex flex-col items-center gap-3 text-center">
+              <span className="text-sm text-text-faint">{t("search.noResults")}</span>
+              <button
+                onClick={() => setCreateWithTitle(debouncedQuery.trim())}
+                className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors"
+                style={{
+                  color: "var(--accent-primary)",
+                  background: "var(--accent-fog)",
+                  border: "1px solid var(--accent-edge)",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                {t("search.createWithQuery")} "{debouncedQuery}"
+              </button>
             </div>
           ) : (
             <>
-              {!debouncedQuery.trim() && (
+              {!hasQuery && (
                 <div className="px-4 py-1 text-[11px] font-medium text-text-faint uppercase tracking-wider">
                   {t("search.quickAccess")}
                 </div>
@@ -212,12 +274,18 @@ export function CommandPalette({ open, onClose }: Props) {
                       {task.quadrant === "unclassified" ? "—" : task.quadrant}
                     </span>
 
-                    <span className="flex-1 min-w-0 text-[13px] text-text-primary truncate">
+                    <span
+                      className="flex-1 min-w-0 text-[13px] truncate"
+                      style={{
+                        color: task.completed ? "var(--text-faint)" : "var(--text-primary)",
+                        textDecoration: task.completed ? "line-through" : "none",
+                      }}
+                    >
                       <HighlightedText text={title} query={debouncedQuery} />
                     </span>
 
                     <span className="flex items-center gap-1.5 flex-shrink-0">
-                      {task.today && (
+                      {task.today && !task.completed && (
                         <span
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded"
                           style={{
