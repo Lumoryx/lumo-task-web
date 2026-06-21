@@ -5,6 +5,7 @@ import {
   QuadrantSchema,
   RecurrenceSchema,
   type LocalizedString,
+  type LongLocalizedString,
   type Quadrant,
   type TaskRecurrence,
 } from "./primitives.js";
@@ -73,14 +74,14 @@ export const TaskWireSchema = z.object({
   desc: LongLocalizedStringSchema.nullable(),
   quadrant: QuadrantSchema,
   today: z.boolean(),
-  due: z.string().nullable(),
+  due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
   duration: z.number(),
   pomos_done: z.number(),
   pomos_total: z.number(),
   conviction: z.number().nullable(),
   next_step: LongLocalizedStringSchema.nullable(),
   reason: LongLocalizedStringSchema.nullable(),
-  ai_suggest: QuadrantSchema.nullable(),
+  ai_suggest: QuadrantSchema.nullable().catch(null),
   completed: z.boolean(),
   not_now: z.array(NotNowItemSchema),
   recurrence: RecurrenceSchema,
@@ -124,11 +125,11 @@ export interface Task {
   /** Person IDs — references People in the people list. Multiple allowed. */
   assignee_ids?: string[];
   title: LocalizedString;
-  desc?: LocalizedString | null;
+  desc?: LongLocalizedString | null;
   quadrant: Quadrant;
   /** Whether the task is included in today's plan. */
   today: boolean;
-  /** ISO-ish loose due descriptor — e.g. "today", "Fri", "next wk", "Aug 14". */
+  /** Strict ISO date (YYYY-MM-DD) or null when no due date is set. */
   due: string | null;
   /** Estimated minutes. */
   duration: number;
@@ -137,9 +138,9 @@ export interface Task {
   /** Conviction score 0..1, used by the Today recommendation card. */
   conviction?: number;
   /** Lumo's suggested next step. */
-  next_step?: LocalizedString;
+  next_step?: LongLocalizedString;
   /** Why Lumo deprioritized other items in favor of this one. */
-  reason?: LocalizedString;
+  reason?: LongLocalizedString;
   /** AI suggested quadrant (used when `quadrant === "unclassified"`). */
   ai_suggest?: Quadrant;
   /** Done-state. */

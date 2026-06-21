@@ -21,6 +21,7 @@ import type {
   TaskCreateInput,
   TaskUpdateInput,
   TaskCompleteResponse,
+  BreakdownResponse,
 } from "@lumo/contracts";
 
 export type {
@@ -32,6 +33,7 @@ export type {
   TaskCreateInput,
   TaskUpdateInput,
   TaskCompleteResponse,
+  BreakdownResponse,
 };
 
 export type Locale = "en" | "zh";
@@ -105,6 +107,9 @@ export interface AppSettings {
   long_break_interval: number;
   auto_start_breaks: boolean;
   notifications_enabled: boolean;
+  morning_reminder_time: string | null;
+  evening_reminder_time: string | null;
+  due_alerts_enabled: boolean;
   onboarding_complete: boolean;
   ai_provider: "openai" | "deepseek" | "claude" | "custom";
   ai_provider_configs: Record<string, ProviderConfig>;

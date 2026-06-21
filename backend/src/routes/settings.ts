@@ -25,6 +25,9 @@ const SettingsPatch = z.object({
   long_break_interval: z.number().int().min(1).optional(),
   auto_start_breaks: z.boolean().optional(),
   notifications_enabled: z.boolean().optional(),
+  morning_reminder_time: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  evening_reminder_time: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  due_alerts_enabled: z.boolean().optional(),
   onboarding_complete: z.boolean().optional(),
   ai_provider: z.enum(PROVIDERS).optional(),
   ai_configs_update: z.object({
@@ -79,6 +82,9 @@ function rowToSettings(row: SettingsRow) {
     long_break_interval: row.long_break_interval,
     auto_start_breaks: Boolean(row.auto_start_breaks),
     notifications_enabled: Boolean(row.notifications_enabled),
+    morning_reminder_time: row.morning_reminder_time ?? "09:00",
+    evening_reminder_time: row.evening_reminder_time ?? "18:00",
+    due_alerts_enabled: Boolean(row.due_alerts_enabled ?? 1),
     onboarding_complete: Boolean(row.onboarding_complete),
     ai_provider: (row.ai_provider ?? "openai") as string,
     ai_provider_configs: providerConfigs,
@@ -111,7 +117,8 @@ app.patch("/", zValidator("json", SettingsPatch), async (c) => {
   const ALLOWED_COLUMNS = new Set([
     "locale", "accent", "density", "reduced_motion", "ai_enabled",
     "pomodoro_duration", "short_break", "long_break", "long_break_interval",
-    "auto_start_breaks", "notifications_enabled", "onboarding_complete", "ai_provider",
+    "auto_start_breaks", "notifications_enabled", "morning_reminder_time",
+    "evening_reminder_time", "due_alerts_enabled", "onboarding_complete", "ai_provider",
   ]);
 
   const updates: string[] = [];

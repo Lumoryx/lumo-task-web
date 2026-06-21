@@ -34,11 +34,6 @@ function calcNextDue(currentDue: string | null, recurrence: string): string | nu
   return d.toISOString().slice(0, 10);
 }
 
-// Request/response schemas are the single source of truth in @lumo/contracts.
-// Do not redefine task shapes here — edit the contract first (Contract-First).
-const TaskCreateBody = TaskCreateBodySchema;
-const TaskUpdateBody = TaskUpdateBodySchema;
-
 const IdParam = z.object({ id: z.string().min(1).max(50) });
 
 function safeParse<T>(raw: string | null | undefined, fallback: T): T {
@@ -85,7 +80,7 @@ app.get("/", async (c) => {
 });
 
 // POST /tasks
-app.post("/", taskMutateLimit, zValidator("json", TaskCreateBody), async (c) => {
+app.post("/", taskMutateLimit, zValidator("json", TaskCreateBodySchema), async (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
   const id = "t_" + nanoid(10);
@@ -140,7 +135,7 @@ app.get("/:id", zValidator("param", IdParam), async (c) => {
 });
 
 // PATCH /tasks/:id
-app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("json", TaskUpdateBody), async (c) => {
+app.patch("/:id", taskMutateLimit, zValidator("param", IdParam), zValidator("json", TaskUpdateBodySchema), async (c) => {
   const userId = c.get("userId") as string;
   const taskId = c.req.param("id");
   const body = c.req.valid("json");

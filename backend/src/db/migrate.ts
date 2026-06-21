@@ -178,6 +178,52 @@ export async function runMigrations() {
     await execRaw("ALTER TABLE tasks ADD COLUMN scheduled_start TEXT");
   }
 
+  // Migrate: normalize due field to strict ISO YYYY-MM-DD (or null)
+  {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const tmr = new Date(now.getTime() + 86400000);
+    const tomorrowISO = `${tmr.getFullYear()}-${pad(tmr.getMonth() + 1)}-${pad(tmr.getDate())}`;
+    await execute("UPDATE tasks SET due = :d WHERE due IN ('today', '今天')", { d: todayISO });
+    await execute("UPDATE tasks SET due = :d WHERE due IN ('tomorrow', '明天')", { d: tomorrowISO });
+
+    // Parse "Mon DD" (e.g. "Jun 20") and "M月D日" (e.g. "6月20日") before nulling
+    const MONTHS: Record<string, number> = {
+      jan:1, feb:2, mar:3, apr:4, may:5, jun:6,
+      jul:7, aug:8, sep:9, oct:10, nov:11, dec:12,
+    };
+    const nonISO = await query<{ id: string; due: string }>(
+      "SELECT id, due FROM tasks WHERE due IS NOT NULL " +
+      "AND NOT (LENGTH(due) = 10 AND SUBSTR(due, 5, 1) = '-' AND SUBSTR(due, 8, 1) = '-')"
+    );
+    for (const row of nonISO) {
+      const raw = row.due.trim().toLowerCase();
+      let normalized: string | null = null;
+      const enMatch = raw.match(/^([a-z]+)\s+(\d{1,2})$/);
+      if (enMatch) {
+        const mo = MONTHS[enMatch[1].slice(0, 3)];
+        if (mo) {
+          const yr = now.getMonth() + 1 > mo ? now.getFullYear() + 1 : now.getFullYear();
+          normalized = `${yr}-${pad(mo)}-${pad(parseInt(enMatch[2], 10))}`;
+        }
+      }
+      const zhMatch = raw.match(/^(\d{1,2})月(\d{1,2})日?$/);
+      if (!normalized && zhMatch) {
+        const mo = parseInt(zhMatch[1], 10);
+        const yr = now.getMonth() + 1 > mo ? now.getFullYear() + 1 : now.getFullYear();
+        normalized = `${yr}-${pad(mo)}-${pad(parseInt(zhMatch[2], 10))}`;
+      }
+      await execute("UPDATE tasks SET due = :due WHERE id = :id", { due: normalized, id: row.id });
+    }
+
+    // Null out anything remaining that is not a 10-char YYYY-MM-DD string
+    await execRaw(
+      "UPDATE tasks SET due = NULL WHERE due IS NOT NULL AND NOT " +
+      "(LENGTH(due) = 10 AND SUBSTR(due, 5, 1) = '-' AND SUBSTR(due, 8, 1) = '-')"
+    );
+  }
+
   // Migrate: cloud AI usage tracking
   const settingsColsV2 = await query<{ name: string }>("PRAGMA table_info(settings)");
   if (!settingsColsV2.some((c) => c.name === "ai_cloud_used")) {
@@ -190,6 +236,16 @@ export async function runMigrations() {
   if (!settingsColsV3.some((c) => c.name === "remote_url")) {
     await execRaw("ALTER TABLE settings ADD COLUMN remote_url TEXT");
     await execRaw("ALTER TABLE settings ADD COLUMN remote_token TEXT");
+  }
+
+  // Migrate: scheduled notification times
+  const settingsColsV4 = await query<{ name: string }>("PRAGMA table_info(settings)");
+  if (!settingsColsV4.some((c) => c.name === "morning_reminder_time")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN morning_reminder_time TEXT NOT NULL DEFAULT '09:00'");
+    await execRaw("ALTER TABLE settings ADD COLUMN evening_reminder_time TEXT NOT NULL DEFAULT '18:00'");
+  }
+  if (!settingsColsV4.some((c) => c.name === "due_alerts_enabled")) {
+    await execRaw("ALTER TABLE settings ADD COLUMN due_alerts_enabled INTEGER NOT NULL DEFAULT 1");
   }
 
   // Habits cloud persistence

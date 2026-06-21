@@ -8,6 +8,7 @@ import { usePetStore } from "@/store/usePetStore";
 import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
+import { useNotificationStore } from "@/store/useNotificationStore";
 
 const DEFAULT_DURATION = 25 * 60;
 
@@ -47,8 +48,11 @@ export function FocusPage() {
   const [timerReady, setTimerReady] = useState(false);
   const [exiting, setExiting] = useState(false);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
+  const notificationsEnabled = useNotificationStore((s) => s.enabled);
   const localeRef = useRef(locale);
   localeRef.current = locale;
+  const notifEnabledRef = useRef(notificationsEnabled);
+  notifEnabledRef.current = notificationsEnabled;
 
   // Mutable refs so interval callback always reads latest values without stale closures.
   const remainingRef = useRef(taskDuration);
@@ -63,11 +67,8 @@ export function FocusPage() {
     }
   }
 
-  // Request notification permission once on mount; clear interval on unmount.
+  // Clear interval on unmount. Permission is now managed by the notifications settings panel.
   useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
     return () => { stopInterval(); startedForRef.current = null; };
   }, []);
 
@@ -92,7 +93,7 @@ export function FocusPage() {
       setRemaining(next);
       if (next === 0) {
         stopInterval();
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        if (notifEnabledRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
           new Notification("Lumo · Pomodoro done", {
             body: localeRef.current === "zh"
               ? "专注时间结束！去休息一下 ☕"

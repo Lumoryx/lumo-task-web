@@ -65,6 +65,12 @@ function toOpenApi(schema: z.ZodTypeAny): { schema: OpenApiSchema; optional: boo
       return { schema: { type: def.checks?.some((c: any) => c.kind === "int") ? "integer" : "number" }, optional: false };
     case "ZodBoolean":
       return { schema: { type: "boolean" }, optional: false };
+    case "ZodCatch": {
+      // ZodCatch wraps a fallback value — treat the inner type as optional
+      // so the field is not listed as required (the catch means it always has a value).
+      const inner = toOpenApi(def.innerType);
+      return { schema: inner.schema, optional: true };
+    }
     default:
       // Unknown node — emit a permissive object so docs still render.
       return { schema: {}, optional: false };

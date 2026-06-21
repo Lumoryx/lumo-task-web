@@ -138,6 +138,13 @@
           },
           "ai_suggest": {
             "type": "string",
+            "enum": [
+              "Q1",
+              "Q2",
+              "Q3",
+              "Q4",
+              "unclassified"
+            ],
             "nullable": true
           },
           "completed": {
@@ -229,7 +236,6 @@
           "conviction",
           "next_step",
           "reason",
-          "ai_suggest",
           "completed",
           "not_now",
           "recurrence",
@@ -346,6 +352,13 @@
           },
           "ai_suggest": {
             "type": "string",
+            "enum": [
+              "Q1",
+              "Q2",
+              "Q3",
+              "Q4",
+              "unclassified"
+            ],
             "nullable": true
           },
           "not_now": {
@@ -406,6 +419,197 @@
         },
         "required": [
           "title"
+        ]
+      },
+      "TaskUpdateBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "object",
+            "properties": {
+              "en": {
+                "type": "string"
+              },
+              "zh": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "en"
+            ]
+          },
+          "desc": {
+            "type": "object",
+            "properties": {
+              "en": {
+                "type": "string"
+              },
+              "zh": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "en"
+            ],
+            "nullable": true
+          },
+          "quadrant": {
+            "type": "string",
+            "enum": [
+              "Q1",
+              "Q2",
+              "Q3",
+              "Q4",
+              "unclassified"
+            ]
+          },
+          "today": {
+            "type": "boolean"
+          },
+          "due": {
+            "type": "string",
+            "nullable": true
+          },
+          "duration": {
+            "type": "integer"
+          },
+          "pomos_total": {
+            "type": "integer"
+          },
+          "assignee_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conviction": {
+            "type": "number",
+            "nullable": true
+          },
+          "next_step": {
+            "type": "object",
+            "properties": {
+              "en": {
+                "type": "string"
+              },
+              "zh": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "en"
+            ],
+            "nullable": true
+          },
+          "recurrence": {
+            "type": "string",
+            "enum": [
+              "none",
+              "daily",
+              "weekdays",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "reason": {
+            "type": "object",
+            "properties": {
+              "en": {
+                "type": "string"
+              },
+              "zh": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "en"
+            ],
+            "nullable": true
+          },
+          "ai_suggest": {
+            "type": "string",
+            "enum": [
+              "Q1",
+              "Q2",
+              "Q3",
+              "Q4",
+              "unclassified"
+            ],
+            "nullable": true
+          },
+          "not_now": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "object",
+                  "properties": {
+                    "en": {
+                      "type": "string"
+                    },
+                    "zh": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "en"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "reason"
+              ]
+            }
+          },
+          "subtasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "completed"
+              ]
+            }
+          },
+          "scheduled_start": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TaskCompleteResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "entry_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "entry_id"
         ]
       }
     }

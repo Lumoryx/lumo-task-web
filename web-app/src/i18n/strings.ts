@@ -29,6 +29,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "search.hint.navigate": "navigate",
     "search.hint.open": "open",
     "search.hint.close": "close",
+    "search.createWithQuery": "Create task",
+    "search.showCompleted": "Include completed",
+    "nav.search": "Search",
 
     "today.title": "Today",
     "today.sub": "What matters most, right now.",
@@ -157,6 +160,18 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.sync.error.save": "Failed to save sync config",
     "settings.sync.error.trigger": "Sync failed",
 
+    "settings.notifications": "Notifications",
+    "settings.notifications.enabled": "Enable Notifications",
+    "settings.notifications.enabled.helper": "Send reminders for morning planning, due tasks, and evening review",
+    "settings.notifications.permission.denied": "Notification permission denied. Please enable it in your browser or system settings.",
+    "settings.notifications.morning": "Morning Planning Time",
+    "settings.notifications.morning.helper": "Daily reminder to plan your day",
+    "settings.notifications.due": "Q1 Due Task Alerts",
+    "settings.notifications.due.helper": "Alert 30 min before morning reminder when Q1 tasks are due today",
+    "settings.notifications.evening": "Evening Review Time",
+    "settings.notifications.evening.helper": "Daily reminder to review your day",
+    "settings.notifications.error.save": "Failed to save notification settings",
+
     "matrix.aiClassify": "AI classify",
     "matrix.aiClassify.title": "Let me sort these for you",
     "matrix.aiClassify.sub": "Review and override any quadrant. We'll apply all changes at once.",
@@ -271,6 +286,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "detail.subtasks": "Sub-tasks",
     "detail.subtask.add": "Add a sub-task…",
     "detail.subtask.add.btn": "Add",
+    "detail.ai.breakdown": "✨ AI Breakdown",
+    "detail.ai.breakdown.loading": "Breaking down…",
+    "detail.ai.breakdown.confirm": "Confirm",
+    "detail.ai.breakdown.cancel": "Cancel",
+    "detail.ai.breakdown.quota": "AI quota exhausted",
+    "detail.ai.breakdown.error": "AI breakdown failed. Please try again.",
     "row.complete": "Complete task",
     "row.startfocus": "Start focus",
 
@@ -506,6 +527,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "stats.day.fri": "Fri",
     "stats.day.sat": "Sat",
     "stats.day.sun": "Sun",
+    "stats.quadrant.breakdown": "Quadrant Breakdown",
+    "stats.quadrant.unclassified": "Uncategorized",
+    "stats.quadrant.callout.q2good": "Q2 at {pct}% this week — great strategic focus 💪",
+    "stats.quadrant.callout.q1heavy": "Heavy Q1 week — try protecting some Q2 time next week",
+    "stats.quadrant.callout.q3q4high": "{pct}% of tasks this week were Q3/Q4 — worth a review",
 
     "qc.ai": "AI Parse",
     "qc.ai.placeholder": "Describe your task naturally… e.g. 'Write report by Friday, 2 hours'",
@@ -519,6 +545,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "task.recurrence.weekdays": "Weekdays",
     "task.recurrence.weekly": "Weekly",
     "task.recurrence.monthly": "Monthly",
+
+    "due.today": "Today",
+    "due.tomorrow": "Tomorrow",
+    "due.friday": "This Friday",
+    "due.nextFriday": "Next Friday",
+    "due.none": "Clear",
 
 
     "matrix.aiClassify.tasks": "tasks",
@@ -616,6 +648,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "search.hint.navigate": "导航",
     "search.hint.open": "打开",
     "search.hint.close": "关闭",
+    "search.createWithQuery": "创建任务",
+    "search.showCompleted": "显示已完成",
+    "nav.search": "搜索",
 
     "today.title": "今天",
     "today.sub": "现在最重要的事。",
@@ -744,6 +779,18 @@ export const STRINGS: Record<Locale, Dict> = {
     "settings.sync.error.save": "保存同步配置失败",
     "settings.sync.error.trigger": "同步失败",
 
+    "settings.notifications": "通知",
+    "settings.notifications.enabled": "启用通知",
+    "settings.notifications.enabled.helper": "发送晨间规划、到期任务和晚间复盘提醒",
+    "settings.notifications.permission.denied": "通知权限已被拒绝，请在浏览器或系统设置中手动开启。",
+    "settings.notifications.morning": "晨间规划提醒时间",
+    "settings.notifications.morning.helper": "每天在此时间发送晨间规划提醒",
+    "settings.notifications.due": "Q1 到期任务预警",
+    "settings.notifications.due.helper": "当 Q1 任务今日到期时，在晨间提醒前 30 分钟发送预警",
+    "settings.notifications.evening": "晚间复盘提醒时间",
+    "settings.notifications.evening.helper": "每天在此时间发送晚间复盘提醒",
+    "settings.notifications.error.save": "保存通知设置失败",
+
     "matrix.aiClassify": "AI 分类",
     "matrix.aiClassify.title": "我来帮你分类",
     "matrix.aiClassify.sub": "看一下,可以单个改象限,确认后一次性应用。",
@@ -858,6 +905,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "detail.subtasks": "子任务",
     "detail.subtask.add": "添加子任务…",
     "detail.subtask.add.btn": "添加",
+    "detail.ai.breakdown": "✨ AI 拆解",
+    "detail.ai.breakdown.loading": "拆解中…",
+    "detail.ai.breakdown.confirm": "确认添加",
+    "detail.ai.breakdown.cancel": "取消",
+    "detail.ai.breakdown.quota": "AI 次数已用完",
+    "detail.ai.breakdown.error": "AI 拆解失败，请重试",
     "row.complete": "完成任务",
     "row.startfocus": "开始专注",
 
@@ -1093,6 +1146,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "stats.day.fri": "五",
     "stats.day.sat": "六",
     "stats.day.sun": "日",
+    "stats.quadrant.breakdown": "象限分布",
+    "stats.quadrant.unclassified": "未分类",
+    "stats.quadrant.callout.q2good": "本周 Q2 占比 {pct}%，战略任务执行良好 💪",
+    "stats.quadrant.callout.q1heavy": "本周以救火为主，下周试着为 Q2 留出空间",
+    "stats.quadrant.callout.q3q4high": "本周有 {pct}% 时间在次要事项上，值得复盘",
 
     "qc.ai": "AI 解析",
     "qc.ai.placeholder": "用自然语言描述任务… 例如「周五前写报告，大概 2 小时」",
@@ -1106,6 +1164,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "task.recurrence.weekdays": "工作日",
     "task.recurrence.weekly": "每周",
     "task.recurrence.monthly": "每月",
+
+    "due.today": "今天",
+    "due.tomorrow": "明天",
+    "due.friday": "本周五",
+    "due.nextFriday": "下周五",
+    "due.none": "清空",
 
 
     "matrix.aiClassify.tasks": "个任务",

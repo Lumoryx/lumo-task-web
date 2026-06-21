@@ -5,6 +5,13 @@ refactors, and reviews must follow the ECC quality standards below.
 
 ---
 
+## Code Review Policy
+
+**After completing a code review, immediately fix all identified issues directly in the code
+without waiting for user confirmation.** Report findings AND apply fixes in the same step.
+
+---
+
 ## Mandatory Engineering Process
 
 ### Before implementing any feature or fix

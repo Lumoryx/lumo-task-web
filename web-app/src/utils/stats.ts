@@ -1,5 +1,11 @@
 import type { CompletedEntry } from "@/types/task";
 
+export interface QuadrantCount {
+  quadrant: "Q1" | "Q2" | "Q3" | "Q4" | "unclassified";
+  count: number;
+  percent: number;
+}
+
 export interface WeekStats {
   tasksCompleted: number;
   focusMinutes: number;
@@ -8,6 +14,7 @@ export interface WeekStats {
   byDay: number[]; // [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
   weekStart: Date;
   weekEnd: Date;
+  quadrantBreakdown: QuadrantCount[];
 }
 
 export interface AllTimeStats {
@@ -53,14 +60,28 @@ export function computeWeekStats(entries: CompletedEntry[]): WeekStats {
   const maxHourCount = Math.max(...hourCounts);
   const peakHour = maxHourCount > 0 ? hourCounts.indexOf(maxHourCount) : null;
 
+  const quadrantOrder = ["Q1", "Q2", "Q3", "Q4", "unclassified"] as const;
+  const counts: Record<string, number> = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, unclassified: 0 };
+  for (const e of weekEntries) {
+    const q = e.quadrant ?? "unclassified";
+    counts[q] = (counts[q] ?? 0) + 1;
+  }
+  const total = weekEntries.length;
+  const quadrantBreakdown: QuadrantCount[] = quadrantOrder.map((q) => ({
+    quadrant: q,
+    count: counts[q],
+    percent: total > 0 ? Math.round((counts[q] / total) * 100) : 0,
+  }));
+
   return {
     tasksCompleted: weekEntries.length,
     focusMinutes: weekEntries.reduce((s, e) => s + (e.duration ?? 0), 0),
-    q1Tasks: weekEntries.filter((e) => e.quadrant === "Q1").length,
+    q1Tasks: counts["Q1"],
     peakHour,
     byDay,
     weekStart,
     weekEnd,
+    quadrantBreakdown,
   };
 }
 

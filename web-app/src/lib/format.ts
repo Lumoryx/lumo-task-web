@@ -40,13 +40,39 @@ export function fmtMMSS(secs: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] as const;
+
 export function getDueLabel(due: string | null, locale: Locale): string | null {
   if (!due) return null;
-  const map: Record<Locale, Record<string, string>> = {
-    en: { today: "Today", Fri: "Fri", "next wk": "Next wk" },
-    zh: { today: "今天", Fri: "周五", "next wk": "下周" },
-  };
-  return map[locale][due] ?? due;
+
+  // Strict ISO YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+    const today = toISODate(new Date());
+    if (due === today) return locale === "zh" ? "今天" : "Today";
+    const month = parseInt(due.slice(5, 7), 10);
+    const day = parseInt(due.slice(8, 10), 10);
+    return locale === "zh" ? `${month}月${day}日` : `${MONTHS_EN[month - 1]} ${day}`;
+  }
+
+  // Legacy keyword fallback (for backward-compat with pre-migration data)
+  const legacyEn: Record<string, string> = { today: "Today", Fri: "Fri", "next wk": "Next wk" };
+  const legacyZh: Record<string, string> = { today: "今天", Fri: "周五", "next wk": "下周" };
+  return (locale === "zh" ? legacyZh : legacyEn)[due] ?? due;
+}
+
+/** Returns true when the due date is strictly before today (string-comparable ISO). */
+export function isOverdue(due: string | null): boolean {
+  if (!due || !/^\d{4}-\d{2}-\d{2}$/.test(due)) return false;
+  return due < toISODate(new Date());
+}
+
+/** Returns a CSS variable token appropriate for the given due date state. */
+export function getDueColor(due: string | null): string {
+  if (!due || !/^\d{4}-\d{2}-\d{2}$/.test(due)) return "var(--text-faint)";
+  const today = toISODate(new Date());
+  if (due < today) return "var(--status-urgent)";
+  if (due === today) return "var(--accent-primary)";
+  return "var(--text-faint)";
 }
 
 /** Formats a scheduled_start ISO timestamp as a short date + time, e.g. "Jun 10 3pm" / "6月10日 15:00". */

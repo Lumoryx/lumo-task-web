@@ -3,13 +3,13 @@ import type { Task } from "@/types/task";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useNavigate } from "react-router-dom";
-import { fmtDuration, getDueLabel } from "@/lib/format";
+import { fmtDuration, getDueLabel, getDueColor } from "@/lib/format";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
-import { IconArrowRight, IconCheck, IconMore } from "@/components/icons";
+import { IconArrowRight, IconCheck, IconMore, IconRepeat } from "@/components/icons";
 import { TaskMoreMenu } from "@/components/TaskMoreMenu";
 
 interface TaskRowProps {
@@ -37,6 +37,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const assignees = (task.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
+  const dueColor = getDueColor(task.due);
 
   return (
     <>
@@ -85,7 +86,7 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
             {ls(task.title)}
           </div>
           <div className="flex items-center gap-3 mt-0.5 text-xs text-text-muted tabular-nums">
-            {due && <span>{due}</span>}
+            {due && <span style={{ color: dueColor }}>{due}</span>}
             {task.duration > 0 && <span>{fmtDuration(task.duration, locale)}</span>}
             <span className="pip">
               {Array.from({ length: task.pomos_total }).map((_, i) => (
@@ -96,6 +97,17 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
               <span className="flex items-center gap-0.5" style={{ color: "var(--text-faint)" }}>
                 <IconCheck size={9} strokeWidth={2} />
                 {task.subtasks!.filter((s) => s.completed).length}/{task.subtasks!.length}
+              </span>
+            )}
+            {task.recurrence && task.recurrence !== "none" && (
+              <span
+                role="img"
+                className="flex items-center"
+                style={{ color: "var(--text-faint)" }}
+                title={t(`task.recurrence.${task.recurrence}`)}
+                aria-label={t(`task.recurrence.${task.recurrence}`)}
+              >
+                <IconRepeat size={10} strokeWidth={1.75} />
               </span>
             )}
           </div>
