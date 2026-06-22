@@ -662,6 +662,40 @@ function EveningReviewBanner({ onOpen, done }: { onOpen: () => void; done: boole
   );
 }
 
+// ─── Today Load Summary ────────────────────────────────────────────────────
+
+interface TodayLoadSummaryProps {
+  todayTasks: Task[];
+  locale: Locale;
+}
+
+function TodayLoadSummary({ todayTasks, locale }: TodayLoadSummaryProps) {
+  const t = useT();
+
+  const estimatedTasks = todayTasks.filter((tk) => tk.duration > 0);
+  const unestimatedCount = todayTasks.length - estimatedTasks.length;
+  const totalMinutes = estimatedTasks.reduce((s, tk) => s + tk.duration, 0);
+
+  if (todayTasks.length === 0 || totalMinutes === 0) return null;
+
+  const totalLabel = fmtDuration(totalMinutes, locale);
+  const summaryText = t("today.load.summary").replace("{total}", totalLabel);
+  const unestimatedText =
+    unestimatedCount > 0
+      ? t("today.load.summary.unestimated").replace("{n}", String(unestimatedCount))
+      : null;
+
+  return (
+    <div
+      className="flex items-center gap-1.5 text-[12px] mb-3"
+      style={{ color: "var(--text-faint)" }}
+    >
+      <span>{summaryText}</span>
+      {unestimatedText && <span>{unestimatedText}</span>}
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export function TodayPage() {
@@ -812,6 +846,10 @@ export function TodayPage() {
           <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-text-faint mb-2">
             {t("today.plan")}
           </div>
+          <TodayLoadSummary
+            todayTasks={top ? [top, ...todayRest] : todayRest}
+            locale={locale}
+          />
           <div>
             {todayRest.map((task) => (
               <TaskRow key={task.id} task={task} />
