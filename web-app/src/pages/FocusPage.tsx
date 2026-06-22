@@ -243,12 +243,6 @@ export function FocusPage() {
   const progress = taskDuration > 0 ? (taskDuration - remaining) / taskDuration : 0;
   const turns = -90 + progress * 360;
 
-  async function onComplete() {
-    if (compact) exitCompact();
-    if (task) await complete(task.id);
-    navigate("/today");
-  }
-
   async function handleSummaryEndFocus({ accomplished, nextStep }: { accomplished: string; nextStep: string }) {
     if (accomplished.trim() && task) saveFocusLog(task.id, accomplished);
     if (nextStep.trim() && task) {
