@@ -52,6 +52,7 @@ function makeTask(override: Partial<Task> = {}): Task {
     title: { en: "Task 1" },
     quadrant: "Q1",
     today: true,
+    week_focus: false,
     completed: false,
     duration: 30,
     pomos_done: 0,

@@ -45,6 +45,7 @@ export const TaskCreateBodySchema = z.object({
   desc: LongLocalizedStringSchema.optional().nullable(),
   quadrant: QuadrantSchema.default("unclassified"),
   today: z.boolean().default(false),
+  week_focus: z.boolean().default(false),
   due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   duration: z.number().int().min(0).max(1440).default(0),
   pomos_total: z.number().int().default(0),
@@ -74,6 +75,7 @@ export const TaskWireSchema = z.object({
   desc: LongLocalizedStringSchema.nullable(),
   quadrant: QuadrantSchema,
   today: z.boolean(),
+  week_focus: z.boolean(),
   due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
   duration: z.number(),
   pomos_done: z.number(),
@@ -129,6 +131,8 @@ export interface Task {
   quadrant: Quadrant;
   /** Whether the task is included in today's plan. */
   today: boolean;
+  /** Whether the task is a weekly focus item. */
+  week_focus: boolean;
   /** Strict ISO date (YYYY-MM-DD) or null when no due date is set. */
   due: string | null;
   /** Estimated minutes. */
