@@ -9,6 +9,7 @@
  */
 
 import type { AppSettings, BreakdownResponse, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, TaskCreateInput, TaskUpdateInput, TaskCompleteResponse, User } from "@/types/task";
+import type { FocusSessionInput, FocusSessionResponse } from "@lumo/contracts";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -288,6 +289,10 @@ export const api = {
 
   async completeTask(id: string): Promise<TaskCompleteResponse> {
     return req<TaskCompleteResponse>("POST", `/tasks/${id}/complete`);
+  },
+
+  async captureSession(input: FocusSessionInput): Promise<FocusSessionResponse> {
+    return req<FocusSessionResponse>("POST", "/focus/sessions", input);
   },
 
   async uncompleteTask(logId: string): Promise<void> {
