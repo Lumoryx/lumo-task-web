@@ -9,6 +9,8 @@ import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 import { useNotificationStore } from "@/store/useNotificationStore";
+import { FocusSessionCaptureCard } from "@/components/FocusSessionCaptureCard";
+import { api } from "@/api/client";
 
 const DEFAULT_DURATION = 25 * 60;
 
@@ -24,6 +26,7 @@ export function FocusPage() {
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
+  const update = useTasksStore((s) => s.update);
 
   // Use the task the user explicitly started focus on (passed via router state).
   // When navigating directly to /focus without a taskId, show the empty landing page.
@@ -47,6 +50,12 @@ export function FocusPage() {
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [timerKey, setTimerKey] = useState(0);
+
+  // Capture card state
+  const [showCapture, setShowCapture] = useState(false);
+  const [captureReason, setCaptureReason] = useState<"timer" | "complete" | "exit">("timer");
+
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const notificationsEnabled = useNotificationStore((s) => s.enabled);
   const localeRef = useRef(locale);
@@ -59,6 +68,7 @@ export function FocusPage() {
   const pausedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedForRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<string>(new Date().toISOString());
 
   function stopInterval() {
     if (intervalRef.current !== null) {
@@ -67,17 +77,18 @@ export function FocusPage() {
     }
   }
 
-  // Clear interval on unmount. Permission is now managed by the notifications settings panel.
+  // Clear interval on unmount.
   useEffect(() => {
     return () => { stopInterval(); startedForRef.current = null; };
   }, []);
 
-  // Start/restart timer when the task (and its duration) becomes known.
+  // Start/restart timer when the task (and its duration) becomes known, or when timerKey changes.
   useEffect(() => {
     if (!task) return;
-    const key = `${task.id}:${taskDuration}`;
+    const key = `${task.id}:${taskDuration}:${timerKey}`;
     if (startedForRef.current === key) return;
     startedForRef.current = key;
+    sessionStartRef.current = new Date().toISOString();
 
     stopInterval();
     remainingRef.current = taskDuration;
@@ -109,9 +120,12 @@ export function FocusPage() {
             usePetStore.getState().celebrate(`pet.streak.${currentStreak}`);
           }
         }).catch(() => {});
+        // Show capture card when timer naturally ends
+        setCaptureReason("timer");
+        setShowCapture(true);
       }
     }, 1000);
-  }, [task?.id, taskDuration]);
+  }, [task?.id, taskDuration, timerKey]);
 
   // Keep pausedRef in sync so the interval callback reads the latest value.
   useEffect(() => {
@@ -126,6 +140,61 @@ export function FocusPage() {
   function exitCompact() {
     setCompact(false);
     window.electronAPI?.exitFocusMode();
+  }
+
+  async function handleCaptureSubmit({
+    accomplished,
+    nextStep,
+    action,
+  }: {
+    accomplished: string;
+    nextStep: string;
+    action: "next-round" | "end-focus";
+  }) {
+    const elapsed = Math.max(1, Math.round((taskDuration - remainingRef.current) / 60));
+
+    // Log the focus session with optional notes
+    if (task) {
+      api.logFocusSession({
+        taskId: task.id,
+        duration: elapsed,
+        startedAt: sessionStartRef.current,
+        notes: accomplished.trim() || undefined,
+      }).catch(() => {});
+    }
+
+    // Update next_step if provided
+    if (nextStep.trim() && task) {
+      try {
+        await update(task.id, { next_step: { en: nextStep.trim() } });
+      } catch {
+        // best-effort
+      }
+    }
+
+    setShowCapture(false);
+
+    if (action === "next-round") {
+      // Restart timer without completing task
+      startedForRef.current = null;
+      setTimerKey((k) => k + 1);
+    } else {
+      // End focus — complete task only if "Mark complete" triggered the card
+      if (captureReason === "complete" && task) {
+        await complete(task.id);
+      }
+      navigate("/today");
+    }
+  }
+
+  function handleCaptureSkip() {
+    setShowCapture(false);
+    if (captureReason === "complete" && task) {
+      complete(task.id).finally(() => navigate("/today"));
+    } else if (captureReason === "exit") {
+      navigate("/today");
+    }
+    // For 'timer': just close the card, stay on focus page
   }
 
   if (!task) {
@@ -237,110 +306,114 @@ export function FocusPage() {
 
   async function onComplete() {
     if (compact) exitCompact();
-    if (task) await complete(task.id);
-    navigate("/today");
+    stopInterval();
+    setCaptureReason("complete");
+    setShowCapture(true);
   }
 
   // ── Compact pet widget (Electron only) ──────────────────────────────────────
-  // Minimal desktop-pet: just the dog + a small time badge.
-  // Click anywhere to restore the full window.
   if (compact) {
     const petMood = paused ? "idle" : remaining < 60 ? "excited" : "happy";
     const nearDone = remaining < 60;
     return (
-      <div
-        onClick={exitCompact}
-        style={{
-          position: "fixed",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          background: "var(--bg-base)",
-          // no-drag so onClick fires — window position is managed by main process
-          WebkitAppRegion: "no-drag",
-          userSelect: "none",
-          cursor: "pointer",
-          padding: "8px 4px 12px",
-          boxSizing: "border-box",
-        } as React.CSSProperties}
-      >
-        {/* Dog — click to restore */}
+      <>
         <div
           onClick={exitCompact}
-          title={t("focus.compact.restore")}
           style={{
-            flex: "0 0 auto",
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            background: "var(--bg-base)",
+            WebkitAppRegion: "no-drag",
+            userSelect: "none",
             cursor: "pointer",
-            animation: petBounce ? "petBounce 0.4s ease-in-out 3" : undefined,
-            filter: paused ? "grayscale(0.4)" : undefined,
-            transition: "filter 400ms",
-          }}
+            padding: "8px 4px 12px",
+            boxSizing: "border-box",
+          } as React.CSSProperties}
         >
-          <DogSvg mood={petMood} size={72} />
-        </div>
+          {/* Dog — click to restore */}
+          <div
+            onClick={exitCompact}
+            title={t("focus.compact.restore")}
+            style={{
+              flex: "0 0 auto",
+              cursor: "pointer",
+              animation: petBounce ? "petBounce 0.4s ease-in-out 3" : undefined,
+              filter: paused ? "grayscale(0.4)" : undefined,
+              transition: "filter 400ms",
+            }}
+          >
+            <DogSvg mood={petMood} size={72} />
+          </div>
 
-        {/* Time badge */}
-        <div
-          style={{
-            fontFamily: "monospace",
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            color: nearDone ? "var(--accent-primary)" : "var(--text-secondary)",
-            background: "var(--bg-elevated)",
-            border: `1px solid ${nearDone ? "var(--accent-edge)" : "var(--border-faint)"}`,
-            borderRadius: 8,
-            padding: "2px 8px",
-            boxShadow: nearDone ? "0 0 8px var(--accent-fog)" : undefined,
-            transition: "color 300ms, border-color 300ms",
-          }}
-        >
-          {fmtMMSS(remaining)}
-        </div>
+          {/* Time badge */}
+          <div
+            style={{
+              fontFamily: "monospace",
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+              color: nearDone ? "var(--accent-primary)" : "var(--text-secondary)",
+              background: "var(--bg-elevated)",
+              border: `1px solid ${nearDone ? "var(--accent-edge)" : "var(--border-faint)"}`,
+              borderRadius: 8,
+              padding: "2px 8px",
+              boxShadow: nearDone ? "0 0 8px var(--accent-fog)" : undefined,
+              transition: "color 300ms, border-color 300ms",
+            }}
+          >
+            {fmtMMSS(remaining)}
+          </div>
 
-        {/* Restore hint — always visible */}
-        <div
-          style={{
-            fontSize: 11,
-            color: "var(--text-faint)",
-            letterSpacing: "0.01em",
-          }}
-        >
-          {t("focus.compact.restore")}
-        </div>
+          {/* Restore hint — always visible */}
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--text-faint)",
+              letterSpacing: "0.01em",
+            }}
+          >
+            {t("focus.compact.restore")}
+          </div>
 
-        {/* Exit focus button */}
-        <button
-          disabled={exiting}
-          onClick={async (e) => {
-            e.stopPropagation();
-            setExiting(true);
-            exitCompact();
-            try {
-              if (task) await complete(task.id);
-            } catch {
-              // best-effort — navigate away regardless
-            }
-            navigate("/today");
-          }}
-          style={{
-            marginTop: 6,
-            fontSize: 10,
-            color: "var(--text-faint)",
-            background: "none",
-            border: "none",
-            cursor: exiting ? "default" : "pointer",
-            textDecoration: "underline",
-            padding: 0,
-            opacity: exiting ? 0.4 : 1,
-          }}
-        >
-          {t("focus.compact.exit")}
-        </button>
-      </div>
+          {/* Exit focus button */}
+          <button
+            disabled={exiting}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExiting(true);
+              exitCompact();
+              stopInterval();
+              setCaptureReason("exit");
+              setShowCapture(true);
+            }}
+            style={{
+              marginTop: 6,
+              fontSize: 10,
+              color: "var(--text-faint)",
+              background: "none",
+              border: "none",
+              cursor: exiting ? "default" : "pointer",
+              textDecoration: "underline",
+              padding: 0,
+              opacity: exiting ? 0.4 : 1,
+            }}
+          >
+            {t("focus.compact.exit")}
+          </button>
+        </div>
+        {showCapture && (
+          <FocusSessionCaptureCard
+            onSubmit={handleCaptureSubmit}
+            onSkip={handleCaptureSkip}
+            showNextRound={captureReason !== "complete"}
+          />
+        )}
+      </>
     );
   }
 
@@ -397,7 +470,15 @@ export function FocusPage() {
             🐕 {t("focus.compact.enter")}
           </button>
         )}
-        <button className="btn btn-ghost" style={{ height: 30 }} onClick={() => navigate("/today")}>
+        <button
+          className="btn btn-ghost"
+          style={{ height: 30 }}
+          onClick={() => {
+            stopInterval();
+            setCaptureReason("exit");
+            setShowCapture(true);
+          }}
+        >
           <IconArrowLeft size={14} />
           {t("focus.exit")}
         </button>
@@ -499,6 +580,15 @@ export function FocusPage() {
           </div>
         </div>
       </div>
+
+      {/* Session capture card */}
+      {showCapture && (
+        <FocusSessionCaptureCard
+          onSubmit={handleCaptureSubmit}
+          onSkip={handleCaptureSkip}
+          showNextRound={captureReason !== "complete"}
+        />
+      )}
     </div>
   );
 }

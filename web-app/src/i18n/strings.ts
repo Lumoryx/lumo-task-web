@@ -121,6 +121,18 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.compact.exit": "Exit focus",
     "focus.compact.done": "Done",
 
+    "focus.capture.title": "Session wrap-up",
+    "focus.capture.accomplished.label": "What did you get done?",
+    "focus.capture.accomplished.placeholder": "Quick note on what you accomplished…",
+    "focus.capture.nextstep.label": "Next step?",
+    "focus.capture.nextstep.placeholder": "What to pick up next time…",
+    "focus.capture.nextround": "Start next round",
+    "focus.capture.endfocus": "End focus",
+    "focus.capture.skip": "Skip",
+    "focus.capture.skip.countdown": "Skip ({n}s)",
+
+    "detail.focuslogs": "Focus history",
+
     "qc.title": "New task",
     "qc.placeholder": "What needs doing?",
     "qc.due": "Due",
@@ -764,6 +776,18 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.compact.restore": "点击恢复",
     "focus.compact.exit": "退出专注",
     "focus.compact.done": "完成",
+
+    "focus.capture.title": "本轮小结",
+    "focus.capture.accomplished.label": "这轮完成了什么？",
+    "focus.capture.accomplished.placeholder": "简单记录一下这轮做了什么…",
+    "focus.capture.nextstep.label": "下一步是什么？",
+    "focus.capture.nextstep.placeholder": "下次接续的起点…",
+    "focus.capture.nextround": "开始下一轮",
+    "focus.capture.endfocus": "结束专注",
+    "focus.capture.skip": "跳过",
+    "focus.capture.skip.countdown": "跳过（{n}秒）",
+
+    "detail.focuslogs": "专注记录",
 
     "qc.title": "新建任务",
     "qc.placeholder": "要做点什么?",

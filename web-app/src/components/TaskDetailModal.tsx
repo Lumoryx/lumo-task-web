@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { IconClose, IconCalendar, IconClock, IconArrowRight, IconCheck } from "@/components/icons";
@@ -10,7 +10,8 @@ import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, fmtScheduledStart, getDueLabel, getDueColor } from "@/lib/format";
 import { toast } from "@/store/useToastStore";
-import type { Subtask, Task } from "@/types/task";
+import { api } from "@/api/client";
+import type { FocusLogEntry, Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
   Q1: "var(--q1-color)",
@@ -59,6 +60,11 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const subtaskInputRef = useRef<HTMLInputElement>(null);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [breakdownDraft, setBreakdownDraft] = useState<string[] | null>(null);
+  const [focusLogs, setFocusLogs] = useState<FocusLogEntry[]>([]);
+
+  useEffect(() => {
+    api.getFocusLogs(task.id).then(setFocusLogs).catch(() => {});
+  }, [task.id]);
 
   const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(liveTask.due, locale);
@@ -420,6 +426,40 @@ export function TaskDetailModal({ task, onClose }: Props) {
               {t("detail.nextstep")} ·{" "}
             </span>
             {ls(liveTask.next_step)}
+          </div>
+        )}
+
+        {/* Focus history */}
+        {focusLogs.length > 0 && (
+          <div className="mx-5 mb-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] mb-2" style={{ color: "var(--text-faint)" }}>
+              {t("detail.focuslogs")}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {focusLogs.slice(0, 5).map((log) => (
+                <div
+                  key={log.id}
+                  className="px-3 py-2 rounded-lg text-[12px]"
+                  style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-faint)" }}
+                >
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] tabular-nums" style={{ color: "var(--text-faint)" }}>
+                      {new Date(log.completed_at).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", {
+                        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+                      {log.duration}m
+                    </span>
+                  </div>
+                  {log.notes && (
+                    <div className="leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                      {log.notes}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

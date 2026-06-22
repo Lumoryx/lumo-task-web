@@ -8,7 +8,7 @@
  * JWT token is stored in localStorage and attached to every request.
  */
 
-import type { AppSettings, BreakdownResponse, CompletedEntry, CountdownEvent, Habit, HabitLog, Person, PetChatMessage, Task, TaskCreateInput, TaskUpdateInput, TaskCompleteResponse, User } from "@/types/task";
+import type { AppSettings, BreakdownResponse, CompletedEntry, CountdownEvent, FocusLogEntry, FocusLogsResponse, Habit, HabitLog, Person, PetChatMessage, Task, TaskCreateInput, TaskUpdateInput, TaskCompleteResponse, User } from "@/types/task";
 
 // ── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -391,6 +391,25 @@ export const api = {
 
   async syncNow(): Promise<{ ok: boolean; syncedAt: string }> {
     return req("POST", "/sync");
+  },
+
+  async logFocusSession(params: {
+    taskId: string | null;
+    duration: number;
+    startedAt?: string;
+    notes?: string;
+  }): Promise<{ ok: true; entry_id: string }> {
+    return req("POST", "/focus/sessions", {
+      task_id: params.taskId,
+      duration: params.duration,
+      started_at: params.startedAt,
+      notes: params.notes,
+    });
+  },
+
+  async getFocusLogs(taskId: string): Promise<FocusLogEntry[]> {
+    const res = await req<FocusLogsResponse>("GET", `/focus/logs/${encodeURIComponent(taskId)}`);
+    return res.logs;
   },
 };
 
