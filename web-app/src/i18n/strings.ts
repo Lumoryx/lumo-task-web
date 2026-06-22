@@ -574,6 +574,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "due.nextWeek": "Next week",
     "due.none": "Clear",
 
+    "stagnation.untouched": "Untouched for {n} days",
+    "stagnation.review.summary": "{n} important items have been untouched for 14+ days. Consider picking one in your next planning session.",
+
 
     "matrix.aiClassify.tasks": "tasks",
     "matrix.aiClassify.unclassified": "unclassified",
@@ -1214,6 +1217,9 @@ export const STRINGS: Record<Locale, Dict> = {
     "due.tomorrow": "明天",
     "due.nextWeek": "下周",
     "due.none": "清空",
+
+    "stagnation.untouched": "已 {n} 天未动",
+    "stagnation.review.summary": "还有 {n} 件重要事项已搁置超过 2 周，下次规划时可以考虑推进一个。",
 
 
     "matrix.aiClassify.tasks": "个任务",

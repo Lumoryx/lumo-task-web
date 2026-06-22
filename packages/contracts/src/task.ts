@@ -157,4 +157,8 @@ export interface Task {
   subtasks?: Subtask[];
   /** ISO datetime (YYYY-MM-DDTHH:MM:SS) for a specific time block on the calendar. */
   scheduled_start?: string | null;
+  /** ISO 8601 server timestamp — when the task was created. Read-only. */
+  created_at?: string;
+  /** ISO 8601 server timestamp — last write (edit, AI classify, focus). Read-only. Powers Q2 stagnation. */
+  updated_at?: string;
 }

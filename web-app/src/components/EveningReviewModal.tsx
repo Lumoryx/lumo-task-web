@@ -4,6 +4,7 @@ import { useT, useLocaleString } from "@/i18n/useT";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
 import { fmtDuration } from "@/lib/format";
+import { getStagnantQ2Tasks } from "@/lib/stagnation";
 import { useAppStore } from "@/store/useAppStore";
 import type { CompletedEntry, Task } from "@/types/task";
 
@@ -17,9 +18,10 @@ interface ResultsStepProps {
   allTodayDone: boolean;
   totalFocusMin: number;
   totalPomos: number;
+  stagnantQ2Count: number;
 }
 
-function ResultsStep({ completed, allTodayDone, totalFocusMin, totalPomos }: ResultsStepProps) {
+function ResultsStep({ completed, allTodayDone, totalFocusMin, totalPomos, stagnantQ2Count }: ResultsStepProps) {
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
@@ -143,6 +145,21 @@ function ResultsStep({ completed, allTodayDone, totalFocusMin, totalPomos }: Res
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Q2 stagnation nudge (#187) — gentle, not nagging */}
+      {stagnantQ2Count >= 2 && (
+        <div
+          className="text-[13px] rounded-lg leading-relaxed"
+          style={{
+            padding: "10px 12px",
+            background: "var(--bg-deep)",
+            border: "1px solid var(--border-faint)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          🗂 {t("stagnation.review.summary").replace("{n}", String(stagnantQ2Count))}
         </div>
       )}
     </div>
@@ -442,6 +459,9 @@ export function EveningReviewModal({ onClose }: EveningReviewModalProps) {
   // All today tasks done?
   const allTodayDone = unfinished.length === 0 && completed.length > 0;
 
+  // Q2 tasks untouched ≥ 14 days — surfaces a gentle stagnation nudge (#187)
+  const stagnantQ2Count = useMemo(() => getStagnantQ2Tasks(tasks).length, [tasks]);
+
   // Total focus minutes from completed entries
   const totalFocusMin = useMemo(
     () => completed.reduce((sum, e) => sum + (e.duration ?? 0), 0),
@@ -643,6 +663,7 @@ export function EveningReviewModal({ onClose }: EveningReviewModalProps) {
               allTodayDone={allTodayDone}
               totalFocusMin={totalFocusMin}
               totalPomos={totalPomos}
+              stagnantQ2Count={stagnantQ2Count}
             />
           )}
           {step === "unfinished" && (

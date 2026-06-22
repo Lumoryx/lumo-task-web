@@ -38,6 +38,10 @@
   --status-warning: #ffb347;
   --status-info: #5bc8d4;
 
+  /* Q2 stagnation (#187) — age of untouched strategic tasks */
+  --stagnation-mid: #f59e0b; /* amber — untouched 14–29 days */
+  --stagnation-high: #f4663b; /* orange-red — untouched 30+ days */
+
   /* Quadrants */
   --q1-color: #ff6b6b;
   --q2-color: #a8e64b;
