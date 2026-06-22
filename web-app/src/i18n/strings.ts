@@ -132,6 +132,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.capture.skip_in": "Skip ({n}s)",
     "focus.capture.saving": "Saving…",
 
+    "detail.focuslogs": "Focus history",
+
     "qc.title": "New task",
     "qc.placeholder": "What needs doing?",
     "qc.due": "Due",
@@ -786,6 +788,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "focus.capture.skip": "跳过",
     "focus.capture.skip_in": "跳过（{n}s）",
     "focus.capture.saving": "保存中…",
+
+    "detail.focuslogs": "专注记录",
 
     "qc.title": "新建任务",
     "qc.placeholder": "要做点什么?",

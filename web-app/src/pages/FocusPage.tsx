@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { IconArrowLeft, IconCheck, IconPause, IconPlay } from "@/components/icons";
 import { useT, useLocaleString } from "@/i18n/useT";
@@ -39,7 +39,6 @@ export function FocusPage() {
     : null;
 
   const isFallbackTask = !!task && !task.today;
-
   const taskDuration = task && task.duration > 0 ? task.duration * 60 : DEFAULT_DURATION;
 
   const [remaining, setRemaining] = useState(taskDuration);
@@ -48,13 +47,12 @@ export function FocusPage() {
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
   const [exiting, setExiting] = useState(false);
+  // timerKey increments to restart the timer via useEffect
+  const [timerKey, setTimerKey] = useState(0);
   // Capture card state
   const [showCapture, setShowCapture] = useState(false);
-  // True when card was triggered by "Mark complete" — skipping should still complete the task
-  const pendingCompleteRef = useRef(false);
-  // Track elapsed time for session logging
-  const sessionStartRef = useRef<string>(new Date().toISOString());
-  const elapsedRef = useRef(0);
+  // Tracks why capture was triggered: timer end, exit, or mark-complete
+  const [captureReason, setCaptureReason] = useState<"timer" | "complete" | "exit">("timer");
 
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const notificationsEnabled = useNotificationStore((s) => s.enabled);
@@ -67,6 +65,7 @@ export function FocusPage() {
   const pausedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedForRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<string>(new Date().toISOString());
 
   function stopInterval() {
     if (intervalRef.current !== null) {
@@ -81,9 +80,10 @@ export function FocusPage() {
 
   useEffect(() => {
     if (!task) return;
-    const key = `${task.id}:${taskDuration}`;
+    const key = `${task.id}:${taskDuration}:${timerKey}`;
     if (startedForRef.current === key) return;
     startedForRef.current = key;
+    sessionStartRef.current = new Date().toISOString();
 
     stopInterval();
     remainingRef.current = taskDuration;
@@ -91,14 +91,11 @@ export function FocusPage() {
     setPaused(false);
     setRemaining(taskDuration);
     setTimerReady(true);
-    sessionStartRef.current = new Date().toISOString();
-    elapsedRef.current = 0;
 
     intervalRef.current = setInterval(() => {
       if (pausedRef.current) return;
       const next = Math.max(0, remainingRef.current - 1);
       remainingRef.current = next;
-      elapsedRef.current += 1;
       setRemaining(next);
       if (next === 0) {
         stopInterval();
@@ -112,8 +109,7 @@ export function FocusPage() {
         }
         setPetBounce(true);
         setTimeout(() => setPetBounce(false), 1200);
-        // Show capture card instead of navigating away
-        pendingCompleteRef.current = false;
+        setCaptureReason("timer");
         setShowCapture(true);
         useTasksStore.getState().fetchAllCompleted().then((entries) => {
           const { currentStreak } = computeAllTimeStats(entries);
@@ -123,7 +119,7 @@ export function FocusPage() {
         }).catch(() => {});
       }
     }, 1000);
-  }, [task?.id, taskDuration]);
+  }, [task?.id, taskDuration, timerKey]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -139,106 +135,58 @@ export function FocusPage() {
     window.electronAPI?.exitFocusMode();
   }
 
-  /** Submit session capture data (fire-and-forget, non-blocking). */
-  async function submitCapture(whatDone: string, nextStep: string) {
-    const elapsed = Math.max(1, Math.round(elapsedRef.current / 60));
-    const promises: Promise<unknown>[] = [];
+  async function handleCaptureSubmit({
+    whatDone,
+    nextStep,
+    action,
+  }: {
+    whatDone: string;
+    nextStep: string;
+    action: "next_round" | "end_focus";
+  }) {
+    const elapsed = Math.max(1, Math.round((taskDuration - remainingRef.current) / 60));
 
     if (task) {
-      promises.push(
-        api.captureSession({
-          task_id: task.id,
-          duration: elapsed,
-          started_at: sessionStartRef.current,
-          notes: whatDone || null,
-        }).catch(() => {})
-      );
-      if (nextStep) {
-        promises.push(
-          update(task.id, { next_step: { en: nextStep } }).catch(() => {})
-        );
+      // Fire-and-forget: log the session with optional notes
+      api.captureSession({
+        task_id: task.id,
+        duration: elapsed,
+        started_at: sessionStartRef.current,
+        notes: whatDone.trim() || null,
+      }).catch(() => {});
+
+      // Update next_step if the user provided one — locale-aware
+      if (nextStep.trim()) {
+        const nextStepLS = locale === "zh"
+          ? { en: task.next_step?.en ?? "", zh: nextStep.trim() }
+          : { en: nextStep.trim() };
+        update(task.id, { next_step: nextStepLS }).catch(() => {});
       }
     }
 
-    await Promise.all(promises);
-  }
-
-  /** Restart the timer for another round on the same task. */
-  function restartTimer() {
-    stopInterval();
-    // Reset key so the effect re-fires
-    startedForRef.current = null;
     setShowCapture(false);
-    pendingCompleteRef.current = false;
-    setRemaining(taskDuration);
-    remainingRef.current = taskDuration;
-    elapsedRef.current = 0;
-    sessionStartRef.current = new Date().toISOString();
-    setPaused(false);
-    pausedRef.current = false;
-    setTimerReady(false);
 
-    // Re-trigger the useEffect by forcing a key change via startedForRef
-    if (task) {
-      const key = `${task.id}:${taskDuration}`;
+    if (action === "next_round") {
+      // Restart timer via timerKey increment (cleaner than manual reset)
       startedForRef.current = null;
-      // Small delay so React re-renders before the effect fires
-      setTimeout(() => {
-        startedForRef.current = null;
-        setTimerReady(true);
-        intervalRef.current = setInterval(() => {
-          if (pausedRef.current) return;
-          const next = Math.max(0, remainingRef.current - 1);
-          remainingRef.current = next;
-          elapsedRef.current += 1;
-          setRemaining(next);
-          if (next === 0) {
-            stopInterval();
-            pendingCompleteRef.current = false;
-            setShowCapture(true);
-          }
-        }, 1000);
-        // Mark as started so outer effect doesn't double-start
-        startedForRef.current = key;
-      }, 0);
-    }
-  }
-
-  const handleCaptureSubmit = useCallback(async (result: import("@/components/SessionCaptureCard").SessionCaptureResult) => {
-    await submitCapture(result.whatDone, result.nextStep);
-
-    if (result.action === "next_round") {
-      restartTimer();
+      setTimerKey((k) => k + 1);
     } else {
-      // end_focus
-      setShowCapture(false);
-      if (pendingCompleteRef.current && task) {
+      // End focus — complete task only if triggered by "Mark complete"
+      if (captureReason === "complete" && task) {
         await complete(task.id).catch(() => {});
       }
       navigate("/today");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task?.id, taskDuration]);
-
-  const handleCaptureSkip = useCallback(async () => {
-    setShowCapture(false);
-    if (pendingCompleteRef.current && task) {
-      await complete(task.id).catch(() => {});
-    }
-    navigate("/today");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task?.id]);
-
-  function triggerExit() {
-    stopInterval();
-    pendingCompleteRef.current = false;
-    setShowCapture(true);
   }
 
-  function triggerComplete() {
-    stopInterval();
-    pendingCompleteRef.current = true;
-    setShowCapture(true);
+  function handleCaptureSkip() {
+    setShowCapture(false);
+    if (captureReason === "complete" && task) {
+      complete(task.id).finally(() => navigate("/today"));
+    } else if (captureReason === "exit") {
+      navigate("/today");
+    }
+    // captureReason === "timer": close the card, stay on focus page
   }
 
   if (!task) {
@@ -489,7 +437,15 @@ export function FocusPage() {
             🐕 {t("focus.compact.enter")}
           </button>
         )}
-        <button className="btn btn-ghost" style={{ height: 30 }} onClick={triggerExit}>
+        <button
+          className="btn btn-ghost"
+          style={{ height: 30 }}
+          onClick={() => {
+            stopInterval();
+            setCaptureReason("exit");
+            setShowCapture(true);
+          }}
+        >
           <IconArrowLeft size={14} />
           {t("focus.exit")}
         </button>
@@ -555,7 +511,11 @@ export function FocusPage() {
           <div className="flex flex-col items-center gap-2 mt-3 pointer-events-auto">
             {/* Primary: Mark complete */}
             <button
-              onClick={triggerComplete}
+              onClick={() => {
+                stopInterval();
+                setCaptureReason("complete");
+                setShowCapture(true);
+              }}
               className="flex items-center gap-2 rounded-full transition-all text-sm font-semibold"
               style={{
                 padding: "11px 36px",
@@ -594,7 +554,7 @@ export function FocusPage() {
         {/* Session capture card overlay */}
         {showCapture && (
           <SessionCaptureCard
-            hideNextRound={pendingCompleteRef.current}
+            hideNextRound={captureReason === "complete"}
             onSubmit={handleCaptureSubmit}
             onSkip={handleCaptureSkip}
           />
