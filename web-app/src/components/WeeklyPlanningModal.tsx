@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useTasksStore } from "@/store/useTasksStore";
+import { useAppStore } from "@/store/useAppStore";
+import { getStagnationDays, getUntouchedLabel } from "@/lib/stagnation";
 import type { Task } from "@/types/task";
 
 const MAX_WEEK_FOCUS = 3;
@@ -167,6 +169,7 @@ interface SelectStepProps {
 function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
   const t = useT();
   const ls = useLocaleString();
+  const locale = useAppStore((s) => s.locale);
 
   if (pool.length === 0) {
     return (
@@ -241,6 +244,19 @@ function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
                   >
                     {ls(task.title)}
                   </span>
+                  {getStagnationDays(task.updated_at) >= 7 && (
+                    <span
+                      className="text-[11px] flex-shrink-0 tabular-nums"
+                      style={{
+                        color:
+                          getStagnationDays(task.updated_at) >= 14
+                            ? "var(--stagnation-mid)"
+                            : "var(--text-faint)",
+                      }}
+                    >
+                      {getUntouchedLabel(getStagnationDays(task.updated_at), locale)}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -315,13 +331,16 @@ export function WeeklyPlanningModal({ onClose, prevWeekStats, prevWeekFocusTasks
   const [stepIdx, setStepIdx] = useState(0);
   const step = steps[stepIdx];
 
-  // Q1 + Q2 pool, sorted by quadrant then conviction
+  // Q1 + Q2 pool, sorted by quadrant, then by stagnation (longest-untouched
+  // first — #187), with conviction as the tiebreaker.
   const pool = useMemo(
     () =>
       tasks
         .filter((tk) => !tk.completed && (tk.quadrant === "Q1" || tk.quadrant === "Q2"))
         .sort((a, b) => {
           if (a.quadrant !== b.quadrant) return a.quadrant === "Q1" ? -1 : 1;
+          const stagDiff = getStagnationDays(b.updated_at) - getStagnationDays(a.updated_at);
+          if (stagDiff !== 0) return stagDiff;
           return (b.conviction ?? 0) - (a.conviction ?? 0);
         }),
     [tasks]

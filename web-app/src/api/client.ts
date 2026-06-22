@@ -115,6 +115,8 @@ function adaptTask(raw: any): Task {
     recurrence: raw.recurrence ?? "none",
     subtasks: raw.subtasks ?? [],
     scheduled_start: raw.scheduled_start ?? null,
+    created_at: raw.created_at ?? undefined,
+    updated_at: raw.updated_at ?? undefined,
   };
 }
 

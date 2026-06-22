@@ -4,6 +4,7 @@ import { useT, useLocaleString } from "@/i18n/useT";
 import { useAppStore } from "@/store/useAppStore";
 import { useNavigate } from "react-router-dom";
 import { fmtDuration, getDueLabel, getDueColor } from "@/lib/format";
+import { getStagnationTag, getStagnationLevel, getStagnationColor, getStagnationDays } from "@/lib/stagnation";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { usePeopleStore } from "@/store/usePeopleStore";
@@ -38,6 +39,8 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
   const dueColor = getDueColor(task.due);
+  const stagTag = getStagnationTag(task);
+  const stagColor = getStagnationColor(getStagnationLevel(task));
 
   return (
     <>
@@ -108,6 +111,16 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
                 aria-label={t(`task.recurrence.${task.recurrence}`)}
               >
                 <IconRepeat size={10} strokeWidth={1.75} />
+              </span>
+            )}
+            {stagTag && (
+              <span
+                className="flex-shrink-0 font-medium"
+                style={{ color: stagColor }}
+                title={t("stagnation.untouched").replace("{n}", String(getStagnationDays(task.updated_at)))}
+                aria-label={t("stagnation.untouched").replace("{n}", String(getStagnationDays(task.updated_at)))}
+              >
+                {stagTag}
               </span>
             )}
           </div>
