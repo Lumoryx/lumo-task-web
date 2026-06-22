@@ -21,12 +21,12 @@ const ACCENT_SWATCHES: Array<{ id: Accent; hex: string; label: string }> = [
   { id: "graphite", hex: "#A0ADB0", label: "Graphite" },
 ];
 
-type TabId = "appearance" | "language" | "notifications" | "pet" | "members" | "ai" | "integrations" | "storage" | "sync" | "data";
+type TabId = "appearance" | "language" | "notifications" | "pet" | "members" | "ai" | "integrations" | "storage" | "sync" | "data" | "planning";
 
 export function SettingsPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { accent, setAccent, density, setDensity, reducedMotion, setReducedMotion, locale, setLocale, setOnboarded } =
+  const { accent, setAccent, density, setDensity, reducedMotion, setReducedMotion, locale, setLocale, setOnboarded, dailyFocusCapacityMinutes, setDailyFocusCapacityMinutes } =
     useAppStore();
   const reset = useTasksStore((s) => s.reset);
   const { people, create: createPerson, update: updatePerson, remove: removePerson } = usePeopleStore();
@@ -37,6 +37,7 @@ export function SettingsPage() {
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: "appearance", label: t("settings.appearance") },
     { id: "language",   label: t("settings.language") },
+    { id: "planning",   label: t("settings.planning") },
     { id: "notifications", label: t("settings.notifications") },
     { id: "pet",        label: t("settings.pet") },
     { id: "members",    label: t("settings.members") },
@@ -130,6 +131,35 @@ export function SettingsPage() {
                   ]}
                   onChange={setLocale}
                 />
+              </Row>
+            </Panel>
+          )}
+
+          {activeTab === "planning" && (
+            <Panel title={t("settings.planning")}>
+              <Row
+                label={t("settings.planning.capacity")}
+                helper={t("settings.planning.capacity.helper")}
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={60}
+                    max={720}
+                    step={30}
+                    value={dailyFocusCapacityMinutes}
+                    onChange={(e) => setDailyFocusCapacityMinutes(Number(e.target.value))}
+                    style={{ flex: 1, accentColor: "var(--accent-primary)" }}
+                  />
+                  <span
+                    className="text-[13px] tabular-nums font-medium"
+                    style={{ color: "var(--text-primary)", minWidth: 36, textAlign: "right" }}
+                  >
+                    {dailyFocusCapacityMinutes >= 60
+                      ? `${dailyFocusCapacityMinutes / 60}h`
+                      : `${dailyFocusCapacityMinutes}m`}
+                  </span>
+                </div>
               </Row>
             </Panel>
           )}

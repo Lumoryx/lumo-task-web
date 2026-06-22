@@ -7,8 +7,9 @@ import { usePetStore } from "@/store/usePetStore";
 import { useAIStore } from "@/store/useAIStore";
 import { PetSvg } from "@/components/PetSvg";
 import type { PetSpecies } from "@/components/PetSvg";
-import { toISODate } from "@/lib/format";
+import { toISODate, fmtDuration } from "@/lib/format";
 import type { Task } from "@/types/task";
+import type { Locale } from "@/types/task";
 
 const MAX_TODAY = 3;
 
@@ -176,18 +177,135 @@ function CarryStep({ prevToday, decisions, onToggle }: CarryStepProps) {
   );
 }
 
+// ─── Focus Load Bar ────────────────────────────────────────────────────────
+
+interface FocusLoadBarProps {
+  selectedTasks: Task[];
+  capacityMinutes: number;
+  locale: Locale;
+}
+
+function FocusLoadBar({ selectedTasks, capacityMinutes, locale }: FocusLoadBarProps) {
+  const t = useT();
+
+  const estimatedTasks = selectedTasks.filter((tk) => tk.duration > 0);
+  const unestimatedCount = selectedTasks.length - estimatedTasks.length;
+  const totalMinutes = estimatedTasks.reduce((s, tk) => s + tk.duration, 0);
+
+  if (selectedTasks.length === 0) return null;
+
+  const pct = capacityMinutes > 0 ? (totalMinutes / capacityMinutes) * 100 : 0;
+  const clampedPct = Math.min(pct, 100);
+
+  const barColor =
+    pct > 100
+      ? "var(--status-urgent)"
+      : pct > 80
+      ? "var(--status-warning)"
+      : "var(--accent-primary)";
+
+  const labelColor =
+    pct > 100
+      ? "var(--status-urgent)"
+      : pct > 80
+      ? "var(--status-warning)"
+      : "var(--text-secondary)";
+
+  const totalLabel = fmtDuration(totalMinutes, locale);
+  const capacityLabel = fmtDuration(capacityMinutes, locale);
+
+  const summaryLabel = t("planning.load.label")
+    .replace("{total}", totalLabel)
+    .replace("{capacity}", capacityLabel);
+
+  const warningText =
+    pct > 100
+      ? t("planning.load.warning")
+      : pct > 80
+      ? t("planning.load.caution")
+      : null;
+
+  const unestimatedText =
+    unestimatedCount > 0
+      ? (unestimatedCount === 1
+          ? t("planning.load.unestimated")
+          : t("planning.load.unestimated.plural")
+        ).replace("{n}", String(unestimatedCount))
+      : null;
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        padding: "10px 12px",
+        borderRadius: 8,
+        background: "var(--bg-deep)",
+        border: "1px solid var(--border-faint)",
+      }}
+    >
+      {/* Label row */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+          {summaryLabel}
+        </span>
+        <span
+          className="text-[11px] font-semibold tabular-nums"
+          style={{ color: labelColor }}
+        >
+          {Math.round(pct)}%
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div
+        className="h-[4px] w-full rounded-full overflow-hidden"
+        style={{ background: "var(--border-default)" }}
+      >
+        <div
+          style={{
+            width: `${clampedPct}%`,
+            height: "100%",
+            background: barColor,
+            borderRadius: "9999px",
+            transition: "width 0.25s ease, background 0.25s ease",
+          }}
+        />
+      </div>
+
+      {/* Warning / unestimated hints */}
+      {(warningText || unestimatedText) && (
+        <div className="flex flex-col gap-0.5 mt-1.5">
+          {warningText && (
+            <span className="text-[11px]" style={{ color: labelColor }}>
+              {warningText}
+            </span>
+          )}
+          {unestimatedText && (
+            <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>
+              {unestimatedText}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Step: Select Tasks ────────────────────────────────────────────────────
 
 interface SelectStepProps {
   pool: Task[];
   selected: Set<string>;
   onToggle: (id: string) => void;
+  capacityMinutes: number;
+  locale: Locale;
 }
 
-function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
+function SelectStep({ pool, selected, onToggle, capacityMinutes, locale }: SelectStepProps) {
   const t = useT();
   const ls = useLocaleString();
   const q1q2Count = pool.filter((tk) => selected.has(tk.id)).length;
+  const selectedTasks = pool.filter((tk) => selected.has(tk.id));
 
   return (
     <div className="flex flex-col gap-3">
@@ -298,6 +416,12 @@ function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
           })}
         </div>
       )}
+
+      <FocusLoadBar
+        selectedTasks={selectedTasks}
+        capacityMinutes={capacityMinutes}
+        locale={locale}
+      />
     </div>
   );
 }
@@ -375,6 +499,7 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
+  const dailyFocusCapacityMinutes = useAppStore((s) => s.dailyFocusCapacityMinutes);
   const tasks = useTasksStore((s) => s.tasks);
   const update = useTasksStore((s) => s.update);
   const { activeProvider, providerConfigs } = useAIStore();
@@ -633,6 +758,8 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
               pool={pool}
               selected={selected}
               onToggle={handleTaskToggle}
+              capacityMinutes={dailyFocusCapacityMinutes}
+              locale={locale}
             />
           )}
           {step === "ai" && <AIStep message={aiMsg} />}

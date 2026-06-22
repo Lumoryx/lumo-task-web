@@ -13,8 +13,8 @@ vi.mock("@/i18n/useT", () => ({
 }));
 
 vi.mock("@/store/useAppStore", () => ({
-  useAppStore: (sel: (s: { locale: string }) => unknown) =>
-    sel({ locale: "en" }),
+  useAppStore: (sel: (s: { locale: string; dailyFocusCapacityMinutes: number }) => unknown) =>
+    sel({ locale: "en", dailyFocusCapacityMinutes: 360 }),
 }));
 
 const mockCelebrate = vi.fn();
@@ -248,6 +248,60 @@ describe("MorningPlanningModal", () => {
       "lumo.planning_done_date",
       today
     );
+  });
+
+  // ─── Focus Load Bar ──────────────────────────────────────────────────────
+  describe("FocusLoadBar", () => {
+    it("does not show load bar when no tasks are selected", () => {
+      TASKS = [makeTask({ id: "t1", quadrant: "Q1", today: false, duration: 60 })];
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      // Nothing selected yet — load bar should not be visible
+      expect(screen.queryByText(/planning\.load\.label/)).not.toBeInTheDocument();
+    });
+
+    it("shows load bar when a task with duration is selected", async () => {
+      TASKS = [makeTask({ id: "t1", title: { en: "Task A" }, quadrant: "Q1", today: false, duration: 60 })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Task A"));
+      expect(screen.getByText("planning.load.label")).toBeInTheDocument();
+    });
+
+    it("shows unestimated hint when selected tasks have zero duration", async () => {
+      TASKS = [makeTask({ id: "t1", title: { en: "No Estimate" }, quadrant: "Q1", today: false, duration: 0 })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("No Estimate"));
+      expect(screen.getByText(/planning\.load\.unestimated/)).toBeInTheDocument();
+    });
+
+    it("shows over-capacity warning when planned > capacity", async () => {
+      // capacity = 360min = 6h; select a 400min task
+      TASKS = [makeTask({ id: "t1", title: { en: "Long Task" }, quadrant: "Q1", today: false, duration: 400 })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Long Task"));
+      expect(screen.getByText("planning.load.warning")).toBeInTheDocument();
+    });
+
+    it("shows caution warning when planned is 81–100% of capacity", async () => {
+      // capacity = 360; 81% = ~292min
+      TASKS = [makeTask({ id: "t1", title: { en: "Heavy Task" }, quadrant: "Q1", today: false, duration: 300 })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Heavy Task"));
+      expect(screen.getByText("planning.load.caution")).toBeInTheDocument();
+    });
+
+    it("shows no warning when planned <= 80% of capacity", async () => {
+      // capacity = 360; 80% = 288min; use 200min
+      TASKS = [makeTask({ id: "t1", title: { en: "Light Task" }, quadrant: "Q1", today: false, duration: 200 })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Light Task"));
+      expect(screen.queryByText("planning.load.warning")).not.toBeInTheDocument();
+      expect(screen.queryByText("planning.load.caution")).not.toBeInTheDocument();
+    });
   });
 
   // ─── AI step (AC #3 / #5) ────────────────────────────────────────────────

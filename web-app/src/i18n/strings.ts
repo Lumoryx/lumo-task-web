@@ -653,6 +653,17 @@ export const STRINGS: Record<Locale, Dict> = {
     "review.step.done.focus.min": "{m}m",
 
     "pet.celebrate.eveningdone": "Great wrap-up! Rest well tonight 🌙",
+
+    "planning.load.label": "Planned · {total} / {capacity}",
+    "planning.load.unestimated": "+ {n} task without estimate",
+    "planning.load.unestimated.plural": "+ {n} tasks without estimate",
+    "planning.load.warning": "Over capacity — consider trimming your plan",
+    "planning.load.caution": "Nearing capacity — leave room for the unexpected",
+    "today.load.summary": "Today · {total}",
+    "today.load.summary.unestimated": "· {n} unestimated",
+    "settings.planning": "Planning",
+    "settings.planning.capacity": "Daily Focus Capacity",
+    "settings.planning.capacity.helper": "Realistic deep-work hours available per day (used by the focus load indicator during morning planning).",
   },
   zh: {
     "brand.name": "Lumo",
@@ -1297,5 +1308,16 @@ export const STRINGS: Record<Locale, Dict> = {
     "review.step.done.focus.min": "{m} 分钟",
 
     "pet.celebrate.eveningdone": "今天收尾得很好！好好休息 🌙",
+
+    "planning.load.label": "已计划 · {total} / {capacity}",
+    "planning.load.unestimated": "+ {n} 个任务未设估时",
+    "planning.load.unestimated.plural": "+ {n} 个任务未设估时",
+    "planning.load.warning": "超出容量 — 建议精简计划",
+    "planning.load.caution": "接近容量上限 — 为意外事项留出余地",
+    "today.load.summary": "今日 · {total}",
+    "today.load.summary.unestimated": "· {n} 个未估时",
+    "settings.planning": "规划",
+    "settings.planning.capacity": "每日专注容量",
+    "settings.planning.capacity.helper": "每天实际可用于深度工作的小时数（用于晨间规划的专注负载指示器）。",
   },
 };
