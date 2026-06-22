@@ -7,8 +7,9 @@ import { usePetStore } from "@/store/usePetStore";
 import { useAIStore } from "@/store/useAIStore";
 import { PetSvg } from "@/components/PetSvg";
 import type { PetSpecies } from "@/components/PetSvg";
-import { toISODate } from "@/lib/format";
+import { toISODate, fmtDuration } from "@/lib/format";
 import type { Task } from "@/types/task";
+import type { Locale } from "@/types/task";
 
 const MAX_TODAY = 3;
 
@@ -176,15 +177,109 @@ function CarryStep({ prevToday, decisions, onToggle }: CarryStepProps) {
   );
 }
 
+// ─── Focus Load Bar ────────────────────────────────────────────────────────
+
+interface FocusLoadBarProps {
+  selectedTasks: Task[];
+  capacityMinutes: number;
+  locale: Locale;
+}
+
+function FocusLoadBar({ selectedTasks, capacityMinutes, locale }: FocusLoadBarProps) {
+  const t = useT();
+  const estimatedTasks = selectedTasks.filter((tk) => tk.duration > 0);
+  const unestimatedCount = selectedTasks.length - estimatedTasks.length;
+  const totalMinutes = estimatedTasks.reduce((s, tk) => s + tk.duration, 0);
+
+  if (totalMinutes === 0 && unestimatedCount === 0) return null;
+
+  const ratio = capacityMinutes > 0 ? totalMinutes / capacityMinutes : 0;
+  const pct = Math.min(ratio * 100, 100);
+
+  let barColor: string;
+  let statusMsg: string | null = null;
+  if (ratio > 1) {
+    barColor = "var(--status-urgent)";
+    statusMsg = t("planning.load.overload");
+  } else if (ratio > 0.8) {
+    barColor = "var(--status-warning)";
+    statusMsg = t("planning.load.nearfull");
+  } else {
+    barColor = "var(--accent-primary)";
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: "10px 12px",
+        borderRadius: 8,
+        background: "var(--bg-deep)",
+        border: "1px solid var(--border-faint)",
+      }}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-semibold" style={{ color: "var(--text-faint)" }}>
+          {t("planning.load.title")}
+        </span>
+        <span className="text-[11px] tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          {totalMinutes > 0 ? fmtDuration(totalMinutes, locale) : "—"}
+          {" / "}
+          {fmtDuration(capacityMinutes, locale)}
+        </span>
+      </div>
+
+      {/* Progress bar track */}
+      <div
+        style={{
+          height: 5,
+          borderRadius: 3,
+          background: "var(--border-default)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            width: `${pct}%`,
+            background: barColor,
+            borderRadius: 3,
+            transition: "width 0.2s, background 0.2s",
+          }}
+        />
+      </div>
+
+      {/* Status / unestimated hint row */}
+      {(statusMsg || unestimatedCount > 0) && (
+        <div className="flex items-center justify-between mt-1">
+          {statusMsg && (
+            <span className="text-[11px]" style={{ color: barColor }}>
+              {statusMsg}
+            </span>
+          )}
+          {!statusMsg && <span />}
+          {unestimatedCount > 0 && (
+            <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>
+              {t("planning.load.unestimated").replace("{n}", String(unestimatedCount))}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Step: Select Tasks ────────────────────────────────────────────────────
 
 interface SelectStepProps {
   pool: Task[];
   selected: Set<string>;
   onToggle: (id: string) => void;
+  dailyCapacityMinutes: number;
+  locale: Locale;
 }
 
-function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
+function SelectStep({ pool, selected, onToggle, dailyCapacityMinutes, locale }: SelectStepProps) {
   const t = useT();
   const ls = useLocaleString();
   const q1q2Count = pool.filter((tk) => selected.has(tk.id)).length;
@@ -298,6 +393,13 @@ function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
           })}
         </div>
       )}
+
+      {/* Focus load indicator */}
+      <FocusLoadBar
+        selectedTasks={pool.filter((tk) => selected.has(tk.id))}
+        capacityMinutes={dailyCapacityMinutes}
+        locale={locale}
+      />
     </div>
   );
 }
@@ -375,6 +477,7 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
   const t = useT();
   const ls = useLocaleString();
   const locale = useAppStore((s) => s.locale);
+  const dailyCapacityMinutes = useAppStore((s) => s.dailyCapacityMinutes);
   const tasks = useTasksStore((s) => s.tasks);
   const update = useTasksStore((s) => s.update);
   const { activeProvider, providerConfigs } = useAIStore();
@@ -633,6 +736,8 @@ export function MorningPlanningModal({ onClose }: MorningPlanningModalProps) {
               pool={pool}
               selected={selected}
               onToggle={handleTaskToggle}
+              dailyCapacityMinutes={dailyCapacityMinutes}
+              locale={locale}
             />
           )}
           {step === "ai" && <AIStep message={aiMsg} />}
