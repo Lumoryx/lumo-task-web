@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CompletedTimeline } from "@/components/CompletedTimeline";
 import { EveningReviewModal } from "@/components/EveningReviewModal";
 import { MorningPlanningModal } from "@/components/MorningPlanningModal";
@@ -675,8 +675,20 @@ export function TodayPage() {
   const [planned, setPlanned] = useState(isTodayPlanned);
   const [eveningOpen, setEveningOpen] = useState(false);
   const [eveningDone, setEveningDone] = useState(isEveningReviewDone);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [weeklyPlanned, setWeeklyPlanned] = useState(isWeeklyPlanned);
+
+  // Auto-open modals when navigated here from a notification click
+  useEffect(() => {
+    if (searchParams.get("planning") === "open") {
+      setPlanningOpen(true);
+      setSearchParams({}, { replace: true });
+    } else if (searchParams.get("evening") === "open") {
+      setEveningOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Compute last week's stats from completed entries for the WeeklyPlanningModal
   const prevWeekStats = useMemo(() => {

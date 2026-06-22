@@ -5,7 +5,14 @@ import { useAppStore } from "@/store/useAppStore";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePeopleStore } from "@/store/usePeopleStore";
 import { PersonAvatar } from "@/pages/SettingsPage";
+import { toISODate } from "@/lib/format";
 import type { Quadrant, TaskRecurrence } from "@/types/task";
+
+function getNextMonday(): string {
+  const d = new Date();
+  const daysUntil = ((8 - d.getDay()) % 7) || 7;
+  return toISODate(new Date(d.getTime() + daysUntil * 86400000));
+}
 
 interface QuickCreateProps {
   initialQuadrant?: Quadrant;
@@ -36,7 +43,9 @@ export function QuickCreate({ initialQuadrant = "Q2", initialTitle, initialDue, 
   const parseTaskText = useTasksStore((s) => s.parseTaskText);
   const people = usePeopleStore((s) => s.people);
 
-  const todayISO = new Date().toISOString().split("T")[0];
+  const todayISO = toISODate(new Date());
+  const tomorrowISO = toISODate(new Date(Date.now() + 86400000));
+  const nextWeekISO = getNextMonday();
 
   const [title, setTitle] = useState(initialTitle ?? "");
   const [busy, setBusy] = useState(false);
@@ -257,13 +266,45 @@ export function QuickCreate({ initialQuadrant = "Q2", initialTitle, initialDue, 
           {/* Due + Duration */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint mb-1.5">
-                {t("qc.due")}
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-faint">
+                  {t("qc.due")}
+                </div>
+                {dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => setDueDate("")}
+                    className="text-[10px] transition-colors"
+                    style={{ color: "var(--text-faint)" }}
+                  >
+                    {t("due.none")}
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {([
+                  { label: t("due.today"), value: todayISO },
+                  { label: t("due.tomorrow"), value: tomorrowISO },
+                  { label: t("due.nextWeek"), value: nextWeekISO },
+                ]).map(({ label, value }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setDueDate(value)}
+                    className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                    style={{
+                      background: dueDate === value ? "var(--accent-fog)" : "var(--bg-surface)",
+                      border: `1px solid ${dueDate === value ? "var(--accent-edge)" : "var(--border-default)"}`,
+                      color: dueDate === value ? "var(--accent-primary)" : "var(--text-muted)",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
               <input
                 type="date"
                 value={dueDate}
-                min={todayISO}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="input"
                 style={{ colorScheme: "dark", cursor: "pointer" }}
