@@ -11,6 +11,13 @@ const DAY_KEYS = [
   "stats.day.thu", "stats.day.fri", "stats.day.sat",
 ];
 
+const QUADRANT_COLOR: Record<string, string> = {
+  Q1: "var(--q1-color)",
+  Q2: "var(--q2-color)",
+  Q3: "var(--q3-color)",
+  Q4: "var(--q4-color)",
+};
+
 interface WrappedCardProps {
   stats: PrevWeekStats;
   currentStreak: number;
@@ -30,15 +37,35 @@ export function WrappedCard({ stats, currentStreak, userName, onDismiss }: Wrapp
 
   const maxDay = Math.max(...stats.byDay, 1);
 
+  const visibleQuadrants = stats.quadrantBreakdown.filter(
+    (b) => b.count > 0 && b.quadrant !== "unclassified",
+  );
+
   useEffect(() => {
     if (stats.tasksCompleted === 0) return;
     let cancelled = false;
+    const focusHours = Math.round((stats.focusMinutes / 60) * 10) / 10;
+    const getQ = (q: string) => stats.quadrantBreakdown.find((b) => b.quadrant === q)?.percent ?? 0;
+    const q1Pct = getQ("Q1");
+    const q2Pct = getQ("Q2");
+    const q3Pct = getQ("Q3");
+    const q4Pct = getQ("Q4");
     fetchWrappedInsight(
       [{
         role: "user",
         content: locale === "zh"
-          ? `请用一句话点评我上周的数据：完成了${stats.tasksCompleted}个任务，专注了${Math.round(stats.focusMinutes / 60 * 10) / 10}小时，Q1完成${stats.q1Tasks}个，连击${currentStreak}天。要积极鼓励，不超过20字。`
-          : `In one sentence, review my last week: ${stats.tasksCompleted} tasks done, ${Math.round(stats.focusMinutes / 60 * 10) / 10}h focus, ${stats.q1Tasks} Q1 tasks, ${currentStreak}-day streak. Be encouraging, max 15 words.`,
+          ? `你是Lumo专注教练。根据以下上周数据给出三段式教练反馈，直接输出三段文字，每段之间空一行，不要标题或编号：
+1. 数据解读（1-2句）：用艾森豪威尔语言解读象限分布模式
+2. 行动建议（1条具体可执行的下周行动）：针对当前最突出的象限问题
+3. 积极收尾（1句轻松鼓励）
+
+数据：完成${stats.tasksCompleted}个任务，专注${focusHours}小时，Q1紧急重要${q1Pct}%，Q2重要不紧急${q2Pct}%，Q3紧急不重要${q3Pct}%，Q4不紧急不重要${q4Pct}%，连击${currentStreak}天。总字数不超过80字。`
+          : `You're a Lumo focus coach. Based on last week's data, give 3-part coaching feedback. Output 3 short paragraphs separated by blank lines, no headings or numbers:
+1. Data insight (1-2 sentences): Interpret quadrant distribution using Eisenhower language
+2. Coaching action (1 specific, actionable next-week suggestion): Target the most prominent quadrant issue
+3. Positive close (1 light, encouraging sentence)
+
+Data: ${stats.tasksCompleted} tasks, ${focusHours}h focus, Q1 urgent+important ${q1Pct}%, Q2 important ${q2Pct}%, Q3 urgent ${q3Pct}%, Q4 low-priority ${q4Pct}%, ${currentStreak}-day streak. Max 60 words total.`,
       }],
       { page: "stats", locale },
     ).then((reply) => { if (!cancelled && reply) setInsight(reply); });
@@ -132,6 +159,38 @@ export function WrappedCard({ stats, currentStreak, userName, onDismiss }: Wrapp
           </div>
         </div>
 
+        {/* Quadrant distribution — only when tasks were completed and at least one classified */}
+        {stats.tasksCompleted > 0 && visibleQuadrants.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 10, color: "var(--text-faint)", marginBottom: 6, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              {t("wrapped.quadrant.section")}
+            </div>
+            {/* Proportional color bar */}
+            <div style={{ display: "flex", height: 5, borderRadius: 3, overflow: "hidden", gap: 2, marginBottom: 7 }}>
+              {visibleQuadrants.map((b) => (
+                <div
+                  key={b.quadrant}
+                  style={{
+                    flex: b.percent,
+                    background: QUADRANT_COLOR[b.quadrant],
+                    borderRadius: 3,
+                    minWidth: 4,
+                  }}
+                />
+              ))}
+            </div>
+            {/* Labels */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px" }}>
+              {visibleQuadrants.map((b) => (
+                <span key={b.quadrant} style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  <span style={{ fontWeight: 600, color: QUADRANT_COLOR[b.quadrant] }}>{b.quadrant}</span>
+                  {" "}{b.percent}%
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* AI insight */}
         {insight && (
           <div style={{
@@ -139,12 +198,13 @@ export function WrappedCard({ stats, currentStreak, userName, onDismiss }: Wrapp
             borderRadius: 10,
             background: "rgba(var(--accent-primary-rgb,61,255,160),0.08)",
             border: "1px solid var(--accent-dim)",
-            fontSize: 13,
+            fontSize: 12,
             color: "var(--text-secondary)",
             marginBottom: 16,
-            lineHeight: 1.5,
+            lineHeight: 1.6,
+            whiteSpace: "pre-line",
           }}>
-            "{insight}"
+            {insight}
           </div>
         )}
 
