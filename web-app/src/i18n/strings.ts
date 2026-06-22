@@ -378,6 +378,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "wrapped.share.btn": "Share",
     "wrapped.dismiss": "Got it",
     "wrapped.section.title": "Your Week Wrapped",
+    "wrapped.quadrant.section": "Last Week by Quadrant",
 
     "ai.config.title": "AI Assistant",
     "ai.config.provider": "Provider",
@@ -570,8 +571,7 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "due.today": "Today",
     "due.tomorrow": "Tomorrow",
-    "due.friday": "This Friday",
-    "due.nextFriday": "Next Friday",
+    "due.nextWeek": "Next week",
     "due.none": "Clear",
 
 
@@ -1026,6 +1026,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "wrapped.share.btn": "分享",
     "wrapped.dismiss": "好的",
     "wrapped.section.title": "本周回顾",
+    "wrapped.quadrant.section": "上周象限分布",
 
     "ai.config.title": "AI 助手",
     "ai.config.provider": "服务商",
@@ -1218,8 +1219,7 @@ export const STRINGS: Record<Locale, Dict> = {
 
     "due.today": "今天",
     "due.tomorrow": "明天",
-    "due.friday": "本周五",
-    "due.nextFriday": "下周五",
+    "due.nextWeek": "下周",
     "due.none": "清空",
 
 

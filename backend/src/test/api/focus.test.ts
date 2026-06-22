@@ -1,0 +1,77 @@
+/**
+ * API · Focus / Pomodoro
+ *   POST /v1/focus/sessions
+ */
+import { test, describe, before } from "node:test";
+import assert from "node:assert/strict";
+import { req, setupDb, signInDemo } from "../helpers/index.js";
+
+let demoToken = "";
+
+before(async () => {
+  await setupDb();
+  ({ token: demoToken } = await signInDemo());
+});
+
+describe("POST /v1/focus/sessions", () => {
+  test("200 → standalone session (no task_id) returns entry_id", async () => {
+    const { status, body } = await req("POST", "/v1/focus/sessions", {
+      token: demoToken,
+      body: { duration: 25 },
+    });
+    assert.equal(status, 200);
+    assert.equal(body.ok, true);
+    assert.ok(body.entry_id, "entry_id missing");
+  });
+
+  test("200 → session with task_id increments task pomos_done", async () => {
+    const { body: task } = await req("POST", "/v1/tasks", {
+      token: demoToken,
+      body: { title: { en: "Pomodoro task" }, pomos_total: 4 },
+    });
+    assert.equal(task.pomos_done, 0, "initial pomos_done should be 0");
+
+    const { status } = await req("POST", "/v1/focus/sessions", {
+      token: demoToken,
+      body: { task_id: task.id, duration: 25, started_at: new Date().toISOString() },
+    });
+    assert.equal(status, 200);
+
+    const { body: updated } = await req("GET", `/v1/tasks/${task.id}`, { token: demoToken });
+    assert.equal(updated.pomos_done, 1, "pomos_done should increment after focus session");
+
+    await req("DELETE", `/v1/tasks/${task.id}`, { token: demoToken });
+  });
+
+  test("200 → session with nonexistent task_id is graceful (no crash)", async () => {
+    const { status, body } = await req("POST", "/v1/focus/sessions", {
+      token: demoToken,
+      body: { task_id: "nonexistent-task", duration: 25 },
+    });
+    assert.equal(status, 200);
+    assert.equal(body.ok, true);
+  });
+
+  test("400 → missing duration", async () => {
+    const { status } = await req("POST", "/v1/focus/sessions", {
+      token: demoToken,
+      body: {},
+    });
+    assert.equal(status, 400);
+  });
+
+  test("400 → duration must be at least 1 minute", async () => {
+    const { status } = await req("POST", "/v1/focus/sessions", {
+      token: demoToken,
+      body: { duration: 0 },
+    });
+    assert.equal(status, 400);
+  });
+
+  test("401 → no token", async () => {
+    const { status } = await req("POST", "/v1/focus/sessions", {
+      body: { duration: 25 },
+    });
+    assert.equal(status, 401);
+  });
+});

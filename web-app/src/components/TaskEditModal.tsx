@@ -26,12 +26,11 @@ const Q_META: Record<Quadrant, { en: string; zh: string; descEn: string; descZh:
   unclassified: { en: "Unsorted",  zh: "未分类", descEn: "Not yet placed",        descZh: "尚未归位" },
 };
 
-function getThisFriday(): string {
+function getNextMonday(): string {
   const d = new Date();
-  const day = d.getDay();
-  // If today is Friday (5), go to next Friday (+7); otherwise go to this Friday
-  const daysUntilFriday = ((5 - day + 7) % 7) || 7;
-  return toISODate(new Date(d.getTime() + daysUntilFriday * 86400000));
+  const day = d.getDay(); // 0=Sun, 1=Mon … 6=Sat
+  const daysUntil = ((8 - day) % 7) || 7;
+  return toISODate(new Date(d.getTime() + daysUntil * 86400000));
 }
 
 export function TaskEditModal({ task, onClose }: Props) {
@@ -43,8 +42,7 @@ export function TaskEditModal({ task, onClose }: Props) {
 
   const todayISO = toISODate(new Date());
   const tomorrowISO = toISODate(new Date(Date.now() + 86400000));
-  const thisFridayISO = getThisFriday();
-  const fridayLabel = new Date().getDay() === 5 ? t("due.nextFriday") : t("due.friday");
+  const nextWeekISO = getNextMonday();
 
   const initialTitle =
     typeof task.title === "string" ? task.title : (task.title as { en: string }).en;
@@ -245,7 +243,7 @@ export function TaskEditModal({ task, onClose }: Props) {
                 {([
                   { label: t("due.today"), value: todayISO },
                   { label: t("due.tomorrow"), value: tomorrowISO },
-                  { label: fridayLabel, value: thisFridayISO },
+                  { label: t("due.nextWeek"), value: nextWeekISO },
                 ]).map(({ label, value }) => (
                   <button
                     key={value}

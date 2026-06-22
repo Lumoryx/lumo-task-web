@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { swaggerUI } from "@hono/swagger-ui";
-import { taskComponentSchemas } from "@lumo/contracts";
+import { taskComponentSchemas, personComponentSchemas, errorComponentSchemas } from "@lumo/contracts";
 
 const app = new Hono();
 
@@ -29,17 +29,9 @@ const spec = {
       // truth — so the docs can never drift from validation/implementation.
       // (Contract-First: edit the contract, not this file, to change these.)
       ...taskComponentSchemas(),
-      Person: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          name: { type: "string" },
-          initials: { type: "string" },
-          color: { type: "string", example: "#5bc8d4" },
-          email: { type: "string", nullable: true },
-          created_at: { type: "string", format: "date-time" },
-        },
-      },
+      // Person / PersonCreateBody / PersonUpdateBody are generated from the
+      // @lumo/contracts Zod schemas (Contract-First — edit the contract, not here).
+      ...personComponentSchemas(),
       User: {
         type: "object",
         properties: {
@@ -93,12 +85,9 @@ const spec = {
           completedAt: { type: "string", format: "date-time" },
         },
       },
-      Error: {
-        type: "object",
-        properties: {
-          error: { type: "string" },
-        },
-      },
+      // The real error envelope is { error: { code, message } } — generated as
+      // `ApiError` from the contract (replaces the old, incorrect flat shape).
+      ...errorComponentSchemas(),
     },
   },
   security: [{ bearerAuth: [] }],
@@ -353,16 +342,7 @@ const spec = {
           required: true,
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                required: ["name", "initials", "color"],
-                properties: {
-                  name: { type: "string" },
-                  initials: { type: "string", maxLength: 2 },
-                  color: { type: "string", pattern: "^#[0-9a-fA-F]{6}$", example: "#5bc8d4" },
-                  email: { type: "string", format: "email", nullable: true },
-                },
-              },
+              schema: { $ref: "#/components/schemas/PersonCreateBody" },
             },
           },
         },
@@ -382,15 +362,7 @@ const spec = {
           required: true,
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  initials: { type: "string", maxLength: 2 },
-                  color: { type: "string", pattern: "^#[0-9a-fA-F]{6}$" },
-                  email: { type: "string", format: "email", nullable: true },
-                },
-              },
+              schema: { $ref: "#/components/schemas/PersonUpdateBody" },
             },
           },
         },
