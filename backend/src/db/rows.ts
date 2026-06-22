@@ -52,6 +52,7 @@ export interface CompletedEntryRow {
   quadrant: string | null;
   started_at: string | null;
   completed_at: string;
+  notes: string | null;
 }
 
 export interface PersonRow {

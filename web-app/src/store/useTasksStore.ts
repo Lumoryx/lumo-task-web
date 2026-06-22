@@ -9,7 +9,7 @@
 
 import { create } from "zustand";
 import { api } from "@/api/client";
-import type { CompletedEntry, Subtask, Task, TaskCompleteResponse, TaskCreateInput, TaskUpdateInput } from "@/types/task";
+import type { CompletedEntry, FocusLogEntry, Subtask, Task, TaskCompleteResponse, TaskCreateInput, TaskUpdateInput } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
 import { usePetStore } from "@/store/usePetStore";
@@ -40,6 +40,8 @@ interface TasksState {
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   breakdownSubtasks: (taskId: string, locale?: string) => Promise<{ subtasks: string[]; cloudLimitReached: boolean }>;
+  logFocusSession: (params: { taskId: string | null; duration: number; startedAt?: string; notes?: string }) => Promise<void>;
+  getFocusLogs: (taskId: string) => Promise<FocusLogEntry[]>;
 }
 
 export const useTasksStore = create<TasksState>((set, get) => ({
@@ -195,5 +197,13 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
   async breakdownSubtasks(taskId, locale) {
     return api.breakdownSubtasks(taskId, locale);
+  },
+
+  async logFocusSession(params) {
+    await api.logFocusSession(params);
+  },
+
+  async getFocusLogs(taskId) {
+    return api.getFocusLogs(taskId);
   },
 }));

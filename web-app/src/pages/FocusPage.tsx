@@ -9,12 +9,15 @@ import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 import { useNotificationStore } from "@/store/useNotificationStore";
+import { SessionCaptureCard } from "@/components/SessionCaptureCard";
+import { api } from "@/api/client";
 
 const DEFAULT_DURATION = 25 * 60;
 
 /**
  * Pomodoro focus session — full-bleed timer, top strip with the current
- * task. Pause/Resume + Mark complete.
+ * task. Pause/Resume + Mark complete. Shows session capture card on timer
+ * end and on exit so users can log what they did and set the next step.
  */
 export function FocusPage() {
   const navigate = useNavigate();
@@ -24,9 +27,8 @@ export function FocusPage() {
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
+  const update = useTasksStore((s) => s.update);
 
-  // Use the task the user explicitly started focus on (passed via router state).
-  // When navigating directly to /focus without a taskId, show the empty landing page.
   const requestedId = (location.state as { taskId?: string } | null)?.taskId;
   const task = requestedId
     ? (tasks.find((x) => x.id === requestedId && !x.completed) ??
@@ -37,8 +39,6 @@ export function FocusPage() {
     : null;
 
   const isFallbackTask = !!task && !task.today;
-
-  // Task duration in seconds — only computed once the task is known.
   const taskDuration = task && task.duration > 0 ? task.duration * 60 : DEFAULT_DURATION;
 
   const [remaining, setRemaining] = useState(taskDuration);
@@ -47,6 +47,13 @@ export function FocusPage() {
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
   const [exiting, setExiting] = useState(false);
+  // timerKey increments to restart the timer via useEffect
+  const [timerKey, setTimerKey] = useState(0);
+  // Capture card state
+  const [showCapture, setShowCapture] = useState(false);
+  // Tracks why capture was triggered: timer end, exit, or mark-complete
+  const [captureReason, setCaptureReason] = useState<"timer" | "complete" | "exit">("timer");
+
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const notificationsEnabled = useNotificationStore((s) => s.enabled);
   const localeRef = useRef(locale);
@@ -54,11 +61,11 @@ export function FocusPage() {
   const notifEnabledRef = useRef(notificationsEnabled);
   notifEnabledRef.current = notificationsEnabled;
 
-  // Mutable refs so interval callback always reads latest values without stale closures.
   const remainingRef = useRef(taskDuration);
   const pausedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedForRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<string>(new Date().toISOString());
 
   function stopInterval() {
     if (intervalRef.current !== null) {
@@ -67,17 +74,16 @@ export function FocusPage() {
     }
   }
 
-  // Clear interval on unmount. Permission is now managed by the notifications settings panel.
   useEffect(() => {
     return () => { stopInterval(); startedForRef.current = null; };
   }, []);
 
-  // Start/restart timer when the task (and its duration) becomes known.
   useEffect(() => {
     if (!task) return;
-    const key = `${task.id}:${taskDuration}`;
+    const key = `${task.id}:${taskDuration}:${timerKey}`;
     if (startedForRef.current === key) return;
     startedForRef.current = key;
+    sessionStartRef.current = new Date().toISOString();
 
     stopInterval();
     remainingRef.current = taskDuration;
@@ -103,6 +109,8 @@ export function FocusPage() {
         }
         setPetBounce(true);
         setTimeout(() => setPetBounce(false), 1200);
+        setCaptureReason("timer");
+        setShowCapture(true);
         useTasksStore.getState().fetchAllCompleted().then((entries) => {
           const { currentStreak } = computeAllTimeStats(entries);
           if (currentStreak === 7 || currentStreak === 14 || currentStreak === 30) {
@@ -111,9 +119,8 @@ export function FocusPage() {
         }).catch(() => {});
       }
     }, 1000);
-  }, [task?.id, taskDuration]);
+  }, [task?.id, taskDuration, timerKey]);
 
-  // Keep pausedRef in sync so the interval callback reads the latest value.
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
@@ -128,6 +135,60 @@ export function FocusPage() {
     window.electronAPI?.exitFocusMode();
   }
 
+  async function handleCaptureSubmit({
+    whatDone,
+    nextStep,
+    action,
+  }: {
+    whatDone: string;
+    nextStep: string;
+    action: "next_round" | "end_focus";
+  }) {
+    const elapsed = Math.max(1, Math.round((taskDuration - remainingRef.current) / 60));
+
+    if (task) {
+      // Fire-and-forget: log the session with optional notes
+      api.captureSession({
+        task_id: task.id,
+        duration: elapsed,
+        started_at: sessionStartRef.current,
+        notes: whatDone.trim() || null,
+      }).catch(() => {});
+
+      // Update next_step if the user provided one — locale-aware
+      if (nextStep.trim()) {
+        const nextStepLS = locale === "zh"
+          ? { en: task.next_step?.en ?? "", zh: nextStep.trim() }
+          : { en: nextStep.trim() };
+        update(task.id, { next_step: nextStepLS }).catch(() => {});
+      }
+    }
+
+    setShowCapture(false);
+
+    if (action === "next_round") {
+      // Restart timer via timerKey increment (cleaner than manual reset)
+      startedForRef.current = null;
+      setTimerKey((k) => k + 1);
+    } else {
+      // End focus — complete task only if triggered by "Mark complete"
+      if (captureReason === "complete" && task) {
+        await complete(task.id).catch(() => {});
+      }
+      navigate("/today");
+    }
+  }
+
+  function handleCaptureSkip() {
+    setShowCapture(false);
+    if (captureReason === "complete" && task) {
+      complete(task.id).finally(() => navigate("/today"));
+    } else if (captureReason === "exit") {
+      navigate("/today");
+    }
+    // captureReason === "timer": close the card, stay on focus page
+  }
+
   if (!task) {
     return (
       <div
@@ -139,7 +200,6 @@ export function FocusPage() {
       >
         {/* Ghost atmosphere ring — dimmed, no progress arc */}
         <div className="relative mb-10" style={{ width: 280, height: 280 }}>
-          {/* Ambient glow — breathing softly */}
           <div
             className="absolute rounded-full"
             style={{
@@ -149,19 +209,15 @@ export function FocusPage() {
               animation: "lumoBreath 5s ease-in-out infinite",
             }}
           />
-          {/* Ghost SVG ring */}
           <svg viewBox="0 0 280 280" className="absolute inset-0" style={{ opacity: 0.18 }}>
             <circle cx="140" cy="140" r="120" fill="none" stroke="var(--accent-primary)" strokeWidth="2" />
           </svg>
-          {/* Outer border ring */}
           <div
             className="absolute inset-0 rounded-full"
             style={{ border: "0.5px solid var(--accent-edge)", opacity: 0.3 }}
           />
 
-          {/* Center — Lumo waiting state */}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            {/* Breathing triple orb */}
             <div className="relative" style={{ width: 56, height: 56 }}>
               <div
                 className="absolute inset-0 rounded-full"
@@ -189,7 +245,6 @@ export function FocusPage() {
               />
             </div>
 
-            {/* Ghost time display */}
             <div
               className="font-mono tabular-nums"
               style={{
@@ -205,7 +260,6 @@ export function FocusPage() {
           </div>
         </div>
 
-        {/* Text */}
         <h2
           className="font-semibold mb-2.5 text-center"
           style={{ fontSize: 20, color: "var(--text-primary)", letterSpacing: "-0.01em" }}
@@ -219,7 +273,6 @@ export function FocusPage() {
           {t("focus.empty.sub")}
         </p>
 
-        {/* CTAs */}
         <div className="flex items-center gap-3">
           <button className="btn btn-primary btn-lg" onClick={() => navigate("/today")}>
             {t("focus.empty.cta")}
@@ -235,15 +288,7 @@ export function FocusPage() {
   const progress = taskDuration > 0 ? (taskDuration - remaining) / taskDuration : 0;
   const turns = -90 + progress * 360;
 
-  async function onComplete() {
-    if (compact) exitCompact();
-    if (task) await complete(task.id);
-    navigate("/today");
-  }
-
   // ── Compact pet widget (Electron only) ──────────────────────────────────────
-  // Minimal desktop-pet: just the dog + a small time badge.
-  // Click anywhere to restore the full window.
   if (compact) {
     const petMood = paused ? "idle" : remaining < 60 ? "excited" : "happy";
     const nearDone = remaining < 60;
@@ -259,7 +304,6 @@ export function FocusPage() {
           justifyContent: "center",
           gap: 6,
           background: "var(--bg-base)",
-          // no-drag so onClick fires — window position is managed by main process
           WebkitAppRegion: "no-drag",
           userSelect: "none",
           cursor: "pointer",
@@ -267,7 +311,6 @@ export function FocusPage() {
           boxSizing: "border-box",
         } as React.CSSProperties}
       >
-        {/* Dog — click to restore */}
         <div
           onClick={exitCompact}
           title={t("focus.compact.restore")}
@@ -282,7 +325,6 @@ export function FocusPage() {
           <DogSvg mood={petMood} size={72} />
         </div>
 
-        {/* Time badge */}
         <div
           style={{
             fontFamily: "monospace",
@@ -301,7 +343,6 @@ export function FocusPage() {
           {fmtMMSS(remaining)}
         </div>
 
-        {/* Restore hint — always visible */}
         <div
           style={{
             fontSize: 11,
@@ -312,7 +353,6 @@ export function FocusPage() {
           {t("focus.compact.restore")}
         </div>
 
-        {/* Exit focus button */}
         <button
           disabled={exiting}
           onClick={async (e) => {
@@ -322,7 +362,7 @@ export function FocusPage() {
             try {
               if (task) await complete(task.id);
             } catch {
-              // best-effort — navigate away regardless
+              // best-effort
             }
             navigate("/today");
           }}
@@ -397,7 +437,15 @@ export function FocusPage() {
             🐕 {t("focus.compact.enter")}
           </button>
         )}
-        <button className="btn btn-ghost" style={{ height: 30 }} onClick={() => navigate("/today")}>
+        <button
+          className="btn btn-ghost"
+          style={{ height: 30 }}
+          onClick={() => {
+            stopInterval();
+            setCaptureReason("exit");
+            setShowCapture(true);
+          }}
+        >
           <IconArrowLeft size={14} />
           {t("focus.exit")}
         </button>
@@ -463,7 +511,11 @@ export function FocusPage() {
           <div className="flex flex-col items-center gap-2 mt-3 pointer-events-auto">
             {/* Primary: Mark complete */}
             <button
-              onClick={onComplete}
+              onClick={() => {
+                stopInterval();
+                setCaptureReason("complete");
+                setShowCapture(true);
+              }}
               className="flex items-center gap-2 rounded-full transition-all text-sm font-semibold"
               style={{
                 padding: "11px 36px",
@@ -498,6 +550,15 @@ export function FocusPage() {
             </span>
           </div>
         </div>
+
+        {/* Session capture card overlay */}
+        {showCapture && (
+          <SessionCaptureCard
+            hideNextRound={captureReason === "complete"}
+            onSubmit={handleCaptureSubmit}
+            onSkip={handleCaptureSkip}
+          />
+        )}
       </div>
     </div>
   );

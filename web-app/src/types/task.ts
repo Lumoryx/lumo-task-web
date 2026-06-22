@@ -25,6 +25,10 @@ import type {
   Person,
   PersonCreateInput,
   PersonUpdateInput,
+  FocusLogEntry,
+  FocusLogsResponse,
+  FocusSessionInput,
+  FocusSessionResponse,
 } from "@lumo/contracts";
 
 export type {
@@ -40,6 +44,10 @@ export type {
   Person,
   PersonCreateInput,
   PersonUpdateInput,
+  FocusLogEntry,
+  FocusLogsResponse,
+  FocusSessionInput,
+  FocusSessionResponse,
 };
 
 export type Locale = "en" | "zh";
@@ -57,6 +65,8 @@ export interface CompletedEntry {
   quadrant?: Quadrant;
   /** Original task ID — used to restore the task when reopening. */
   taskId?: string;
+  /** User-written note captured at session end. */
+  notes?: string;
 }
 
 export interface User {

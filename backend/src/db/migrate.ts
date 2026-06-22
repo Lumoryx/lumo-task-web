@@ -254,6 +254,12 @@ export async function runMigrations() {
     await execRaw("ALTER TABLE settings ADD COLUMN due_alerts_enabled INTEGER NOT NULL DEFAULT 1");
   }
 
+  // Migrate: add notes column to completed_entries (focus session capture)
+  const completedCols = await query<{ name: string }>("PRAGMA table_info(completed_entries)");
+  if (!completedCols.some((c) => c.name === "notes")) {
+    await execRaw("ALTER TABLE completed_entries ADD COLUMN notes TEXT");
+  }
+
   // Habits cloud persistence
   await execRaw(`
     CREATE TABLE IF NOT EXISTS habits (
@@ -296,6 +302,12 @@ export async function runMigrations() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // Migrate: add notes column to completed_entries for focus session capture
+  const completedEntryCols = await query<{ name: string }>("PRAGMA table_info(completed_entries)");
+  if (!completedEntryCols.some((c) => c.name === "notes")) {
+    await execRaw("ALTER TABLE completed_entries ADD COLUMN notes TEXT");
+  }
 }
 
 // When run directly as a script

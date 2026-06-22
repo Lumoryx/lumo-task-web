@@ -11,6 +11,7 @@ export * from "./task.js";
 export * from "./person.js";
 export * from "./error.js";
 export * from "./ai.js";
+export * from "./focus.js";
 export {
   zodToOpenApi,
   taskComponentSchemas,
