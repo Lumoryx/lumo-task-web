@@ -66,9 +66,13 @@ describe("Security · authn · forged / tampered tokens", () => {
     assert401(await req("GET", PROTECTED, { token }), "wrong secret");
   });
 
-  test("tampered signature (flipped last char) → 401", async () => {
+  test("tampered signature (flipped first sig char) → 401", async () => {
     const good = await forgeToken({ sub: "user_demo" });
-    const tampered = good.slice(0, -1) + (good.endsWith("A") ? "B" : "A");
+    const [h, p, s] = good.split(".");
+    // Flip the FIRST signature char — its 6 bits are always significant. (Flipping
+    // the LAST char is unreliable: a 43-char HS256 sig has unused low-order bits,
+    // so some flips decode to identical bytes and the token still verifies.)
+    const tampered = `${h}.${p}.${s[0] === "A" ? "B" : "A"}${s.slice(1)}`;
     assert401(await req("GET", PROTECTED, { token: tampered }), "tampered sig");
   });
 
