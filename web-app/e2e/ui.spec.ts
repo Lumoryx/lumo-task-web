@@ -602,7 +602,7 @@ test("TC22 – Today: 'Today's plan' section heading is visible", async ({ page 
   await skipOnboardingAndSignIn(page);
   await mockAPIWithData(page);
   await page.goto("/#/today");
-  await expect(page.getByText("Today's plan")).toBeVisible({ timeout: 12_000 });
+  await expect(page.getByText("Today's plan", { exact: true })).toBeVisible({ timeout: 12_000 });
 });
 
 test("TC23 – Today: 'Start focus' button is present on conviction card", async ({ page }) => {
