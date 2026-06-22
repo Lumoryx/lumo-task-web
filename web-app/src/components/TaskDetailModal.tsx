@@ -10,7 +10,7 @@ import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, fmtScheduledStart, getDueLabel, getDueColor } from "@/lib/format";
 import { toast } from "@/store/useToastStore";
-import type { Subtask, Task } from "@/types/task";
+import type { FocusLogEntry, Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
   Q1: "var(--q1-color)",
@@ -423,6 +423,11 @@ export function TaskDetailModal({ task, onClose }: Props) {
           </div>
         )}
 
+        {/* Focus session log */}
+        {(liveTask.focus_logs ?? []).length > 0 && (
+          <FocusLogSection logs={liveTask.focus_logs!} />
+        )}
+
         {/* Divider */}
         <div style={{ height: 1, background: "var(--border-faint)", margin: "0 0" }} />
 
@@ -457,6 +462,52 @@ export function TaskDetailModal({ task, onClose }: Props) {
       </div>
     </div>,
     document.body
+  );
+}
+
+function FocusLogSection({ logs }: { logs: FocusLogEntry[] }) {
+  const t = useT();
+  // Sort newest first
+  const sorted = [...logs].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  return (
+    <div className="mx-5 mb-4">
+      <span
+        className="block text-[11px] font-semibold uppercase tracking-[0.08em] mb-2"
+        style={{ color: "var(--text-faint)" }}
+      >
+        {t("focus.logs.title")}
+      </span>
+      <div className="flex flex-col gap-2">
+        {sorted.map((log) => (
+          <div
+            key={log.id}
+            className="flex items-start gap-2.5"
+            style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.45 }}
+          >
+            <span
+              className="flex-shrink-0 mt-0.5 w-1 h-1 rounded-full"
+              style={{ background: "var(--accent-primary)", marginTop: 5 }}
+            />
+            <div className="flex-1 min-w-0">
+              <span>{log.what_done}</span>
+              <span
+                className="block text-[10px] tabular-nums mt-0.5"
+                style={{ color: "var(--text-faint)" }}
+              >
+                {new Date(log.created_at).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
