@@ -378,6 +378,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "wrapped.share.btn": "Share",
     "wrapped.dismiss": "Got it",
     "wrapped.section.title": "Your Week Wrapped",
+    "wrapped.quadrant.section": "Last Week by Quadrant",
 
     "ai.config.title": "AI Assistant",
     "ai.config.provider": "Provider",
@@ -1019,6 +1020,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "wrapped.share.btn": "分享",
     "wrapped.dismiss": "好的",
     "wrapped.section.title": "本周回顾",
+    "wrapped.quadrant.section": "上周象限分布",
 
     "ai.config.title": "AI 助手",
     "ai.config.provider": "服务商",
