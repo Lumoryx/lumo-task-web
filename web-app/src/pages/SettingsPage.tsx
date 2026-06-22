@@ -26,7 +26,7 @@ type TabId = "appearance" | "language" | "notifications" | "pet" | "members" | "
 export function SettingsPage() {
   const t = useT();
   const navigate = useNavigate();
-  const { accent, setAccent, density, setDensity, reducedMotion, setReducedMotion, locale, setLocale, setOnboarded } =
+  const { accent, setAccent, density, setDensity, reducedMotion, setReducedMotion, locale, setLocale, setOnboarded, dailyFocusCapacityMinutes, setDailyFocusCapacityMinutes } =
     useAppStore();
   const reset = useTasksStore((s) => s.reset);
   const { people, create: createPerson, update: updatePerson, remove: removePerson } = usePeopleStore();
@@ -115,6 +115,23 @@ export function SettingsPage() {
               </Row>
               <Row label={t("settings.reducedMotion")}>
                 <Toggle value={reducedMotion} onChange={setReducedMotion} />
+              </Row>
+              <Row label={t("settings.focus.capacity")} helper={t("settings.focus.capacity.helper")}>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={60}
+                    max={720}
+                    step={30}
+                    value={dailyFocusCapacityMinutes}
+                    onChange={(e) => setDailyFocusCapacityMinutes(Number(e.target.value))}
+                    style={{ width: 140, accentColor: "var(--accent-primary)" }}
+                  />
+                  <span className="text-sm tabular-nums" style={{ color: "var(--text-primary)", minWidth: 36 }}>
+                    {Math.floor(dailyFocusCapacityMinutes / 60)}h
+                    {dailyFocusCapacityMinutes % 60 > 0 ? ` ${dailyFocusCapacityMinutes % 60}m` : ""}
+                  </span>
+                </div>
               </Row>
             </Panel>
           )}

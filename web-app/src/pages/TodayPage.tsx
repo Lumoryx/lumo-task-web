@@ -472,6 +472,38 @@ function AllDoneBanner() {
   );
 }
 
+// ─── Today Load Summary ─────────────────────────────────────────────────────
+
+interface TodayLoadSummaryProps {
+  todayTasks: Task[];
+  locale: Locale;
+}
+
+function TodayLoadSummary({ todayTasks, locale }: TodayLoadSummaryProps) {
+  const t = useT();
+
+  const estimatedMins = todayTasks.filter((tk) => tk.duration > 0).reduce((s, tk) => s + tk.duration, 0);
+  const unestimatedCount = todayTasks.filter((tk) => tk.duration === 0).length;
+
+  if (todayTasks.length === 0 || estimatedMins === 0) return null;
+
+  const durationLabel = fmtDuration(estimatedMins, locale);
+  const summary = t("today.load.summary").replace("{duration}", durationLabel);
+  const unestimatedLabel =
+    unestimatedCount > 0
+      ? " " + t("today.load.unestimated").replace("{n}", String(unestimatedCount))
+      : "";
+
+  return (
+    <div className="text-[12px] mb-4 -mt-2" style={{ color: "var(--text-faint)" }}>
+      {summary}
+      {unestimatedLabel && (
+        <span style={{ opacity: 0.7 }}>{unestimatedLabel}</span>
+      )}
+    </div>
+  );
+}
+
 // ─── Planning Banner ────────────────────────────────────────────────────────
 
 function PlanningBanner({ onOpen, planned }: { onOpen: () => void; planned: boolean }) {
@@ -774,10 +806,15 @@ export function TodayPage() {
     );
   }
 
+  const allTodayIncomplete = tasks.filter((tk) => tk.today && !tk.completed);
+
   return (
     <div className="fade-in px-4 sm:px-7 py-6 sm:py-7">
       {/* Morning planning banner — always visible */}
       <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+
+      {/* Today load summary — shows estimated total hours */}
+      <TodayLoadSummary todayTasks={allTodayIncomplete} locale={locale} />
 
       {/* Weekly planning banner */}
       <WeeklyPlanningBanner onOpen={() => setWeeklyOpen(true)} planned={weeklyPlanned} />
