@@ -11,6 +11,7 @@
  * instead of a black hole.
  */
 import type { Task, Locale } from "@/types/task";
+import { STRINGS } from "@/i18n/strings";
 
 export type StagnationLevel = "none" | "low" | "mid" | "high";
 
@@ -80,9 +81,9 @@ export function getStagnationTag(task: Task, now: Date = new Date()): string {
   return level === "high" ? `⚠ ${days}d` : `${days}d`;
 }
 
-/** Verbose "untouched" label for planning lists: "未动 · 18 天" / "Untouched · 18d". */
+/** Compact untouched label for planning lists, from i18n: "未动 · 18 天" / "Untouched · 18d". */
 export function getUntouchedLabel(days: number, locale: Locale): string {
-  return locale === "zh" ? `未动 · ${days} 天` : `Untouched · ${days}d`;
+  return STRINGS[locale]["stagnation.untouched.compact"].replace("{n}", String(days));
 }
 
 /**

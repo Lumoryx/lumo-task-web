@@ -575,6 +575,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "due.none": "Clear",
 
     "stagnation.untouched": "Untouched for {n} days",
+    "stagnation.untouched.compact": "Untouched · {n}d",
     "stagnation.review.summary": "{n} important items have been untouched for 14+ days. Consider picking one in your next planning session.",
 
 
@@ -1219,6 +1220,7 @@ export const STRINGS: Record<Locale, Dict> = {
     "due.none": "清空",
 
     "stagnation.untouched": "已 {n} 天未动",
+    "stagnation.untouched.compact": "未动 · {n} 天",
     "stagnation.review.summary": "还有 {n} 件重要事项已搁置超过 2 周，下次规划时可以考虑推进一个。",
 
 

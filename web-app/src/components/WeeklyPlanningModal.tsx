@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useAppStore } from "@/store/useAppStore";
-import { getStagnationDays, getUntouchedLabel } from "@/lib/stagnation";
+import { getStagnationDays, getStagnationLevel, getStagnationColor, getUntouchedLabel } from "@/lib/stagnation";
 import type { Task } from "@/types/task";
 
 const MAX_WEEK_FOCUS = 3;
@@ -244,19 +244,18 @@ function SelectStep({ pool, selected, onToggle }: SelectStepProps) {
                   >
                     {ls(task.title)}
                   </span>
-                  {getStagnationDays(task.updated_at) >= 7 && (
-                    <span
-                      className="text-[11px] flex-shrink-0 tabular-nums"
-                      style={{
-                        color:
-                          getStagnationDays(task.updated_at) >= 14
-                            ? "var(--stagnation-mid)"
-                            : "var(--text-faint)",
-                      }}
-                    >
-                      {getUntouchedLabel(getStagnationDays(task.updated_at), locale)}
-                    </span>
-                  )}
+                  {(() => {
+                    const stagLevel = getStagnationLevel(task);
+                    if (stagLevel === "none") return null;
+                    return (
+                      <span
+                        className="text-[11px] flex-shrink-0 tabular-nums"
+                        style={{ color: getStagnationColor(stagLevel) }}
+                      >
+                        {getUntouchedLabel(getStagnationDays(task.updated_at), locale)}
+                      </span>
+                    );
+                  })()}
                 </button>
               );
             })}

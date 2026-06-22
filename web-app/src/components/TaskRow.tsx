@@ -39,8 +39,10 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
   const q = task.quadrant === "unclassified" ? "un" : task.quadrant.toLowerCase();
   const due = getDueLabel(task.due, locale);
   const dueColor = getDueColor(task.due);
+  const stagLevel = getStagnationLevel(task);
   const stagTag = getStagnationTag(task);
-  const stagColor = getStagnationColor(getStagnationLevel(task));
+  const stagColor = getStagnationColor(stagLevel);
+  const stagDays = stagTag ? getStagnationDays(task.updated_at) : 0;
 
   return (
     <>
@@ -117,8 +119,8 @@ export function TaskRow({ task, compact = false }: TaskRowProps) {
               <span
                 className="flex-shrink-0 font-medium"
                 style={{ color: stagColor }}
-                title={t("stagnation.untouched").replace("{n}", String(getStagnationDays(task.updated_at)))}
-                aria-label={t("stagnation.untouched").replace("{n}", String(getStagnationDays(task.updated_at)))}
+                title={t("stagnation.untouched").replace("{n}", String(stagDays))}
+                aria-label={t("stagnation.untouched").replace("{n}", String(stagDays))}
               >
                 {stagTag}
               </span>
