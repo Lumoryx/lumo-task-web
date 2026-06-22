@@ -75,6 +75,32 @@ export function getDueColor(due: string | null): string {
   return "var(--text-faint)";
 }
 
+export type StagnationBucket = "none" | "7d" | "14d" | "30d";
+
+/** Returns how many full days have elapsed since the given ISO datetime. Returns 0 on missing/invalid input. */
+export function getStagnationDays(updatedAt: string | undefined): number {
+  if (!updatedAt) return 0;
+  const updated = new Date(updatedAt);
+  if (isNaN(updated.getTime())) return 0;
+  return Math.floor((Date.now() - updated.getTime()) / 86_400_000);
+}
+
+/**
+ * Returns the stagnation bucket for a task based on how long it has been
+ * untouched. Completed tasks always return "none".
+ */
+export function getStagnationBucket(
+  updatedAt: string | undefined,
+  completed: boolean | undefined,
+): StagnationBucket {
+  if (completed) return "none";
+  const days = getStagnationDays(updatedAt);
+  if (days >= 30) return "30d";
+  if (days >= 14) return "14d";
+  if (days >= 7) return "7d";
+  return "none";
+}
+
 /** Formats a scheduled_start ISO timestamp as a short date + time, e.g. "Jun 10 3pm" / "6月10日 15:00". */
 export function fmtScheduledStart(iso: string, locale: Locale): string {
   const d = new Date(iso);

@@ -27,9 +27,13 @@ vi.mock("@/store/useTasksStore", () => ({
     }),
 }));
 
-vi.mock("@/lib/format", () => ({
-  toISODate: (d: Date) => d.toISOString().slice(0, 10),
-}));
+vi.mock("@/lib/format", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/format")>();
+  return {
+    ...actual,
+    toISODate: (d: Date) => d.toISOString().slice(0, 10),
+  };
+});
 
 // Render createPortal inline for test environment
 vi.mock("react-dom", async (importOriginal) => {

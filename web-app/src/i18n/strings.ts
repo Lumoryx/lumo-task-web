@@ -650,6 +650,13 @@ export const STRINGS: Record<Locale, Dict> = {
     "review.step.done.focus.min": "{m}m",
 
     "pet.celebrate.eveningdone": "Great wrap-up! Rest well tonight 🌙",
+
+    "stagnation.7d": "7d",
+    "stagnation.14d": "14d",
+    "stagnation.30d": "30d+",
+    "stagnation.label": "Untouched · {n}d",
+    "weekly.stagnation.label": "Stagnant · {n}d",
+    "review.stagnation.summary": "🗂 {n} important items untouched for 14+ days. Consider picking one in your next planning session.",
   },
   zh: {
     "brand.name": "Lumo",
@@ -1291,5 +1298,12 @@ export const STRINGS: Record<Locale, Dict> = {
     "review.step.done.focus.min": "{m} 分钟",
 
     "pet.celebrate.eveningdone": "今天收尾得很好！好好休息 🌙",
+
+    "stagnation.7d": "7天",
+    "stagnation.14d": "14天",
+    "stagnation.30d": "30天+",
+    "stagnation.label": "未动 · {n}天",
+    "weekly.stagnation.label": "已停滞 {n} 天",
+    "review.stagnation.summary": "🗂 还有 {n} 件重要事项已搁置超过两周，下次规划时可以考虑推进一个。",
   },
 };

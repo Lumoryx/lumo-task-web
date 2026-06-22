@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useT, useLocaleString } from "@/i18n/useT";
 import { useTasksStore } from "@/store/useTasksStore";
 import { usePetStore } from "@/store/usePetStore";
-import { fmtDuration } from "@/lib/format";
+import { fmtDuration, getStagnationDays } from "@/lib/format";
 import { useAppStore } from "@/store/useAppStore";
 import type { CompletedEntry, Task } from "@/types/task";
 
@@ -341,9 +341,10 @@ interface DoneStepProps {
   completedCount: number;
   totalTodayCount: number;
   totalFocusMin: number;
+  stagnantQ2Count: number;
 }
 
-function DoneStep({ completedCount, totalTodayCount, totalFocusMin }: DoneStepProps) {
+function DoneStep({ completedCount, totalTodayCount, totalFocusMin, stagnantQ2Count }: DoneStepProps) {
   const t = useT();
   const locale = useAppStore((s) => s.locale);
 
@@ -410,6 +411,22 @@ function DoneStep({ completedCount, totalTodayCount, totalFocusMin }: DoneStepPr
           )}
         </div>
       )}
+
+      {/* Stagnation summary — gentle reminder for 14+ day untouched Q2 tasks */}
+      {stagnantQ2Count >= 2 && (
+        <div
+          className="text-sm rounded-lg text-left w-full"
+          style={{
+            padding: "10px 14px",
+            background: "var(--bg-deep)",
+            border: "1px solid var(--border-faint)",
+            color: "var(--text-secondary)",
+            lineHeight: 1.5,
+          }}
+        >
+          {t("review.stagnation.summary").replace("{n}", String(stagnantQ2Count))}
+        </div>
+      )}
     </div>
   );
 }
@@ -452,6 +469,25 @@ export function EveningReviewModal({ onClose }: EveningReviewModalProps) {
   const totalPomos = useMemo(
     () => Math.floor(totalFocusMin / 25),
     [totalFocusMin]
+  );
+
+  // IDs of tasks touched today (completed entries referencing a task)
+  const touchedTodayIds = useMemo(
+    () => new Set(completed.filter((e) => e.taskId).map((e) => e.taskId as string)),
+    [completed]
+  );
+
+  // Q2 tasks stagnant > 14 days and NOT touched today
+  const stagnantQ2Count = useMemo(
+    () =>
+      tasks.filter(
+        (tk) =>
+          tk.quadrant === "Q2" &&
+          !tk.completed &&
+          getStagnationDays(tk.updated_at) > 14 &&
+          !touchedTodayIds.has(tk.id)
+      ).length,
+    [tasks, touchedTodayIds]
   );
 
   // Steps — always show results and done; only show unfinished if there are any
@@ -662,6 +698,7 @@ export function EveningReviewModal({ onClose }: EveningReviewModalProps) {
               completedCount={completed.length}
               totalTodayCount={totalTodayCount}
               totalFocusMin={totalFocusMin}
+              stagnantQ2Count={stagnantQ2Count}
             />
           )}
         </div>

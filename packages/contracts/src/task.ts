@@ -157,4 +157,8 @@ export interface Task {
   subtasks?: Subtask[];
   /** ISO datetime (YYYY-MM-DDTHH:MM:SS) for a specific time block on the calendar. */
   scheduled_start?: string | null;
+  /** ISO datetime when the task was created. */
+  created_at?: string;
+  /** ISO datetime when the task was last modified. */
+  updated_at?: string;
 }

@@ -4,7 +4,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { useT, useLocaleString } from "@/i18n/useT";
 import type { Quadrant, Task } from "@/types/task";
 import { useAppStore } from "@/store/useAppStore";
-import { fmtDuration, getDueLabel } from "@/lib/format";
+import { fmtDuration, getDueLabel, getStagnationBucket, getStagnationDays } from "@/lib/format";
 import { IconArrowRight, IconCheck, IconMore, IconSparkle } from "@/components/icons";
 import { AIClassifyModal } from "@/components/AIClassifyModal";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
@@ -286,6 +286,51 @@ function QuadrantPanel({ id, title, subtitle }: { id: Quadrant; title: string; s
   );
 }
 
+/* ── Stagnation badge — shown on Q1/Q2 tasks untouched for 7+ days ── */
+
+function StagnationBadge({ task }: { task: Task }) {
+  const t = useT();
+  if (task.completed || (task.quadrant !== "Q1" && task.quadrant !== "Q2")) return null;
+  const bucket = getStagnationBucket(task.updated_at, task.completed);
+  if (bucket === "none") return null;
+
+  const days = getStagnationDays(task.updated_at);
+  const hasEffort = (task.pomos_done ?? 0) > 0;
+
+  const color =
+    bucket === "30d"
+      ? "var(--status-urgent)"
+      : bucket === "14d"
+      ? "var(--status-warning)"
+      : "var(--text-faint)";
+
+  const label =
+    bucket === "30d"
+      ? t("stagnation.30d")
+      : bucket === "14d"
+      ? t("stagnation.14d")
+      : t("stagnation.7d");
+
+  const title = t("stagnation.label").replace("{n}", String(days));
+
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      style={{
+        color,
+        opacity: hasEffort ? 0.55 : 1,
+        fontSize: 10,
+        fontWeight: hasEffort ? 400 : 600,
+        letterSpacing: "0.02em",
+        flexShrink: 0,
+      }}
+    >
+      {bucket === "30d" ? `⚠ ${label}` : label}
+    </span>
+  );
+}
+
 /* ── Matrix task card — TaskRow style + drag-and-drop ────────────── */
 
 function MatrixTaskCard({ task }: { task: Task }) {
@@ -367,6 +412,7 @@ function MatrixTaskCard({ task }: { task: Task }) {
                 <i key={i} className={i < task.pomos_done ? "on" : ""} />
               ))}
             </span>
+            <StagnationBadge task={task} />
           </div>
         </div>
 
