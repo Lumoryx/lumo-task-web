@@ -40,18 +40,23 @@ export function fmtMMSS(secs: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] as const;
-
 export function getDueLabel(due: string | null, locale: Locale): string | null {
   if (!due) return null;
 
-  // Strict ISO YYYY-MM-DD
+  // Strict ISO YYYY-MM-DD — show semantic countdown label
   if (/^\d{4}-\d{2}-\d{2}$/.test(due)) {
     const today = toISODate(new Date());
-    if (due === today) return locale === "zh" ? "今天" : "Today";
-    const month = parseInt(due.slice(5, 7), 10);
-    const day = parseInt(due.slice(8, 10), 10);
-    return locale === "zh" ? `${month}月${day}日` : `${MONTHS_EN[month - 1]} ${day}`;
+    if (due === today) return locale === "zh" ? "今日到期" : "Due today";
+
+    const diffDays = Math.round(
+      (new Date(due + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) / 86400000
+    );
+
+    if (diffDays < 0) {
+      const n = Math.abs(diffDays);
+      return locale === "zh" ? `逾期 ${n} 天` : `Overdue ${n} day${n === 1 ? "" : "s"}`;
+    }
+    return locale === "zh" ? `${diffDays} 天后到期` : `Due in ${diffDays} day${diffDays === 1 ? "" : "s"}`;
   }
 
   // Legacy keyword fallback (for backward-compat with pre-migration data)
