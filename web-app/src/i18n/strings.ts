@@ -50,6 +50,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "today.est": "Est",
     "today.planning.btn.start": "Start planning today",
     "today.planning.btn.adjust": "Adjust today's plan",
+    "today.load.summary": "Today · {time}",
+    "today.load.unestimated": "+ {n} unestimated",
 
     "planning.title": "Morning Planning",
     "planning.step.carry.title": "Yesterday's unfinished",
@@ -71,6 +73,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "planning.ai.empty": "No tasks selected yet. Pick at least one to build momentum.",
     "planning.progress": "Step {step} of {total}",
     "planning.selected": "{n} / 3 selected",
+    "planning.load.title": "Today's load",
+    "planning.load.overload": "Over capacity — consider fewer tasks",
+    "planning.load.nearfull": "Nearly full — leave some buffer",
+    "planning.load.unestimated": "+ {n} without estimate",
 
     "weekly.title": "Weekly Planning",
     "weekly.planning.btn.start": "Plan this week →",
@@ -129,6 +135,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "qc.create": "Create",
     "qc.cancel": "Cancel",
     "qc.close": "Close",
+
+    "settings.focus.title": "Focus",
+    "settings.focus.dailyCapacity": "Daily focus capacity",
+    "settings.focus.dailyCapacity.helper": "Hours per day available for deep work (default: 6h)",
+    "settings.focus.dailyCapacity.unit": "h / day",
 
     "settings.appearance": "Appearance",
     "settings.accent": "Accent",
@@ -694,6 +705,8 @@ export const STRINGS: Record<Locale, Dict> = {
     "today.est": "预估",
     "today.planning.btn.start": "开始规划今天",
     "today.planning.btn.adjust": "调整今日计划",
+    "today.load.summary": "今日 · {time}",
+    "today.load.unestimated": "+ {n} 个未估时",
 
     "planning.title": "晨间规划",
     "planning.step.carry.title": "昨日未完成",
@@ -715,6 +728,10 @@ export const STRINGS: Record<Locale, Dict> = {
     "planning.ai.empty": "还没有选择任务，至少选择一个吧。",
     "planning.progress": "第 {step} 步，共 {total} 步",
     "planning.selected": "已选 {n} / 3",
+    "planning.load.title": "今日专注量",
+    "planning.load.overload": "超出容量，建议精简计划",
+    "planning.load.nearfull": "接近饱和，留出缓冲时间",
+    "planning.load.unestimated": "+ {n} 个未估时",
 
     "weekly.title": "周计划",
     "weekly.planning.btn.start": "规划本周 →",
@@ -773,6 +790,11 @@ export const STRINGS: Record<Locale, Dict> = {
     "qc.create": "创建",
     "qc.cancel": "取消",
     "qc.close": "关闭",
+
+    "settings.focus.title": "专注",
+    "settings.focus.dailyCapacity": "每日专注容量",
+    "settings.focus.dailyCapacity.helper": "每天可用于深度工作的小时数（默认 6 小时）",
+    "settings.focus.dailyCapacity.unit": "小时 / 天",
 
     "settings.appearance": "外观",
     "settings.accent": "强调色",

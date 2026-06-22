@@ -12,9 +12,11 @@ vi.mock("@/i18n/useT", () => ({
     typeof val === "string" ? val : (val?.en ?? ""),
 }));
 
+let DAILY_CAPACITY = 360;
+
 vi.mock("@/store/useAppStore", () => ({
-  useAppStore: (sel: (s: { locale: string }) => unknown) =>
-    sel({ locale: "en" }),
+  useAppStore: (sel: (s: { locale: string; dailyCapacityMinutes: number }) => unknown) =>
+    sel({ locale: "en", dailyCapacityMinutes: DAILY_CAPACITY }),
 }));
 
 const mockCelebrate = vi.fn();
@@ -90,6 +92,7 @@ let AI_HAS_KEY = false;
 beforeEach(() => {
   TASKS = [];
   AI_HAS_KEY = false;
+  DAILY_CAPACITY = 360;
   mockUpdate.mockClear();
   mockCelebrate.mockClear();
   mockPetGetState.mockClear();
@@ -248,6 +251,73 @@ describe("MorningPlanningModal", () => {
       "lumo.planning_done_date",
       today
     );
+  });
+
+  // ─── Focus load bar ──────────────────────────────────────────────────────
+  describe("Focus load bar in select step", () => {
+    it("shows load bar when a task with duration is selected", async () => {
+      TASKS = [makeTask({ id: "t1", title: { en: "Task 1" }, quadrant: "Q1", duration: 90, today: false })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+
+      // Before selection — bar should not show (nothing selected)
+      expect(screen.queryByText("planning.load.title")).not.toBeInTheDocument();
+
+      // After selecting the task with duration 90m
+      await user.click(screen.getByText("Task 1"));
+      expect(screen.getByText("planning.load.title")).toBeInTheDocument();
+    });
+
+    it("does not show load bar when only unestimated tasks are in pool", () => {
+      TASKS = [makeTask({ id: "t1", title: { en: "No Est" }, quadrant: "Q1", duration: 0, today: false })];
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      expect(screen.queryByText("planning.load.title")).not.toBeInTheDocument();
+    });
+
+    it("shows overload warning when total exceeds capacity", async () => {
+      DAILY_CAPACITY = 60; // 1h capacity
+      TASKS = [
+        makeTask({ id: "t1", title: { en: "Big Task" }, quadrant: "Q1", duration: 120, today: false }),
+      ];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Big Task"));
+      expect(screen.getByText("planning.load.overload")).toBeInTheDocument();
+    });
+
+    it("shows nearfull warning when load is 80–100%", async () => {
+      DAILY_CAPACITY = 100;
+      TASKS = [
+        makeTask({ id: "t1", title: { en: "Heavy Task" }, quadrant: "Q1", duration: 90, today: false }),
+      ];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Heavy Task"));
+      expect(screen.getByText("planning.load.nearfull")).toBeInTheDocument();
+    });
+
+    it("shows no status message when load is under 80%", async () => {
+      DAILY_CAPACITY = 360;
+      TASKS = [makeTask({ id: "t1", title: { en: "Light Task" }, quadrant: "Q1", duration: 60, today: false })];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Light Task"));
+      expect(screen.queryByText("planning.load.overload")).not.toBeInTheDocument();
+      expect(screen.queryByText("planning.load.nearfull")).not.toBeInTheDocument();
+    });
+
+    it("shows unestimated count hint when some selected tasks have no duration", async () => {
+      DAILY_CAPACITY = 360;
+      TASKS = [
+        makeTask({ id: "t1", title: { en: "Estimated" }, quadrant: "Q1", duration: 60, today: false }),
+        makeTask({ id: "t2", title: { en: "No Duration" }, quadrant: "Q2", duration: 0, today: false }),
+      ];
+      const user = userEvent.setup();
+      render(<MorningPlanningModal onClose={vi.fn()} />);
+      await user.click(screen.getByText("Estimated"));
+      await user.click(screen.getByText("No Duration"));
+      expect(screen.getByText(/planning\.load\.unestimated/)).toBeInTheDocument();
+    });
   });
 
   // ─── AI step (AC #3 / #5) ────────────────────────────────────────────────

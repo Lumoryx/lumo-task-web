@@ -630,6 +630,43 @@ function WeekFocusSection({ weekFocusTasks }: WeekFocusSectionProps) {
   );
 }
 
+// ─── Today Load Summary ────────────────────────────────────────────────────
+
+interface TodayLoadSummaryProps {
+  tasks: Task[];
+  locale: Locale;
+}
+
+function TodayLoadSummary({ tasks, locale }: TodayLoadSummaryProps) {
+  const t = useT();
+  const todayActive = tasks.filter((tk) => tk.today && !tk.completed);
+  const estimatedTasks = todayActive.filter((tk) => tk.duration > 0);
+  const unestimatedCount = todayActive.length - estimatedTasks.length;
+  const totalMinutes = estimatedTasks.reduce((s, tk) => s + tk.duration, 0);
+
+  if (todayActive.length === 0) return null;
+
+  const timeStr = totalMinutes > 0 ? fmtDuration(totalMinutes, locale) : null;
+
+  return (
+    <div
+      className="flex items-center gap-2 mb-4 text-[12px]"
+      style={{ color: "var(--text-faint)" }}
+    >
+      {timeStr && (
+        <span>
+          {t("today.load.summary").replace("{time}", timeStr)}
+        </span>
+      )}
+      {unestimatedCount > 0 && (
+        <span>
+          {t("today.load.unestimated").replace("{n}", String(unestimatedCount))}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Evening Review Banner ──────────────────────────────────────────────────
 
 function EveningReviewBanner({ onOpen, done }: { onOpen: () => void; done: boolean }) {
@@ -778,6 +815,7 @@ export function TodayPage() {
     <div className="fade-in px-4 sm:px-7 py-6 sm:py-7">
       {/* Morning planning banner — always visible */}
       <PlanningBanner onOpen={() => setPlanningOpen(true)} planned={planned} />
+      <TodayLoadSummary tasks={tasks} locale={locale} />
 
       {/* Weekly planning banner */}
       <WeeklyPlanningBanner onOpen={() => setWeeklyOpen(true)} planned={weeklyPlanned} />

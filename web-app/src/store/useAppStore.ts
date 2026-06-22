@@ -54,12 +54,15 @@ interface AppState {
   /** Whether the user has completed (or skipped) onboarding. */
   onboarded: boolean;
   matrixView: MatrixView;
+  /** Daily focus capacity in minutes. Default 360 (6h). Range 60–720. */
+  dailyCapacityMinutes: number;
   setLocale: (l: Locale) => void;
   setAccent: (a: Accent) => void;
   setDensity: (d: Density) => void;
   setReducedMotion: (b: boolean) => void;
   setOnboarded: (b: boolean) => void;
   setMatrixView: (v: MatrixView) => void;
+  setDailyCapacityMinutes: (m: number) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -71,6 +74,7 @@ export const useAppStore = create<AppState>()(
       reducedMotion: false,
       onboarded: false,
       matrixView: "matrix",
+      dailyCapacityMinutes: 360,
       setLocale: (locale) => set({ locale }),
       setAccent: (accent) => {
         applyAccentTheme(accent);
@@ -80,6 +84,7 @@ export const useAppStore = create<AppState>()(
       setReducedMotion: (reducedMotion) => set({ reducedMotion }),
       setOnboarded: (onboarded) => set({ onboarded }),
       setMatrixView: (matrixView) => set({ matrixView }),
+      setDailyCapacityMinutes: (dailyCapacityMinutes) => set({ dailyCapacityMinutes }),
     }),
     { name: "lumo.app.v1" }
   )
