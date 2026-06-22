@@ -89,6 +89,9 @@
           "today": {
             "type": "boolean"
           },
+          "week_focus": {
+            "type": "boolean"
+          },
           "due": {
             "type": "string",
             "nullable": true
@@ -229,6 +232,7 @@
           "desc",
           "quadrant",
           "today",
+          "week_focus",
           "duration",
           "pomos_done",
           "pomos_total",
@@ -287,6 +291,9 @@
             ]
           },
           "today": {
+            "type": "boolean"
+          },
+          "week_focus": {
             "type": "boolean"
           },
           "due": {
@@ -463,6 +470,9 @@
             ]
           },
           "today": {
+            "type": "boolean"
+          },
+          "week_focus": {
             "type": "boolean"
           },
           "due": {

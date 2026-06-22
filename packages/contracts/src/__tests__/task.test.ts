@@ -16,6 +16,7 @@ const wireTask = {
   desc: { en: "Wire the shared Zod schema" },
   quadrant: "Q1" as const,
   today: true,
+  week_focus: false,
   due: "2026-06-21",
   duration: 30,
   pomos_done: 1,
