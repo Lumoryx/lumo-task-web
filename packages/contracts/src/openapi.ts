@@ -5,6 +5,12 @@ import {
   TaskUpdateBodySchema,
   TaskCompleteResponseSchema,
 } from "./task.js";
+import {
+  PersonWireSchema,
+  PersonCreateBodySchema,
+  PersonUpdateBodySchema,
+} from "./person.js";
+import { ApiErrorSchema } from "./error.js";
 import { LocalizedStringSchema, LongLocalizedStringSchema } from "./primitives.js";
 
 /**
@@ -94,5 +100,21 @@ export function taskComponentSchemas(): Record<string, OpenApiSchema> {
     TaskCreateBody: zodToOpenApi(TaskCreateBodySchema),
     TaskUpdateBody: zodToOpenApi(TaskUpdateBodySchema),
     TaskCompleteResponse: zodToOpenApi(TaskCompleteResponseSchema),
+  };
+}
+
+/** Component schemas generated from the Person contract. */
+export function personComponentSchemas(): Record<string, OpenApiSchema> {
+  return {
+    Person: zodToOpenApi(PersonWireSchema),
+    PersonCreateBody: zodToOpenApi(PersonCreateBodySchema),
+    PersonUpdateBody: zodToOpenApi(PersonUpdateBodySchema),
+  };
+}
+
+/** The shared error envelope, generated from the contract. */
+export function errorComponentSchemas(): Record<string, OpenApiSchema> {
+  return {
+    ApiError: zodToOpenApi(ApiErrorSchema),
   };
 }

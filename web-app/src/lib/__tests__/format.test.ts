@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { fmtScheduledStart, fmtDuration, parseDueISO, getDueLabel, isOverdue, getDueColor } from "@/lib/format";
 
 describe("fmtScheduledStart", () => {
@@ -36,15 +36,35 @@ describe("parseDueISO", () => {
 });
 
 describe("getDueLabel", () => {
-  it("formats ISO date in English", () => {
-    expect(getDueLabel("2026-01-15", "en")).toBe("Jan 15");
-    expect(getDueLabel("2026-06-05", "en")).toBe("Jun 5");
-    expect(getDueLabel("2026-12-31", "en")).toBe("Dec 31");
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-21T10:00:00"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("returns 'Due today' for today's date", () => {
+    expect(getDueLabel("2026-06-21", "en")).toBe("Due today");
+    expect(getDueLabel("2026-06-21", "zh")).toBe("今日到期");
   });
 
-  it("formats ISO date in Chinese", () => {
-    expect(getDueLabel("2026-01-15", "zh")).toBe("1月15日");
-    expect(getDueLabel("2026-06-05", "zh")).toBe("6月5日");
+  it("returns 'Due in N days' for future dates (plural)", () => {
+    expect(getDueLabel("2026-06-24", "en")).toBe("Due in 3 days");
+    expect(getDueLabel("2026-06-24", "zh")).toBe("3 天后到期");
+  });
+
+  it("returns 'Due in 1 day' (singular) for tomorrow", () => {
+    expect(getDueLabel("2026-06-22", "en")).toBe("Due in 1 day");
+    expect(getDueLabel("2026-06-22", "zh")).toBe("1 天后到期");
+  });
+
+  it("returns 'Overdue N days' for past dates (plural)", () => {
+    expect(getDueLabel("2026-06-18", "en")).toBe("Overdue 3 days");
+    expect(getDueLabel("2026-06-18", "zh")).toBe("逾期 3 天");
+  });
+
+  it("returns 'Overdue 1 day' (singular) for yesterday", () => {
+    expect(getDueLabel("2026-06-20", "en")).toBe("Overdue 1 day");
+    expect(getDueLabel("2026-06-20", "zh")).toBe("逾期 1 天");
   });
 
   it("returns null for null input", () => {

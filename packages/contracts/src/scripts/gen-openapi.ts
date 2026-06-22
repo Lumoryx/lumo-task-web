@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { taskComponentSchemas } from "../openapi.js";
+import { taskComponentSchemas, personComponentSchemas, errorComponentSchemas } from "../openapi.js";
 
 /**
  * Emits the contract-generated portion of the OpenAPI document.
@@ -22,7 +22,11 @@ const doc = {
       "edit the contract and re-run `npm run gen:openapi -w @lumo/contracts`.",
   },
   components: {
-    schemas: taskComponentSchemas(),
+    schemas: {
+      ...taskComponentSchemas(),
+      ...personComponentSchemas(),
+      ...errorComponentSchemas(),
+    },
   },
 };
 

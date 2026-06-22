@@ -1,4 +1,5 @@
 import type { CompletedEntry } from "@/types/task";
+import type { QuadrantCount } from "@/utils/stats";
 
 export interface PrevWeekStats {
   tasksCompleted: number;
@@ -7,6 +8,7 @@ export interface PrevWeekStats {
   peakDayIndex: number | null;
   byDay: number[];
   weekLabel: string;
+  quadrantBreakdown: QuadrantCount[];
 }
 
 function startOfWeek(date: Date): Date {
@@ -66,6 +68,19 @@ export function computePrevWeekStats(entries: CompletedEntry[]): PrevWeekStats {
   const startLabel = prevWeekStart.toLocaleDateString("en", { month: "short", day: "numeric" });
   const endLabel = new Date(prevWeekEnd).toLocaleDateString("en", { month: "short", day: "numeric" });
 
+  const quadrantOrder = ["Q1", "Q2", "Q3", "Q4", "unclassified"] as const;
+  const counts: Record<string, number> = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, unclassified: 0 };
+  for (const e of weekEntries) {
+    const q = e.quadrant ?? "unclassified";
+    counts[q] = (counts[q] ?? 0) + 1;
+  }
+  const total = weekEntries.length;
+  const quadrantBreakdown: QuadrantCount[] = quadrantOrder.map((q) => ({
+    quadrant: q,
+    count: counts[q],
+    percent: total > 0 ? Math.round((counts[q] / total) * 100) : 0,
+  }));
+
   return {
     tasksCompleted: weekEntries.length,
     focusMinutes: weekEntries.reduce((s, e) => s + (e.duration ?? 0), 0),
@@ -73,5 +88,6 @@ export function computePrevWeekStats(entries: CompletedEntry[]): PrevWeekStats {
     peakDayIndex,
     byDay,
     weekLabel: `${startLabel} – ${endLabel}`,
+    quadrantBreakdown,
   };
 }

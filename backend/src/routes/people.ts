@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { nanoid } from "nanoid";
+import { PersonCreateBodySchema, PersonUpdateBodySchema, type PersonWire } from "@lumo/contracts";
 import { query, queryOne, execute } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { httpError } from "../lib/errors.js";
@@ -11,14 +11,8 @@ import type { PersonRow } from "../db/rows.js";
 const app = new Hono<{ Variables: Variables }>();
 app.use("/*", authMiddleware);
 
-const PersonBody = z.object({
-  name: z.string().min(1).max(100),
-  initials: z.string().min(1).max(2),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  email: z.string().email().max(255).nullable().optional(),
-});
-
-function rowToPerson(row: PersonRow) {
+// Request/response shapes are owned by @lumo/contracts (Contract-First).
+function rowToPerson(row: PersonRow): PersonWire {
   return {
     id: row.id,
     name: row.name,
@@ -45,7 +39,7 @@ app.get("/", async (c) => {
 });
 
 // POST /people
-app.post("/", zValidator("json", PersonBody), async (c) => {
+app.post("/", zValidator("json", PersonCreateBodySchema), async (c) => {
   const userId = c.get("userId") as string;
   const body = c.req.valid("json");
   const id = "p_" + nanoid(10);
@@ -65,7 +59,7 @@ app.post("/", zValidator("json", PersonBody), async (c) => {
 });
 
 // PATCH /people/:id
-app.patch("/:id", zValidator("json", PersonBody.partial()), async (c) => {
+app.patch("/:id", zValidator("json", PersonUpdateBodySchema), async (c) => {
   const userId = c.get("userId") as string;
   const personId = c.req.param("id");
   const body = c.req.valid("json");

@@ -89,6 +89,9 @@
           "today": {
             "type": "boolean"
           },
+          "week_focus": {
+            "type": "boolean"
+          },
           "due": {
             "type": "string",
             "nullable": true
@@ -229,7 +232,7 @@
           "desc",
           "quadrant",
           "today",
-          "due",
+          "week_focus",
           "duration",
           "pomos_done",
           "pomos_total",
@@ -288,6 +291,9 @@
             ]
           },
           "today": {
+            "type": "boolean"
+          },
+          "week_focus": {
             "type": "boolean"
           },
           "due": {
@@ -466,6 +472,9 @@
           "today": {
             "type": "boolean"
           },
+          "week_focus": {
+            "type": "boolean"
+          },
           "due": {
             "type": "string",
             "nullable": true
@@ -610,6 +619,102 @@
         "required": [
           "ok",
           "entry_id"
+        ]
+      },
+      "Person": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "initials",
+          "color",
+          "email",
+          "created_at"
+        ]
+      },
+      "PersonCreateBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "initials",
+          "color"
+        ]
+      },
+      "PersonUpdateBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "initials": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
         ]
       }
     }
