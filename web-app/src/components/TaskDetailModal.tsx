@@ -10,6 +10,7 @@ import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, fmtScheduledStart, getDueLabel, getDueColor } from "@/lib/format";
 import { toast } from "@/store/useToastStore";
+import { getFocusLogs } from "@/components/FocusSessionSummaryDrawer";
 import type { Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
@@ -423,6 +424,9 @@ export function TaskDetailModal({ task, onClose }: Props) {
           </div>
         )}
 
+        {/* Focus session logs */}
+        <FocusSessionHistory taskId={liveTask.id} t={t} />
+
         {/* Divider */}
         <div style={{ height: 1, background: "var(--border-faint)", margin: "0 0" }} />
 
@@ -457,6 +461,39 @@ export function TaskDetailModal({ task, onClose }: Props) {
       </div>
     </div>,
     document.body
+  );
+}
+
+function FocusSessionHistory({ taskId, t }: { taskId: string; t: (key: string) => string }) {
+  const logs = getFocusLogs(taskId).slice().reverse().slice(0, 5);
+  if (logs.length === 0) return null;
+  return (
+    <div className="mx-5 mb-4">
+      <div
+        className="text-[11px] font-semibold uppercase tracking-[0.08em] mb-2"
+        style={{ color: "var(--text-faint)" }}
+      >
+        {t("focus.session.logs.title")}
+      </div>
+      {logs.map((log, i) => (
+        <div key={i} className="flex gap-2.5 py-1.5 border-b last:border-b-0" style={{ borderColor: "var(--border-faint)" }}>
+          <span
+            className="text-[10px] tabular-nums flex-shrink-0 mt-0.5"
+            style={{ color: "var(--text-faint)", minWidth: 72 }}
+          >
+            {new Date(log.ts).toLocaleString(undefined, {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+          <span className="text-[12px] leading-snug" style={{ color: "var(--text-secondary)" }}>
+            {log.text}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 

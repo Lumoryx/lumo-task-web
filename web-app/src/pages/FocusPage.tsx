@@ -9,6 +9,7 @@ import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 import { useNotificationStore } from "@/store/useNotificationStore";
+import { FocusSessionSummaryDrawer, saveFocusLog } from "@/components/FocusSessionSummaryDrawer";
 
 const DEFAULT_DURATION = 25 * 60;
 
@@ -24,6 +25,7 @@ export function FocusPage() {
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
+  const update = useTasksStore((s) => s.update);
 
   // Use the task the user explicitly started focus on (passed via router state).
   // When navigating directly to /focus without a taskId, show the empty landing page.
@@ -47,6 +49,9 @@ export function FocusPage() {
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [timerKey, setTimerKey] = useState(0);
+  const [showSummary, setShowSummary] = useState(false);
+  const summaryTrigger = useRef<"timer" | "complete" | "exit">("timer");
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const notificationsEnabled = useNotificationStore((s) => s.enabled);
   const localeRef = useRef(locale);
@@ -73,9 +78,10 @@ export function FocusPage() {
   }, []);
 
   // Start/restart timer when the task (and its duration) becomes known.
+  // timerKey is incremented by "Start another round" to force a restart.
   useEffect(() => {
     if (!task) return;
-    const key = `${task.id}:${taskDuration}`;
+    const key = `${task.id}:${taskDuration}:${timerKey}`;
     if (startedForRef.current === key) return;
     startedForRef.current = key;
 
@@ -109,9 +115,11 @@ export function FocusPage() {
             usePetStore.getState().celebrate(`pet.streak.${currentStreak}`);
           }
         }).catch(() => {});
+        summaryTrigger.current = "timer";
+        setShowSummary(true);
       }
     }, 1000);
-  }, [task?.id, taskDuration]);
+  }, [task?.id, taskDuration, timerKey]);
 
   // Keep pausedRef in sync so the interval callback reads the latest value.
   useEffect(() => {
@@ -239,6 +247,32 @@ export function FocusPage() {
     if (compact) exitCompact();
     if (task) await complete(task.id);
     navigate("/today");
+  }
+
+  async function handleSummaryEndFocus({ accomplished, nextStep }: { accomplished: string; nextStep: string }) {
+    if (accomplished.trim() && task) saveFocusLog(task.id, accomplished);
+    if (nextStep.trim() && task) {
+      try {
+        await update(task.id, { next_step: { en: nextStep.trim() } });
+      } catch {
+        // best-effort
+      }
+    }
+    setShowSummary(false);
+    if (summaryTrigger.current === "complete" && task) {
+      await complete(task.id).catch(() => {});
+    }
+    navigate("/today");
+  }
+
+  function handleSummaryStartAnother(accomplished: string) {
+    if (accomplished.trim() && task) saveFocusLog(task.id, accomplished);
+    setShowSummary(false);
+    setTimerKey((k) => k + 1);
+  }
+
+  function handleSummarySkip() {
+    setShowSummary(false);
   }
 
   // ── Compact pet widget (Electron only) ──────────────────────────────────────
@@ -397,7 +431,11 @@ export function FocusPage() {
             🐕 {t("focus.compact.enter")}
           </button>
         )}
-        <button className="btn btn-ghost" style={{ height: 30 }} onClick={() => navigate("/today")}>
+        <button
+          className="btn btn-ghost"
+          style={{ height: 30 }}
+          onClick={() => { summaryTrigger.current = "exit"; setShowSummary(true); }}
+        >
           <IconArrowLeft size={14} />
           {t("focus.exit")}
         </button>
@@ -463,7 +501,7 @@ export function FocusPage() {
           <div className="flex flex-col items-center gap-2 mt-3 pointer-events-auto">
             {/* Primary: Mark complete */}
             <button
-              onClick={onComplete}
+              onClick={() => { summaryTrigger.current = "complete"; setShowSummary(true); }}
               className="flex items-center gap-2 rounded-full transition-all text-sm font-semibold"
               style={{
                 padding: "11px 36px",
@@ -499,6 +537,15 @@ export function FocusPage() {
           </div>
         </div>
       </div>
+
+      {showSummary && task && (
+        <FocusSessionSummaryDrawer
+          task={task}
+          onEndFocus={handleSummaryEndFocus}
+          onStartAnother={handleSummaryStartAnother}
+          onSkip={handleSummarySkip}
+        />
+      )}
     </div>
   );
 }
