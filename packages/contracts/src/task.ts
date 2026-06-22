@@ -33,6 +33,14 @@ const SubtaskSchema = z.object({
   completed: z.boolean(),
 });
 
+export const FocusLogEntrySchema = z.object({
+  id: z.string(),
+  what_done: z.string(),
+  created_at: z.string(),
+});
+
+export type FocusLogEntry = z.infer<typeof FocusLogEntrySchema>;
+
 const NotNowItemSchema = z.object({
   id: z.string(),
   reason: LocalizedStringSchema,
@@ -66,6 +74,22 @@ export const TaskCreateBodySchema = z.object({
 
 export const TaskUpdateBodySchema = TaskCreateBodySchema.partial();
 
+// ── Focus session capture ─────────────────────────────────────────────────────
+// POST /focus/capture — record what was done + optionally update next_step
+
+export const FocusSessionCaptureBodySchema = z.object({
+  task_id: z.string().min(1).max(50),
+  what_done: z.string().max(2000).optional(),
+  next_step: z.string().max(2000).optional(),
+});
+
+export const FocusSessionCaptureResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
+export type FocusSessionCaptureBody = z.infer<typeof FocusSessionCaptureBodySchema>;
+export type FocusSessionCaptureResponse = z.infer<typeof FocusSessionCaptureResponseSchema>;
+
 // ── Wire response ─────────────────────────────────────────────────────────────
 
 export const TaskWireSchema = z.object({
@@ -91,6 +115,7 @@ export const TaskWireSchema = z.object({
   scheduled_start: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
+  focus_logs: z.array(FocusLogEntrySchema).default([]),
 });
 
 // ── Complete-task response ────────────────────────────────────────────────────
@@ -161,4 +186,6 @@ export interface Task {
   created_at?: string;
   /** ISO 8601 server timestamp — last write (edit, AI classify, focus). Read-only. Powers Q2 stagnation. */
   updated_at?: string;
+  /** Focus session log entries — each entry records what was done in a pomodoro. */
+  focus_logs?: FocusLogEntry[];
 }

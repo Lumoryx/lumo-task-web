@@ -9,7 +9,7 @@
 
 import { create } from "zustand";
 import { api } from "@/api/client";
-import type { CompletedEntry, Subtask, Task, TaskCompleteResponse, TaskCreateInput, TaskUpdateInput } from "@/types/task";
+import type { CompletedEntry, FocusLogEntry, Subtask, Task, TaskCompleteResponse, TaskCreateInput, TaskUpdateInput } from "@/types/task";
 import { toast } from "@/store/useToastStore";
 import { t } from "@/i18n/useT";
 import { usePetStore } from "@/store/usePetStore";
@@ -40,6 +40,7 @@ interface TasksState {
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
   breakdownSubtasks: (taskId: string, locale?: string) => Promise<{ subtasks: string[]; cloudLimitReached: boolean }>;
+  captureSession: (taskId: string, body: { whatDone?: string; nextStep?: string }) => Promise<void>;
 }
 
 export const useTasksStore = create<TasksState>((set, get) => ({
@@ -195,5 +196,40 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
   async breakdownSubtasks(taskId, locale) {
     return api.breakdownSubtasks(taskId, locale);
+  },
+
+  async captureSession(taskId, { whatDone, nextStep }) {
+    const body: { task_id: string; what_done?: string; next_step?: string } = { task_id: taskId };
+    if (whatDone && whatDone.trim()) body.what_done = whatDone.trim();
+    if (nextStep !== undefined) body.next_step = nextStep;
+    try {
+      await api.captureSession(body);
+      // Update local state optimistically: next_step + append log entry
+      const now = new Date().toISOString();
+      set({
+        tasks: get().tasks.map((tk) => {
+          if (tk.id !== taskId) return tk;
+          const updatedTask: Task = { ...tk };
+          if (nextStep !== undefined && nextStep.trim()) {
+            updatedTask.next_step = { en: nextStep.trim(), zh: nextStep.trim() };
+          } else if (nextStep === "") {
+            updatedTask.next_step = undefined;
+          }
+          if (whatDone && whatDone.trim()) {
+            const newLog: FocusLogEntry = {
+              id: `fl_optimistic_${Date.now()}`,
+              what_done: whatDone.trim(),
+              created_at: now,
+            };
+            updatedTask.focus_logs = [...(tk.focus_logs ?? []), newLog];
+          }
+          return updatedTask;
+        }),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(t("error.focus.capture"), msg);
+      throw e;
+    }
   },
 }));

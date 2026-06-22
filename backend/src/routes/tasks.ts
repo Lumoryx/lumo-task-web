@@ -67,6 +67,7 @@ function rowToTask(row: TaskRow): TaskWire {
     scheduled_start: row.scheduled_start ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    focus_logs: safeParse<unknown[]>(row.focus_logs_json, []),
   });
 }
 

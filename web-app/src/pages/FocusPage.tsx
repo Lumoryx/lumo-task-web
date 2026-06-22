@@ -9,6 +9,7 @@ import { computeAllTimeStats } from "@/utils/stats";
 import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 import { useNotificationStore } from "@/store/useNotificationStore";
+import { FocusExitCaptureCard } from "@/components/FocusExitCaptureCard";
 
 const DEFAULT_DURATION = 25 * 60;
 
@@ -24,6 +25,7 @@ export function FocusPage() {
   const locale = useAppStore((s) => s.locale);
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
+  const captureSession = useTasksStore((s) => s.captureSession);
 
   // Use the task the user explicitly started focus on (passed via router state).
   // When navigating directly to /focus without a taskId, show the empty landing page.
@@ -47,6 +49,8 @@ export function FocusPage() {
   const [petBounce, setPetBounce] = useState(false);
   const [timerReady, setTimerReady] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [captureIntent, setCaptureIntent] = useState<"complete" | "timer" | "exit" | null>(null);
+  const [timerRound, setTimerRound] = useState(0);
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const notificationsEnabled = useNotificationStore((s) => s.enabled);
   const localeRef = useRef(locale);
@@ -73,9 +77,10 @@ export function FocusPage() {
   }, []);
 
   // Start/restart timer when the task (and its duration) becomes known.
+  // timerRound increments on "Start next round" to force a restart.
   useEffect(() => {
     if (!task) return;
-    const key = `${task.id}:${taskDuration}`;
+    const key = `${task.id}:${taskDuration}:${timerRound}`;
     if (startedForRef.current === key) return;
     startedForRef.current = key;
 
@@ -109,9 +114,11 @@ export function FocusPage() {
             usePetStore.getState().celebrate(`pet.streak.${currentStreak}`);
           }
         }).catch(() => {});
+        // Show exit capture card after timer ends
+        setTimeout(() => setCaptureIntent("timer"), 800);
       }
     }, 1000);
-  }, [task?.id, taskDuration]);
+  }, [task?.id, taskDuration, timerRound]);
 
   // Keep pausedRef in sync so the interval callback reads the latest value.
   useEffect(() => {
@@ -235,10 +242,41 @@ export function FocusPage() {
   const progress = taskDuration > 0 ? (taskDuration - remaining) / taskDuration : 0;
   const turns = -90 + progress * 360;
 
-  async function onComplete() {
+  function onComplete() {
     if (compact) exitCompact();
-    if (task) await complete(task.id);
-    navigate("/today");
+    setCaptureIntent("complete");
+  }
+
+  async function handleCaptureSubmit(
+    data: { whatDone: string; nextStep: string },
+    action: "next_round" | "end"
+  ) {
+    if (task) {
+      await captureSession(task.id, {
+        whatDone: data.whatDone,
+        nextStep: data.nextStep,
+      });
+    }
+
+    if (action === "next_round") {
+      setCaptureIntent(null);
+      setTimerRound((r) => r + 1);
+    } else {
+      if (captureIntent === "complete" && task) {
+        await complete(task.id);
+      }
+      navigate("/today");
+    }
+  }
+
+  function handleCaptureSkip() {
+    const intent = captureIntent;
+    setCaptureIntent(null);
+    if (intent === "complete" && task) {
+      complete(task.id).catch(() => {}).finally(() => navigate("/today"));
+    } else {
+      navigate("/today");
+    }
   }
 
   // ── Compact pet widget (Electron only) ──────────────────────────────────────
@@ -397,11 +435,20 @@ export function FocusPage() {
             🐕 {t("focus.compact.enter")}
           </button>
         )}
-        <button className="btn btn-ghost" style={{ height: 30 }} onClick={() => navigate("/today")}>
+        <button className="btn btn-ghost" style={{ height: 30 }} onClick={() => setCaptureIntent("exit")}>
           <IconArrowLeft size={14} />
           {t("focus.exit")}
         </button>
       </header>
+
+      {/* Session exit capture card */}
+      {captureIntent !== null && (
+        <FocusExitCaptureCard
+          intent={captureIntent}
+          onSubmit={handleCaptureSubmit}
+          onSkip={handleCaptureSkip}
+        />
+      )}
 
       {/* Atmosphere + countdown */}
       <div className="flex-1 flex items-center justify-center relative min-h-0">

@@ -38,6 +38,7 @@ export interface TaskRow {
   recurrence: string;
   subtasks_json: string | null;
   scheduled_start: string | null;
+  focus_logs_json: string | null;
   created_at: string;
   updated_at: string;
 }

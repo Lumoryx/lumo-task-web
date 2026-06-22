@@ -25,6 +25,9 @@ import type {
   Person,
   PersonCreateInput,
   PersonUpdateInput,
+  FocusLogEntry,
+  FocusSessionCaptureBody,
+  FocusSessionCaptureResponse,
 } from "@lumo/contracts";
 
 export type {
@@ -40,6 +43,9 @@ export type {
   Person,
   PersonCreateInput,
   PersonUpdateInput,
+  FocusLogEntry,
+  FocusSessionCaptureBody,
+  FocusSessionCaptureResponse,
 };
 
 export type Locale = "en" | "zh";

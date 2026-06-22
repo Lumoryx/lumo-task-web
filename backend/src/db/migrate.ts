@@ -296,6 +296,12 @@ export async function runMigrations() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // Migrate: focus session logs stored as JSON array in the tasks table
+  const taskColsFocusLogs = await query<{ name: string }>("PRAGMA table_info(tasks)");
+  if (!taskColsFocusLogs.some((c) => c.name === "focus_logs_json")) {
+    await execRaw("ALTER TABLE tasks ADD COLUMN focus_logs_json TEXT NOT NULL DEFAULT '[]'");
+  }
 }
 
 // When run directly as a script
