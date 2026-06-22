@@ -166,7 +166,10 @@ export function FocusPage() {
     // Update next_step if provided
     if (nextStep.trim() && task) {
       try {
-        await update(task.id, { next_step: { [locale]: nextStep.trim() } });
+        const nextStepLS = locale === "zh"
+          ? { en: task.next_step?.en ?? "", zh: nextStep.trim() }
+          : { en: nextStep.trim() };
+        await update(task.id, { next_step: nextStepLS });
       } catch {
         // best-effort
       }
