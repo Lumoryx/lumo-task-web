@@ -22,6 +22,9 @@ import type {
   TaskUpdateInput,
   TaskCompleteResponse,
   BreakdownResponse,
+  Person,
+  PersonCreateInput,
+  PersonUpdateInput,
 } from "@lumo/contracts";
 
 export type {
@@ -34,20 +37,12 @@ export type {
   TaskUpdateInput,
   TaskCompleteResponse,
   BreakdownResponse,
+  Person,
+  PersonCreateInput,
+  PersonUpdateInput,
 };
 
 export type Locale = "en" | "zh";
-
-/** A person who can be assigned to tasks. */
-export interface Person {
-  id: string;
-  name: string;
-  /** 1–2 character initials shown in the avatar bubble. */
-  initials: string;
-  /** Hex color for the avatar background. */
-  color: string;
-  email?: string;
-}
 
 export interface CompletedEntry {
   id: string;

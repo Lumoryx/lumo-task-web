@@ -15,7 +15,7 @@ CONTRACTS := packages/contracts
 .DEFAULT_GOAL := dev
 .PHONY: dev install build preview typecheck lint ci clean reset \
         backend-install backend-build backend-dev backend-migrate backend-seed \
-        backend-ci contracts-build contracts-ci \
+        backend-ci contracts-build contracts-ci web-test \
         dev-full package-win \
         test-integration test-integration-backend test-integration-web test-integration-electron \
         help
@@ -71,11 +71,15 @@ contracts-build: $(CONTRACTS)/node_modules        ## Build @lumo/contracts → d
 contracts-ci: $(CONTRACTS)/node_modules           ## Typecheck + test + build the contract package
 	cd $(CONTRACTS) && npm run typecheck && npm test && npm run build
 
-backend-ci: $(BACKEND)/node_modules contracts-build  ## Backend typecheck + tests (incl. contract conformance)
-	cd $(BACKEND) && npm run typecheck && npm test
+backend-ci: $(BACKEND)/node_modules contracts-build  ## Backend typecheck + unit + security + standards (incl. contract conformance)
+	cd $(BACKEND) && npm run typecheck && npm run test:coverage && npm run test:security && npm run test:standards
+
+# Frontend unit/standards tests (Vitest) — separate from Playwright E2E.
+web-test: $(APP)/node_modules contracts-build   ## Frontend unit + standards tests (Vitest)
+	cd $(APP) && npm test
 
 # Full gate: contract → backend → frontend. Catches front/back protocol drift.
-ci: contracts-ci backend-ci typecheck lint build   ## Run all CI checks locally (mirrors GitHub Actions)
+ci: contracts-ci backend-ci typecheck lint web-test build   ## Run all CI checks locally (mirrors GitHub Actions)
 	@echo ""
 	@echo ">>> All CI checks passed (contracts + backend + web-app)."
 
