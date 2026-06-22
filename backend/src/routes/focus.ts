@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { nanoid } from "nanoid";
 import { queryOne, query, execute } from "../db/client.js";
 import { authMiddleware } from "../middleware/auth.js";
