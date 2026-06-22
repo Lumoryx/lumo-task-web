@@ -10,7 +10,6 @@ import { fmtDuration, fmtMMSS } from "@/lib/format";
 import { DogSvg } from "@/components/DogSvg";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { FocusSessionCaptureCard } from "@/components/FocusSessionCaptureCard";
-import { api } from "@/api/client";
 
 const DEFAULT_DURATION = 25 * 60;
 
@@ -27,6 +26,7 @@ export function FocusPage() {
   const tasks = useTasksStore((s) => s.tasks);
   const complete = useTasksStore((s) => s.complete);
   const update = useTasksStore((s) => s.update);
+  const logFocusSession = useTasksStore((s) => s.logFocusSession);
 
   // Use the task the user explicitly started focus on (passed via router state).
   // When navigating directly to /focus without a taskId, show the empty landing page.
@@ -155,7 +155,7 @@ export function FocusPage() {
 
     // Log the focus session with optional notes
     if (task) {
-      api.logFocusSession({
+      logFocusSession({
         taskId: task.id,
         duration: elapsed,
         startedAt: sessionStartRef.current,
@@ -166,7 +166,7 @@ export function FocusPage() {
     // Update next_step if provided
     if (nextStep.trim() && task) {
       try {
-        await update(task.id, { next_step: { en: nextStep.trim() } });
+        await update(task.id, { next_step: { [locale]: nextStep.trim() } });
       } catch {
         // best-effort
       }

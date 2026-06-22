@@ -10,7 +10,6 @@ import { PersonAvatar } from "@/pages/SettingsPage";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { fmtDuration, fmtScheduledStart, getDueLabel, getDueColor } from "@/lib/format";
 import { toast } from "@/store/useToastStore";
-import { api } from "@/api/client";
 import type { FocusLogEntry, Subtask, Task } from "@/types/task";
 
 const Q_COLOR: Record<string, string> = {
@@ -52,6 +51,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const toggleSubtask = useTasksStore((s) => s.toggleSubtask);
   const deleteSubtask = useTasksStore((s) => s.deleteSubtask);
   const breakdownSubtasks = useTasksStore((s) => s.breakdownSubtasks);
+  const getFocusLogs = useTasksStore((s) => s.getFocusLogs);
   const liveTask = useTasksStore((s) => s.tasks.find((tk) => tk.id === task.id) ?? task);
   const byId = usePeopleStore((s) => s.byId);
   const [editOpen, setEditOpen] = useState(false);
@@ -63,8 +63,8 @@ export function TaskDetailModal({ task, onClose }: Props) {
   const [focusLogs, setFocusLogs] = useState<FocusLogEntry[]>([]);
 
   useEffect(() => {
-    api.getFocusLogs(task.id).then(setFocusLogs).catch(() => {});
-  }, [task.id]);
+    getFocusLogs(task.id).then(setFocusLogs).catch(() => {});
+  }, [task.id, getFocusLogs]);
 
   const assignees = (liveTask.assignee_ids ?? []).map(byId).filter(Boolean) as import("@/types/task").Person[];
   const due = getDueLabel(liveTask.due, locale);

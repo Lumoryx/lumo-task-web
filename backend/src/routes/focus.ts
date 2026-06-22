@@ -50,33 +50,38 @@ app.post("/sessions", focusRateLimit, zValidator("json", FocusSessionBodySchema)
 });
 
 // GET /focus/logs/:taskId — focus session history for a task (entries with notes)
-app.get("/logs/:taskId", zValidator("param", z.object({ taskId: z.string() })), async (c) => {
+app.get("/logs/:taskId", focusRateLimit, zValidator("param", z.object({ taskId: z.string() })), async (c) => {
   const userId = c.get("userId") as string;
   const { taskId } = c.req.valid("param");
 
-  const task = await queryOne<{ id: string }>(
-    "SELECT id FROM tasks WHERE id = :id AND user_id = :uid",
-    { id: taskId, uid: userId }
-  );
-  if (!task) return httpError(c, 404, "NOT_FOUND", "Not found");
+  try {
+    const task = await queryOne<{ id: string }>(
+      "SELECT id FROM tasks WHERE id = :id AND user_id = :uid",
+      { id: taskId, uid: userId }
+    );
+    if (!task) return httpError(c, 404, "NOT_FOUND", "Not found");
 
-  const logs = await query<{
-    id: string;
-    task_id: string | null;
-    duration: number;
-    notes: string | null;
-    completed_at: string;
-    started_at: string | null;
-  }>(
-    `SELECT id, task_id, duration, notes, completed_at, started_at
-     FROM completed_entries
-     WHERE task_id = :task_id AND user_id = :uid AND notes IS NOT NULL
-     ORDER BY completed_at DESC
-     LIMIT 50`,
-    { task_id: taskId, uid: userId }
-  );
+    const logs = await query<{
+      id: string;
+      task_id: string | null;
+      duration: number;
+      notes: string | null;
+      completed_at: string;
+      started_at: string | null;
+    }>(
+      `SELECT id, task_id, duration, notes, completed_at, started_at
+       FROM completed_entries
+       WHERE task_id = :task_id AND user_id = :uid AND notes IS NOT NULL
+       ORDER BY completed_at DESC
+       LIMIT 50`,
+      { task_id: taskId, uid: userId }
+    );
 
-  return c.json({ logs });
+    return c.json({ logs });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return httpError(c, 500, "INTERNAL_ERROR", msg);
+  }
 });
 
 export default app;
